@@ -1,0 +1,26 @@
+# Logs
+*.log
+
+# compiled output
+dist
+node_modules
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Working docs
+TASKS.md
+TODOs.md
+TASKS_GMAIL_ATTACHEMENT_DOWNLOAD.md
+DATABASE_NORMALIZATION.md
+FRONTEND_ENHANCEMENTS.md
+
+# Other stuff
+client_*.json
+/scripts/dmarc_reports
+/backend/reports
+/material/data

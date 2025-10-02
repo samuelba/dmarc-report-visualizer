@@ -1,0 +1,109 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dmarc-postgres-dev
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-dmarc}
+    volumes:
+      - dmarc_postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - dmarc-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: dmarc-backend-dev
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Application Configuration
+      NODE_ENV: development
+      PORT: ${PORT:-3000}
+
+      # Database Configuration
+      DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      DATABASE_NAME: ${DATABASE_NAME:-dmarc}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
+
+      # CORS Configuration
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+
+      # File Watcher Configuration
+      ENABLE_FILE_WATCHER: ${ENABLE_FILE_WATCHER:-false}
+      FILE_WATCH_DIR: ${FILE_WATCH_DIR:-reports/incoming}
+      FILE_WATCH_DELETE_PROCESSED: ${FILE_WATCH_DELETE_PROCESSED:-true}
+      FILE_WATCH_VERBOSE: ${FILE_WATCH_VERBOSE:-false}
+
+      # Gmail Downloader Configuration
+      ENABLE_GMAIL_DOWNLOADER: ${ENABLE_GMAIL_DOWNLOADER:-false}
+      GMAIL_AUTH_MODE: ${GMAIL_AUTH_MODE:-oauth}
+
+      # Gmail OAuth Configuration
+      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-}
+      GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-}
+      GMAIL_OAUTH_REFRESH_TOKEN: ${GMAIL_OAUTH_REFRESH_TOKEN:-}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost}
+
+      # Gmail Service Account Configuration
+      GMAIL_CLIENT_EMAIL: ${GMAIL_CLIENT_EMAIL:-}
+      GMAIL_PRIVATE_KEY: ${GMAIL_PRIVATE_KEY:-}
+      GMAIL_DELEGATED_USER: ${GMAIL_DELEGATED_USER:-}
+      GMAIL_CREDENTIALS_JSON_PATH: ${GMAIL_CREDENTIALS_JSON_PATH:-}
+
+      # Gmail Labels Configuration
+      GMAIL_LABEL: ${GMAIL_LABEL:-DMARC Reports}
+      GMAIL_PROCESSED_LABEL: ${GMAIL_PROCESSED_LABEL:-DMARC Processed}
+      GMAIL_FAILED_LABEL: ${GMAIL_FAILED_LABEL:-DMARC Failed}
+
+      # Gmail Processing Configuration
+      GMAIL_POLL_INTERVAL_MS: ${GMAIL_POLL_INTERVAL_MS:-300000}
+      GMAIL_LIST_PAGE_SIZE: ${GMAIL_LIST_PAGE_SIZE:-100}
+      GMAIL_QUERY: ${GMAIL_QUERY:-has:attachment newer_than:5d -label:"DMARC Processed"}
+      GMAIL_PROCESS_INLINE: ${GMAIL_PROCESS_INLINE:-true}
+      GMAIL_SAVE_ORIGINAL: ${GMAIL_SAVE_ORIGINAL:-false}
+      GMAIL_REMOVE_SOURCE_LABEL: ${GMAIL_REMOVE_SOURCE_LABEL:-true}
+      GMAIL_FAILURE_THRESHOLD: ${GMAIL_FAILURE_THRESHOLD:-3}
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./reports:/app/reports  # Mount reports directory for file watching
+    networks:
+      - dmarc-network
+    command: npm run start:dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: dmarc-frontend-dev
+    ports:
+      - "4200:4200"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - dmarc-network
+    command: npm run start
+
+networks:
+  dmarc-network:
+    driver: bridge
+
+volumes:
+  dmarc_postgres_data_dev:

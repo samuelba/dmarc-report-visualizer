@@ -1,0 +1,16 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+.angular
+
+# Coverage
+coverage
+
+# IDE
+.idea
+.vscode
+
+# Misc
+*.log

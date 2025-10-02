@@ -1,0 +1,13 @@
+<mat-toolbar color="primary" class="app-toolbar">
+  <span class="brand">{{ title() }}</span>
+  <span class="spacer"></span>
+  <a mat-button routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }"
+    >Dashboard</a
+  >
+  <a mat-button routerLink="/explore" routerLinkActive="active-link">Explore</a>
+  <a mat-button routerLink="/reports" routerLinkActive="active-link">Reports</a>
+  <a mat-button routerLink="/upload" routerLinkActive="active-link">Upload</a>
+  <app-theme-toggle></app-theme-toggle>
+</mat-toolbar>
+
+<router-outlet />

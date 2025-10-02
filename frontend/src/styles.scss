@@ -1,0 +1,412 @@
+@use '@angular/material' as mat;
+
+@include mat.core();
+
+// Define color palettes
+$primary: mat.m2-define-palette(mat.$m2-blue-palette, 600);
+$accent: mat.m2-define-palette(mat.$m2-green-palette, 500);
+$warn: mat.m2-define-palette(mat.$m2-red-palette, 500);
+
+// Light theme
+$light-theme: mat.m2-define-light-theme(
+  (
+    color: (
+      primary: $primary,
+      accent: $accent,
+      warn: $warn,
+    ),
+  )
+);
+
+// Dark theme
+$dark-theme: mat.m2-define-dark-theme(
+  (
+    color: (
+      primary: $primary,
+      accent: $accent,
+      warn: $warn,
+    ),
+  )
+);
+
+// Apply light theme by default
+@include mat.all-component-themes($light-theme);
+
+// Dark theme styles
+.dark-theme {
+  @include mat.all-component-colors($dark-theme);
+}
+
+// Global styles
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+}
+
+// Light theme styles
+.light-theme {
+  background-color: #fafafa;
+  color: #333;
+
+  // Custom component backgrounds
+  .dashboard-content {
+    background-color: #f5f5f5;
+  }
+
+  .explore {
+    background-color: #ffffff;
+  }
+
+  // Card backgrounds
+  mat-card {
+    background-color: #ffffff;
+    color: #333;
+  }
+
+  // Table backgrounds
+  .mat-mdc-table {
+    background-color: #ffffff;
+  }
+
+  .mat-mdc-row:hover {
+    background-color: #f5f5f5;
+  }
+
+  // Form field backgrounds
+  .mat-mdc-form-field {
+    .mat-mdc-form-field-flex {
+      background-color: #ffffff;
+    }
+  }
+
+  // Toolbar
+  .app-toolbar {
+    background-color: mat.get-theme-color($light-theme, primary, 600) !important;
+  }
+}
+
+// Dark theme styles
+.dark-theme {
+  background-color: #121212;
+  color: #e0e0e0;
+
+  // Custom component backgrounds
+  .dashboard-content {
+    background-color: #121212;
+  }
+
+  .explore {
+    background-color: #121212;
+  }
+
+  // Card backgrounds - higher contrast
+  mat-card {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #404040;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  // Table backgrounds
+  .mat-mdc-table {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #404040;
+  }
+
+  .mat-mdc-row:hover {
+    background-color: #3a3a3a;
+  }
+
+  .mat-mdc-header-row {
+    background-color: #3a3a3a;
+  }
+
+  // Form field backgrounds
+  .mat-mdc-form-field {
+    .mat-mdc-form-field-flex {
+      background-color: #2d2d2d;
+      border: none; // rely on notched outline border to avoid double border
+    }
+
+    // Style the actual text field wrapper (where the dropdown background should be)
+    .mat-mdc-text-field-wrapper {
+      background-color: #2d2d2d !important;
+    }
+
+    .mat-mdc-form-field-outline {
+      color: #666;
+    }
+
+    // Fix the notched outline parts
+    .mdc-notched-outline {
+      .mdc-notched-outline__leading,
+      .mdc-notched-outline__notch,
+      .mdc-notched-outline__trailing {
+        border-color: #404040 !important;
+        background-color: transparent !important; // Don't cover the arrow
+      }
+    }
+
+    // Ensure notch left border matches outline (avoid transparent seam) - high specificity to override Material defaults
+    &.mat-mdc-form-field.mat-mdc-form-field.mat-mdc-form-field.mat-mdc-form-field.mat-mdc-form-field.mat-mdc-form-field
+      .mdc-notched-outline__notch {
+      border-left: 0px solid #404040 !important;
+    }
+
+    // Remove any default borders from the outline
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: #404040 !important;
+      background-color: #2d2d2d !important;
+    }
+
+    // Form field infix (inner content area)
+    .mat-mdc-form-field-infix {
+      background-color: #2d2d2d !important;
+    }
+
+    // Remove focus overlay tint that can create mismatched shades
+    .mat-mdc-form-field-focus-overlay {
+      background: transparent !important;
+    }
+  }
+
+  // Input backgrounds
+  .mat-mdc-input-element {
+    color: #e0e0e0;
+  }
+
+  // Select backgrounds
+  .mat-mdc-select-value {
+    color: #e0e0e0;
+  }
+
+  // Make the select arrow visible in dark mode - override currentColor
+  .mat-mdc-select-arrow-wrapper {
+    opacity: 1 !important;
+    color: #e0e0e0 !important; // Set currentColor context
+  }
+
+  .mat-mdc-select-arrow {
+    opacity: 1 !important;
+    color: #e0e0e0 !important; // Set currentColor context
+  }
+
+  .mat-mdc-select-arrow svg {
+    fill: #e0e0e0 !important; // Override currentColor
+    color: #e0e0e0 !important;
+    opacity: 1 !important;
+  }
+
+  .mat-mdc-select-arrow svg path {
+    fill: #e0e0e0 !important; // Override currentColor
+    stroke: #e0e0e0 !important;
+  }
+
+  // Also ensure the select trigger has the right color for currentColor inheritance
+  .mat-mdc-select-trigger {
+    color: #e0e0e0 !important;
+  }
+
+  // Dark mode for IP cell code elements
+  .ip-cell code {
+    background-color: #404040 !important;
+    color: #e0e0e0 !important;
+  }
+
+  // Select dropdown panel
+  .mat-mdc-select-panel {
+    background-color: #2d2d2d !important;
+    border: 1px solid #404040 !important;
+  }
+
+  // Select options
+  .mat-mdc-option {
+    background-color: #2d2d2d !important;
+    color: #e0e0e0 !important;
+  }
+
+  .mat-mdc-option:hover {
+    background-color: #3a3a3a !important;
+  }
+
+  .mat-mdc-option.mdc-list-item--selected {
+    background-color: #404040 !important;
+  }
+
+  // Dropdown overlay
+  .cdk-overlay-pane {
+    .mat-mdc-select-panel {
+      background-color: #2d2d2d !important;
+    }
+  }
+
+  // Toolbar
+  .app-toolbar {
+    background-color: #1e1e1e !important;
+  }
+
+  // Spinner
+  .mat-mdc-progress-spinner circle {
+    stroke: #e0e0e0;
+  }
+
+  // Buttons
+  .mat-mdc-button {
+    color: #e0e0e0;
+  }
+
+  // Icons
+  .mat-icon {
+    color: #e0e0e0;
+  }
+
+  // Detail content
+  .detail-content {
+    background-color: #3a3a3a !important;
+    color: #e0e0e0;
+    border-top: 1px solid #555 !important;
+  }
+
+  .detail-section h4 {
+    color: #e0e0e0 !important;
+    border-bottom: 1px solid #555 !important;
+  }
+
+  // Chart backgrounds
+  .chart {
+    background-color: #2d2d2d;
+    border: 1px solid #404040;
+    border-radius: 4px;
+  }
+
+  // Loading container
+  .loading-container {
+    color: #e0e0e0;
+  }
+
+  // No issues state
+  .no-issues {
+    color: #4caf50;
+  }
+
+  // Country items
+  .country-item {
+    background-color: #3a3a3a !important;
+    border: 1px solid #4a4a4a !important;
+  }
+
+  // DNS issue items
+  .dns-issue-item {
+    background-color: #3a3a3a !important;
+    border: 1px solid #4a4a4a !important;
+  }
+
+  // Auth issue items
+  .auth-issue-item {
+    background-color: #3a3a3a !important;
+    border: 1px solid #4a4a4a !important;
+  }
+
+  // Insights
+  .insight-item {
+    background-color: #3a3a3a !important;
+    border: 1px solid #4a4a4a !important;
+
+    // Text elements within insights
+    h4 {
+      color: #e0e0e0 !important;
+    }
+
+    p {
+      color: #b0b0b0 !important;
+    }
+
+    div {
+      color: #b0b0b0 !important;
+    }
+
+    strong {
+      color: #e0e0e0 !important;
+    }
+  }
+
+  // Map controls
+  .map-controls {
+    background-color: #3a3a3a !important;
+    border: 1px solid #4a4a4a !important;
+    color: #e0e0e0;
+  }
+
+  // Map loading overlay
+  .loading-overlay {
+    background: rgba(18, 18, 18, 0.8) !important;
+    color: #e0e0e0;
+  }
+}
+
+// Leaflet styles for maps
+@import 'leaflet/dist/leaflet.css';
+
+// Custom utility classes
+.full-width {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+// Custom popup styles for Leaflet
+.popup-content {
+  font-family: 'Roboto', sans-serif;
+}
+
+.light-theme .popup-content {
+  h4 {
+    margin: 0 0 8px;
+    color: #333;
+    font-size: 14px;
+  }
+
+  p {
+    margin: 4px 0;
+    font-size: 12px;
+    color: #666;
+  }
+}
+
+.dark-theme .popup-content {
+  h4 {
+    margin: 0 0 8px;
+    color: #e0e0e0;
+    font-size: 14px;
+  }
+
+  p {
+    margin: 4px 0;
+    font-size: 12px;
+    color: #b0b0b0;
+  }
+}
+
+// Dark mode support for Leaflet map tiles
+.dark-theme .leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}

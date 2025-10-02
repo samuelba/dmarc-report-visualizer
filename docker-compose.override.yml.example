@@ -1,0 +1,32 @@
+# This file is automatically loaded by docker-compose for local overrides
+# Copy this to docker-compose.override.yml and customize as needed
+
+version: '3.8'
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"  # Expose postgres for local development tools
+
+  backend:
+    ports:
+      - "3000:3000"  # Expose backend for direct API access
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      CORS_ORIGINS: "*"
+      ENABLE_FILE_WATCHER: "true"
+      FILE_WATCH_DELETE_PROCESSED: "false"
+    command: npm run start:dev
+
+  frontend:
+    ports:
+      - "4200:4200"  # Expose frontend dev server
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+    command: npm run start

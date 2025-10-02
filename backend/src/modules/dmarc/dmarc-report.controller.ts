@@ -1,0 +1,419 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  Put,
+  UseInterceptors,
+  UploadedFile,
+  ParseUUIDPipe,
+  BadRequestException,
+  Query,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { DmarcReportService } from './dmarc-report.service';
+import { DmarcReport } from './entities/dmarc-report.entity';
+import { QueryReportsDto } from './dto/query-reports.dto';
+import {
+  StatsQueryDto,
+  TimeSeriesQueryDto,
+  TopSourcesQueryDto,
+} from './dto/summary-stats.dto';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+
+@ApiTags('DMARC Reports')
+@Controller('dmarc-reports')
+export class DmarcReportController {
+  constructor(private readonly dmarcReportService: DmarcReportService) {}
+
+  @Get()
+  findAll(): Promise<DmarcReport[]> {
+    return this.dmarcReportService.findAll();
+  }
+
+  @Get('list')
+  async list(@Query() q: QueryReportsDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.list({
+      domain: q.domain,
+      from,
+      to,
+      page: q.page,
+      pageSize: q.pageSize,
+      sort: q.sort,
+      order: q.order,
+    });
+  }
+
+  @Get('stats/summary')
+  async summary(@Query() q: StatsQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.summaryStats({ domain: q.domain, from, to });
+  }
+
+  @Get('stats/timeseries')
+  async timeseries(@Query() q: TimeSeriesQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.timeSeries({
+      domain: q.domain,
+      from,
+      to,
+      interval: q.interval ?? 'day',
+    });
+  }
+
+  @Get('stats/top-sources')
+  async topSources(@Query() q: TopSourcesQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.topSources({
+      domain: q.domain,
+      from,
+      to,
+      limit: q.limit ?? 10,
+    });
+  }
+
+  @Get('stats/auth-summary')
+  async authSummary(@Query() q: StatsQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.authSummary({ domain: q.domain, from, to });
+  }
+
+  @Get('stats/disposition-timeseries')
+  async dispositionTimeseries(@Query() q: TimeSeriesQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.dispositionTimeseries({
+      domain: q.domain,
+      from,
+      to,
+      interval: q.interval ?? 'day',
+    });
+  }
+
+  @Get('stats/auth-matrix')
+  async authMatrix(@Query() q: StatsQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.authMatrix({ domain: q.domain, from, to });
+  }
+
+  @Get('stats/top-ips')
+  async topIps(
+    @Query('domain') domain?: string,
+    @Query('from') fromStr?: string,
+    @Query('to') toStr?: string,
+    @Query('limit') limitStr?: string,
+  ) {
+    const from = fromStr ? new Date(fromStr) : undefined;
+    const to = toStr ? new Date(toStr) : undefined;
+    const limit = limitStr ? parseInt(limitStr, 10) : 10;
+    return this.dmarcReportService.topIps({ domain, from, to, limit });
+  }
+
+  @Get('stats/new-ips')
+  async newIps(
+    @Query('domain') domain?: string,
+    @Query('from') fromStr?: string,
+    @Query('to') toStr?: string,
+    @Query('limit') limitStr?: string,
+  ) {
+    const from = fromStr ? new Date(fromStr) : undefined;
+    const to = toStr ? new Date(toStr) : undefined;
+    const limit = limitStr ? parseInt(limitStr, 10) : 10;
+    return this.dmarcReportService.newIps({ domain, from, to, limit });
+  }
+
+  @Get('stats/test-new-endpoint')
+  async testNewEndpoint(): Promise<{ message: string }> {
+    return { message: 'New endpoint working in stats!' };
+  }
+
+  @Post()
+  create(@Body() dmarcReport: Partial<DmarcReport>): Promise<DmarcReport> {
+    return this.dmarcReportService.create(dmarcReport);
+  }
+
+  @Post('upload')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDmarcReport(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<DmarcReport> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    const ext = (file.originalname?.split('.')?.pop() || '').toLowerCase();
+    const xmlContent = await this.dmarcReportService.unzipReport(
+      file.buffer,
+      ext,
+    );
+    const dmarcReportData =
+      await this.dmarcReportService.parseXmlReport(xmlContent);
+    (dmarcReportData as any).originalXml = xmlContent;
+    return this.dmarcReportService.createOrUpdateByReportId(dmarcReportData);
+  }
+
+  @Post('process-directory')
+  async processDirectory(@Body() body: { directory?: string }) {
+    const fs = require('fs/promises');
+    const path = require('path');
+
+    const dir =
+      body.directory || path.resolve(process.cwd(), 'reports/incoming');
+    const files = await fs.readdir(dir);
+    const processed: any[] = [];
+
+    for (const file of files) {
+      if (file.match(/\.(xml|gz|zip)$/i)) {
+        try {
+          const filePath = path.join(dir, file);
+          const buffer = await fs.readFile(filePath);
+          const ext = file.split('.').pop()?.toLowerCase() || '';
+
+          const xmlContent = await this.dmarcReportService.unzipReport(
+            buffer,
+            ext,
+          );
+          const parsed =
+            await this.dmarcReportService.parseXmlReport(xmlContent);
+          (parsed as any).originalXml = xmlContent;
+          const result =
+            await this.dmarcReportService.createOrUpdateByReportId(parsed);
+
+          processed.push({ file, id: result.id, reportId: result.reportId });
+        } catch (error) {
+          processed.push({ file, error: String(error) });
+        }
+      }
+    }
+
+    return { directory: dir, processed };
+  }
+
+  @Get('test-endpoint')
+  async testEndpoint(): Promise<{ message: string }> {
+    return { message: 'Test endpoint working!' };
+  }
+
+  @Get('report/:id/xml')
+  async getReportXml(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<string | { message: string }> {
+    const xml = await this.dmarcReportService.getReportOriginalXml(id);
+    return xml ?? { message: 'No XML stored for this report' };
+  }
+
+  @Get('record/:id/xml')
+  async getRecordXml(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<string | { message: string }> {
+    const xml = await this.dmarcReportService.getRecordOriginalXml(id);
+    return xml ?? { message: 'No XML stored for this record' };
+  }
+
+  @Get('domains')
+  async getDomains(): Promise<{ domains: string[] }> {
+    const result = await this.dmarcReportService.getDomains();
+    return { domains: result };
+  }
+
+  @Get('top-countries')
+  async getTopCountries(
+    @Query('domain') domain?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ): Promise<
+    | Array<{
+        country: string;
+        countryName: string;
+        count: number;
+        passCount: number;
+        failCount: number;
+      }>
+    | {
+        data: Array<{
+          country: string;
+          countryName: string;
+          count: number;
+          passCount: number;
+          failCount: number;
+        }>;
+        total: number;
+      }
+  > {
+    // Support both legacy limit parameter and new pagination
+    if (page && pageSize) {
+      return this.dmarcReportService.getTopCountriesPaginated({
+        domain,
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+        page: parseInt(page, 10),
+        pageSize: parseInt(pageSize, 10),
+      });
+    } else {
+      return this.dmarcReportService.getTopCountries({
+        domain,
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+        limit: limit ? parseInt(limit, 10) : 10,
+      });
+    }
+  }
+
+  @Get('geo-heatmap')
+  async getGeoHeatmap(
+    @Query('domain') domain?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<
+    Array<{
+      latitude: number;
+      longitude: number;
+      count: number;
+      passCount: number;
+      failCount: number;
+    }>
+  > {
+    return this.dmarcReportService.getGeoHeatmapData({
+      domain,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    });
+  }
+
+  @Get('top-ips-enhanced')
+  async getTopIpsEnhanced(
+    @Query('domain') domain?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ): Promise<{
+    data: Array<{
+      sourceIp: string;
+      count: number;
+      passCount: number;
+      failCount: number;
+      dkimPassCount: number;
+      spfPassCount: number;
+      country?: string;
+      countryName?: string;
+      city?: string;
+      latitude?: number;
+      longitude?: number;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    return this.dmarcReportService.getTopIpsEnhanced({
+      domain,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      page: page ? parseInt(page, 10) : 1,
+      pageSize: pageSize ? parseInt(pageSize, 10) : 10,
+    });
+  }
+
+  // Parameterized routes must come last to avoid conflicts
+  @Get('report/:id')
+  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DmarcReport | null> {
+    return this.dmarcReportService.findOne(id);
+  }
+
+  @Put('report/:id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dmarcReport: Partial<DmarcReport>,
+  ): Promise<DmarcReport | null> {
+    return this.dmarcReportService.update(id, dmarcReport);
+  }
+
+  @Delete('report/:id')
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.dmarcReportService.remove(id);
+  }
+
+  @Get('records/search')
+  async searchRecords(
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('domain') domain?: string | string[],
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('disposition') disposition?: string | string[],
+    @Query('dkim') dkim?: string | string[],
+    @Query('spf') spf?: string | string[],
+    @Query('sourceIp') sourceIp?: string | string[],
+    @Query('envelopeTo') envelopeTo?: string | string[],
+    @Query('envelopeFrom') envelopeFrom?: string | string[],
+    @Query('headerFrom') headerFrom?: string | string[],
+    @Query('dkimDomain') dkimDomain?: string | string[],
+    @Query('spfDomain') spfDomain?: string | string[],
+    @Query('country') country?: string | string[],
+    @Query('contains') contains?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: 'asc' | 'desc',
+  ) {
+    const coerce = (v: any) =>
+      v === undefined ? undefined : Array.isArray(v) ? v : [v];
+    return this.dmarcReportService.searchRecords({
+      page: page ? parseInt(page, 10) : 1,
+      pageSize: pageSize ? parseInt(pageSize, 10) : 20,
+      domain,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      disposition: coerce(disposition) as any,
+      dkim: coerce(dkim) as any,
+      spf: coerce(spf) as any,
+      sourceIp: coerce(sourceIp),
+      envelopeTo: coerce(envelopeTo),
+      envelopeFrom: coerce(envelopeFrom),
+      headerFrom: coerce(headerFrom),
+      dkimDomain: coerce(dkimDomain),
+      spfDomain: coerce(spfDomain),
+      country: coerce(country),
+      contains,
+      sort,
+      order,
+    });
+  }
+
+  @Get('records/distinct')
+  async getDistinct(
+    @Query('field')
+    field:
+      | 'domain'
+      | 'sourceIp'
+      | 'envelopeTo'
+      | 'envelopeFrom'
+      | 'headerFrom'
+      | 'dkimDomain'
+      | 'spfDomain'
+      | 'country',
+  ) {
+    return this.dmarcReportService.getDistinctValues(field);
+  }
+
+  @Get('domains-with-dns-issues')
+  async getDomainsWithDnsIssues(
+    @Query('domain') domain?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.dmarcReportService.getDomainsWithDnsIssues({
+      domain,
+      limit: limit ? parseInt(limit, 10) : 10,
+    });
+  }
+}
