@@ -776,7 +776,8 @@ export class DashboardComponent implements OnInit {
   constructor(private apiService: ApiService) {}
 
   ngOnInit() {
-    this.loadData();
+    // Don't load data here - wait for the filter component to emit its initial filterChange event
+    // This prevents a race condition where we load data twice (once with no filter, once with the default 30d filter)
   }
 
   onFilterChange(filter: FilterParams) {
