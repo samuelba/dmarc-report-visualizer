@@ -139,14 +139,16 @@ export class DashboardFilterComponent implements OnInit {
   ngOnInit() {
     this.loadDomains();
 
-    // Apply default 30d time period on init
+    // Apply default 30d time period on init (before subscribing to avoid race condition)
     this.applyTimePeriodToFilter();
-    this.applyFilter();
 
     // Auto-apply filter when values change
     this.domainControl.valueChanges.subscribe(() => this.applyFilter());
     this.fromDateControl.valueChanges.subscribe(() => this.applyFilter());
     this.toDateControl.valueChanges.subscribe(() => this.applyFilter());
+
+    // Apply initial filter after subscriptions are set up
+    this.applyFilter();
   }
 
   private loadDomains() {
@@ -169,8 +171,8 @@ export class DashboardFilterComponent implements OnInit {
     const input = this.timePeriodInput.trim().toLowerCase();
 
     if (input === 'all' || input === '') {
-      this.fromDateControl.setValue(null);
-      this.toDateControl.setValue(null);
+      this.fromDateControl.setValue(null, { emitEvent: false });
+      this.toDateControl.setValue(null, { emitEvent: false });
       return;
     }
 
@@ -189,12 +191,12 @@ export class DashboardFilterComponent implements OnInit {
       fromDate.setDate(now.getDate() - days); // Go back N days from today (which gives us N days ending yesterday)
       fromDate.setHours(0, 0, 0, 0); // Start of that day
 
-      this.fromDateControl.setValue(fromDate);
-      this.toDateControl.setValue(toDate);
+      this.fromDateControl.setValue(fromDate, { emitEvent: false });
+      this.toDateControl.setValue(toDate, { emitEvent: false });
     } else {
       // Invalid input, reset to no time restriction
-      this.fromDateControl.setValue(null);
-      this.toDateControl.setValue(null);
+      this.fromDateControl.setValue(null, { emitEvent: false });
+      this.toDateControl.setValue(null, { emitEvent: false });
     }
   }
 
