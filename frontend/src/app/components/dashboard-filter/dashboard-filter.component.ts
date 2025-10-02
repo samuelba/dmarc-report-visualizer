@@ -130,7 +130,7 @@ export class DashboardFilterComponent implements OnInit {
   domainControl = new FormControl<string[]>([]);
   fromDateControl = new FormControl<Date | null>(null);
   toDateControl = new FormControl<Date | null>(null);
-  timePeriodInput: string = 'all';
+  timePeriodInput: string = '30d';
 
   domains: string[] = [];
 
@@ -138,6 +138,10 @@ export class DashboardFilterComponent implements OnInit {
 
   ngOnInit() {
     this.loadDomains();
+
+    // Apply default 30d time period on init
+    this.applyTimePeriodToFilter();
+    this.applyFilter();
 
     // Auto-apply filter when values change
     this.domainControl.valueChanges.subscribe(() => this.applyFilter());
@@ -237,7 +241,7 @@ export class DashboardFilterComponent implements OnInit {
     this.domainControl.setValue([]);
     this.fromDateControl.setValue(null);
     this.toDateControl.setValue(null);
-    this.timePeriodInput = 'all';
+    this.timePeriodInput = '30d';
     this.applyFilter();
   }
 

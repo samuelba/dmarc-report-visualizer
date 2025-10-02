@@ -107,6 +107,15 @@ import { MatSortModule, Sort } from '@angular/material/sort';
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
+          <mat-label>Time Period</mat-label>
+          <input
+            matInput
+            [(ngModel)]="timePeriodInput"
+            (input)="onTimePeriodInputChange()"
+            placeholder="e.g. 30, 7d, 4m, 5y, or 'all'"
+          />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
           <mat-label>From</mat-label>
           <input matInput [matDatepicker]="fromPicker" [(ngModel)]="filters.from" (dateChange)="onFilterChange()" />
           <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
@@ -500,6 +509,7 @@ export class ExploreComponent implements OnInit {
   readonly page = signal(1);
   readonly pageSize = signal(20);
   sort: { active?: string; direction?: 'asc' | 'desc' } = { active: 'date', direction: 'desc' };
+  timePeriodInput: string = '30d';
 
   displayed = ['expand', 'date', 'org', 'ip', 'country', 'count', 'disp', 'dkim', 'spf', 'from', 'auth', 'actions'];
 
@@ -785,6 +795,13 @@ export class ExploreComponent implements OnInit {
   ngOnInit(): void {
     this.loadFiltersFromUrl();
     this.loadDistincts();
+
+    // Apply default 30d time period if no date filters in URL
+    const params = this.route.snapshot.queryParams;
+    if (!params['from'] && !params['to']) {
+      this.applyTimePeriodToFilter();
+    }
+
     this.search();
   }
 
@@ -829,6 +846,8 @@ export class ExploreComponent implements OnInit {
       to: '',
       contains: '',
     };
+    this.timePeriodInput = '30d';
+    this.applyTimePeriodToFilter();
     this.page.set(1);
     this.updateUrl();
     this.search();
@@ -920,6 +939,70 @@ export class ExploreComponent implements OnInit {
     this.page.set(1);
     this.updateUrl();
     this.search();
+  }
+
+  onTimePeriodInputChange() {
+    this.applyTimePeriodToFilter();
+    this.onFilterChange();
+  }
+
+  private applyTimePeriodToFilter() {
+    const input = this.timePeriodInput.trim().toLowerCase();
+
+    if (input === 'all' || input === '') {
+      this.filters.from = '';
+      this.filters.to = '';
+      return;
+    }
+
+    const days = this.parseTimePeriodToDays(input);
+    if (days > 0) {
+      const now = new Date();
+
+      // Set toDate to end of yesterday (since today's reports likely aren't available yet)
+      const toDate = new Date(now);
+      toDate.setDate(now.getDate() - 1); // Go to yesterday
+      toDate.setHours(23, 59, 59, 999); // End of yesterday
+
+      // Set fromDate to start of the day N days before yesterday
+      const fromDate = new Date(now);
+      fromDate.setDate(now.getDate() - days); // Go back N days from today
+      fromDate.setHours(0, 0, 0, 0); // Start of that day
+
+      this.filters.from = fromDate;
+      this.filters.to = toDate;
+    } else {
+      // Invalid input, reset to no time restriction
+      this.filters.from = '';
+      this.filters.to = '';
+    }
+  }
+
+  private parseTimePeriodToDays(input: string): number {
+    // Handle plain numbers (assume days)
+    if (/^\d+$/.test(input)) {
+      return parseInt(input, 10);
+    }
+
+    // Handle format with suffix (d, m, y)
+    const match = input.match(/^(\d+)([dmy])$/);
+    if (match) {
+      const value = parseInt(match[1], 10);
+      const unit = match[2];
+
+      switch (unit) {
+        case 'd':
+          return value; // days
+        case 'm':
+          return value * 30; // months (approximate)
+        case 'y':
+          return value * 365; // years (approximate)
+        default:
+          return 0;
+      }
+    }
+
+    return 0; // Invalid format
   }
 
   // Get country name from code
