@@ -225,6 +225,12 @@ export class DmarcReportController {
     return { domains: result };
   }
 
+  @Get('report-domains')
+  async getReportDomains(): Promise<{ domains: string[] }> {
+    const result = await this.dmarcReportService.getReportDomains();
+    return { domains: result };
+  }
+
   @Get('top-countries')
   async getTopCountries(
     @Query('domain') domain?: string,

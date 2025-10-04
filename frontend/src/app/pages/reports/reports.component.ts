@@ -114,7 +114,7 @@ export class ReportsComponent implements OnInit {
   }
 
   private loadDomains() {
-    this.api.getDomains().subscribe((res) => {
+    this.api.getReportDomains().subscribe((res) => {
       this.domains.set(res.domains);
     });
   }

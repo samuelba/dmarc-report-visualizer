@@ -1351,6 +1351,18 @@ export class DmarcReportService {
     return Array.from(allDomains).sort();
   }
 
+  async getReportDomains(): Promise<string[]> {
+    // Get only domains from reports (envelope to) - these are the domains that reports are generated for
+    const reportDomains = await this.dmarcReportRepository
+      .createQueryBuilder('report')
+      .select('DISTINCT report.domain', 'domain')
+      .where('report.domain IS NOT NULL')
+      .orderBy('domain', 'ASC')
+      .getRawMany();
+
+    return reportDomains.map((r) => r.domain).filter(Boolean);
+  }
+
   async getTopCountries(params: {
     domain?: string;
     from?: Date;

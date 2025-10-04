@@ -196,6 +196,10 @@ export class ApiService {
     return this.http.get<{ domains: string[] }>(`${this.apiBase}/dmarc-reports/domains`);
   }
 
+  getReportDomains() {
+    return this.http.get<{ domains: string[] }>(`${this.apiBase}/dmarc-reports/report-domains`);
+  }
+
   getReportXml(id: string) {
     return this.http.get(`${this.apiBase}/dmarc-reports/report/${id}/xml`, { responseType: 'text' });
   }
