@@ -127,11 +127,18 @@ import { MatSortModule, Sort } from '@angular/material/sort';
           <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
           <mat-datepicker #toPicker></mat-datepicker>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="contains-filter">
-          <mat-label>Contains (search all columns)</mat-label>
-          <input matInput [(ngModel)]="filters.contains" (input)="onFilterChange()" placeholder="Search..." />
-          <mat-icon matSuffix>search</mat-icon>
-        </mat-form-field>
+        <div class="search-filters">
+          <mat-form-field appearance="outline">
+            <mat-label>Contains (search all columns)</mat-label>
+            <input matInput [(ngModel)]="filters.contains" (input)="onFilterChange()" placeholder="Search..." />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Does Not Contain (exclude from all columns)</mat-label>
+            <input matInput [(ngModel)]="filters.doesNotContain" (input)="onFilterChange()" placeholder="Exclude..." />
+            <mat-icon matSuffix>block</mat-icon>
+          </mat-form-field>
+        </div>
         <div class="actions">
           <button mat-raised-button color="primary" (click)="apply()">Apply</button>
           <button mat-button (click)="clear()">Clear</button>
@@ -497,6 +504,26 @@ import { MatSortModule, Sort } from '@angular/material/sort';
         border: 1px dashed #ccc;
       }
     `,
+    `
+      .search-filters {
+        grid-column: 1/-1;
+        display: flex;
+        gap: 12px;
+        align-items: end;
+      }
+    `,
+    `
+      .search-filters mat-form-field {
+        flex: 1;
+        max-width: 400px;
+      }
+    `,
+    `
+      .search-filters .mat-mdc-form-field-flex {
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+    `,
   ],
 })
 export class ExploreComponent implements OnInit {
@@ -528,6 +555,7 @@ export class ExploreComponent implements OnInit {
     from: '',
     to: '',
     contains: '',
+    doesNotContain: '',
   };
 
   readonly domains = signal<string[]>([]);
@@ -869,6 +897,7 @@ export class ExploreComponent implements OnInit {
       from: '',
       to: '',
       contains: '',
+      doesNotContain: '',
     };
     this.timePeriodInput = '30d';
     this.applyTimePeriodToFilter();
@@ -897,6 +926,7 @@ export class ExploreComponent implements OnInit {
       from: this.filters.from ? new Date(this.filters.from).toISOString() : undefined,
       to: this.filters.to ? new Date(this.filters.to).toISOString() : undefined,
       contains: this.filters.contains ? this.filters.contains : undefined,
+      doesNotContain: this.filters.doesNotContain ? this.filters.doesNotContain : undefined,
       sort: this.sort.active,
       order: this.sort.direction,
     };
@@ -1069,6 +1099,7 @@ export class ExploreComponent implements OnInit {
     if (params['from']) this.filters.from = new Date(params['from']);
     if (params['to']) this.filters.to = new Date(params['to']);
     if (params['contains']) this.filters.contains = params['contains'];
+    if (params['doesNotContain']) this.filters.doesNotContain = params['doesNotContain'];
     if (params['page']) this.page.set(parseInt(params['page'], 10));
     if (params['pageSize']) this.pageSize.set(parseInt(params['pageSize'], 10));
   }
@@ -1246,6 +1277,7 @@ export class ExploreComponent implements OnInit {
     if (this.filters.from) queryParams.from = this.filters.from.toISOString().split('T')[0];
     if (this.filters.to) queryParams.to = this.filters.to.toISOString().split('T')[0];
     if (this.filters.contains) queryParams.contains = this.filters.contains;
+    if (this.filters.doesNotContain) queryParams.doesNotContain = this.filters.doesNotContain;
     if (this.page() > 1) queryParams.page = this.page();
     if (this.pageSize() !== 20) queryParams.pageSize = this.pageSize();
 

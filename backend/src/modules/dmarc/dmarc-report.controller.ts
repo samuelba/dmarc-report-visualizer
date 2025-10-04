@@ -365,25 +365,6 @@ export class DmarcReportController {
     return { ...result, page: p, pageSize: ps } as any;
   }
 
-  // Parameterized routes must come last to avoid conflicts
-  @Get('report/:id')
-  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DmarcReport | null> {
-    return this.dmarcReportService.findOne(id);
-  }
-
-  @Put('report/:id')
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dmarcReport: Partial<DmarcReport>,
-  ): Promise<DmarcReport | null> {
-    return this.dmarcReportService.update(id, dmarcReport);
-  }
-
-  @Delete('report/:id')
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.dmarcReportService.remove(id);
-  }
-
   @Get('records/search')
   async searchRecords(
     @Query('page') page?: string,
@@ -402,6 +383,7 @@ export class DmarcReportController {
     @Query('spfDomain') spfDomain?: string | string[],
     @Query('country') country?: string | string[],
     @Query('contains') contains?: string,
+    @Query('doesNotContain') doesNotContain?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'asc' | 'desc',
   ) {
@@ -424,6 +406,7 @@ export class DmarcReportController {
       spfDomain: coerce(spfDomain),
       country: coerce(country),
       contains,
+      doesNotContain,
       sort,
       order,
     });
@@ -460,5 +443,24 @@ export class DmarcReportController {
       domain,
       limit: limit ? parseInt(limit, 10) : 10,
     });
+  }
+
+  // Parameterized routes must come last to avoid conflicts
+  @Get('report/:id')
+  findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DmarcReport | null> {
+    return this.dmarcReportService.findOne(id);
+  }
+
+  @Put('report/:id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dmarcReport: Partial<DmarcReport>,
+  ): Promise<DmarcReport | null> {
+    return this.dmarcReportService.update(id, dmarcReport);
+  }
+
+  @Delete('report/:id')
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.dmarcReportService.remove(id);
   }
 }

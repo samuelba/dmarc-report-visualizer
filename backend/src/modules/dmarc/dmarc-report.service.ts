@@ -624,6 +624,7 @@ export class DmarcReportService {
     spfDomain?: string | string[];
     country?: string | string[];
     contains?: string;
+    doesNotContain?: string;
     sort?: string;
     order?: 'asc' | 'desc';
   }): Promise<PagedResult<DmarcRecord>> {
@@ -644,6 +645,7 @@ export class DmarcReportService {
       spfDomain,
       country,
       contains,
+      doesNotContain,
     } = params;
 
     const qb = this.dmarcRecordRepository
@@ -806,6 +808,34 @@ export class DmarcReportService {
         LOWER(sf.result) LIKE :searchTerm
       )`,
         { searchTerm },
+      );
+    }
+
+    // Does not contain filter - search across all main text columns (case insensitive)
+    if (doesNotContain) {
+      const searchTerm = `%${doesNotContain.toLowerCase()}%`;
+      qb.andWhere(
+        `(
+        COALESCE(LOWER(CAST(rec.sourceIp AS TEXT)), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.disposition), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.dmarcDkim), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.dmarcSpf), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.envelopeTo), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.envelopeFrom), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.headerFrom), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.geoCountry), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.geoCountryName), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.geoCity), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.reasonType), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rec.reasonComment), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rep.domain), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(rep.orgName), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(dk.domain), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(dk.result), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(sf.domain), '') NOT LIKE :doesNotContainTerm AND
+        COALESCE(LOWER(sf.result), '') NOT LIKE :doesNotContainTerm
+      )`,
+        { doesNotContainTerm: searchTerm },
       );
     }
 

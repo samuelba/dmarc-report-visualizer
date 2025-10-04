@@ -225,6 +225,7 @@ export class ApiService {
     spfDomain?: string | string[];
     country?: string | string[];
     contains?: string;
+    doesNotContain?: string;
     sort?: string;
     order?: 'asc' | 'desc';
   }) {
