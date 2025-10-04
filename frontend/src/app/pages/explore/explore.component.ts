@@ -794,23 +794,38 @@ export class ExploreComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadFiltersFromUrl();
-    this.loadDistincts();
-
     // Apply default 30d time period if no date filters in URL
     const params = this.route.snapshot.queryParams;
     if (!params['from'] && !params['to']) {
       this.applyTimePeriodToFilter();
     }
 
+    // Load distincts (date-scoped for domain + headerFrom)
+    this.loadDistincts();
+
     this.search();
   }
 
+  private getFromToIso(): { from?: string; to?: string } {
+    const fromIso = this.filters.from ? new Date(this.filters.from).toISOString() : undefined;
+    const toIso = this.filters.to ? new Date(this.filters.to).toISOString() : undefined;
+    return { from: fromIso, to: toIso };
+  }
+
+  private loadDateScopedDistincts() {
+    const { from, to } = this.getFromToIso();
+    this.api.getRecordDistinct('domain', { from, to }).subscribe((v) => this.domains.set(v));
+    this.api.getRecordDistinct('headerFrom', { from, to }).subscribe((v) => this.headerFroms.set(v));
+  }
+
   private loadDistincts() {
-    this.api.getRecordDistinct('domain').subscribe((v) => this.domains.set(v));
+    // Date-scoped lists
+    this.loadDateScopedDistincts();
+
+    // Other lists unchanged
     this.api.getRecordDistinct('sourceIp').subscribe((v) => this.ips.set(v));
     this.api.getRecordDistinct('envelopeTo').subscribe((v) => this.envelopeTos.set(v));
     this.api.getRecordDistinct('envelopeFrom').subscribe((v) => this.envelopeFroms.set(v));
-    this.api.getRecordDistinct('headerFrom').subscribe((v) => this.headerFroms.set(v));
     this.api.getRecordDistinct('dkimDomain').subscribe((v) => this.dkimDomains.set(v));
     this.api.getRecordDistinct('spfDomain').subscribe((v) => this.spfDomains.set(v));
     this.api.getRecordDistinct('country').subscribe((v) => this.countries.set(v));
@@ -848,6 +863,8 @@ export class ExploreComponent implements OnInit {
     };
     this.timePeriodInput = '30d';
     this.applyTimePeriodToFilter();
+    // reload date-scoped options after resetting time period
+    this.loadDateScopedDistincts();
     this.page.set(1);
     this.updateUrl();
     this.search();
@@ -938,11 +955,15 @@ export class ExploreComponent implements OnInit {
   onFilterChange() {
     this.page.set(1);
     this.updateUrl();
+    // Refresh date-scoped distincts when filters (especially dates) change
+    this.loadDateScopedDistincts();
     this.search();
   }
 
   onTimePeriodInputChange() {
     this.applyTimePeriodToFilter();
+    // Refresh date-scoped distincts when time period changes
+    this.loadDateScopedDistincts();
     this.onFilterChange();
   }
 

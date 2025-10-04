@@ -137,33 +137,52 @@ export class DashboardFilterComponent implements OnInit {
   constructor(private apiService: ApiService) {}
 
   ngOnInit() {
-    this.loadDomains();
-
     // Apply default 30d time period on init (before subscribing to avoid race condition)
     this.applyTimePeriodToFilter();
 
+    // Load domains for initial timeframe
+    this.loadDomainsForTimeframe();
+
     // Auto-apply filter when values change
     this.domainControl.valueChanges.subscribe(() => this.applyFilter());
-    this.fromDateControl.valueChanges.subscribe(() => this.applyFilter());
-    this.toDateControl.valueChanges.subscribe(() => this.applyFilter());
+    this.fromDateControl.valueChanges.subscribe(() => {
+      this.loadDomainsForTimeframe();
+      this.applyFilter();
+    });
+    this.toDateControl.valueChanges.subscribe(() => {
+      this.loadDomainsForTimeframe();
+      this.applyFilter();
+    });
 
     // Apply initial filter after subscriptions are set up
     this.applyFilter();
   }
 
-  private loadDomains() {
-    this.apiService.getDomains().subscribe({
-      next: (response) => {
-        this.domains = response.domains;
+  private getFromToIso(): { from?: string; to?: string } {
+    const from = this.fromDateControl.value?.toISOString();
+    const to = this.toDateControl.value?.toISOString();
+    return { from, to };
+  }
+
+  private loadDomainsForTimeframe() {
+    const { from, to } = this.getFromToIso();
+    const prev = this.domainControl.value || [];
+    this.apiService.getRecordDistinct('headerFrom', { from, to }).subscribe({
+      next: (values) => {
+        this.domains = values || [];
+        // Preserve selections that still exist
+        const filteredSelection = prev.filter((v) => v && this.domains.includes(v));
+        if (filteredSelection.length !== prev.length) {
+          this.domainControl.setValue(filteredSelection, { emitEvent: false });
+        }
       },
-      error: (error) => {
-        console.error('Failed to load domains:', error);
-      },
+      error: (error) => console.error('Failed to load domains for timeframe:', error),
     });
   }
 
   onTimePeriodInputChange() {
     this.applyTimePeriodToFilter();
+    this.loadDomainsForTimeframe();
     this.applyFilter();
   }
 
@@ -244,6 +263,8 @@ export class DashboardFilterComponent implements OnInit {
     this.fromDateControl.setValue(null);
     this.toDateControl.setValue(null);
     this.timePeriodInput = '30d';
+    this.applyTimePeriodToFilter();
+    this.loadDomainsForTimeframe();
     this.applyFilter();
   }
 

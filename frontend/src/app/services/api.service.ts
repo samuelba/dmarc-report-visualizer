@@ -241,10 +241,14 @@ export class ApiService {
   }
 
   getRecordDistinct(
-    field: 'domain' | 'sourceIp' | 'envelopeTo' | 'envelopeFrom' | 'headerFrom' | 'dkimDomain' | 'spfDomain' | 'country'
+    field: 'domain' | 'sourceIp' | 'envelopeTo' | 'envelopeFrom' | 'headerFrom' | 'dkimDomain' | 'spfDomain' | 'country',
+    opts?: { from?: string; to?: string }
   ) {
+    let hp = new HttpParams().set('field', field);
+    if (opts?.from) hp = hp.set('from', opts.from);
+    if (opts?.to) hp = hp.set('to', opts.to);
     return this.http.get<string[]>(`${this.apiBase}/dmarc-reports/records/distinct`, {
-      params: new HttpParams().set('field', field),
+      params: hp,
     });
   }
 

@@ -844,17 +844,21 @@ export class DmarcReportService {
       | 'dkimDomain'
       | 'spfDomain'
       | 'country',
+    from?: Date,
+    to?: Date,
   ) {
     if (field === 'domain') {
-      const rows = await this.dmarcReportRepository
+      const qb = this.dmarcReportRepository
         .createQueryBuilder('rep')
         .select('DISTINCT rep.domain', 'v')
-        .where('rep.domain IS NOT NULL')
-        .orderBy('v', 'ASC')
-        .getRawMany();
+        .where('rep.domain IS NOT NULL');
+      if (from) qb.andWhere('rep.beginDate >= :from', { from });
+      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
     if (field === 'dkimDomain') {
+      // Note: timeframe filtering for dkim/spf domains is not required right now.
       const rows = await this.dkimResultRepository
         .createQueryBuilder('dk')
         .select('DISTINCT dk.domain', 'v')
@@ -864,6 +868,7 @@ export class DmarcReportService {
       return rows.map((r) => r.v).filter(Boolean);
     }
     if (field === 'spfDomain') {
+      // Note: timeframe filtering for dkim/spf domains is not required right now.
       const rows = await this.spfResultRepository
         .createQueryBuilder('sf')
         .select('DISTINCT sf.domain', 'v')
@@ -880,12 +885,14 @@ export class DmarcReportService {
       country: 'rec.geoCountry',
     };
     const col = map[field];
-    const rows = await this.dmarcRecordRepository
+    const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
+      .leftJoin('rec.report', 'rep')
       .select(`DISTINCT ${col}`, 'v')
-      .where(`${col} IS NOT NULL`)
-      .orderBy('v', 'ASC')
-      .getRawMany();
+      .where(`${col} IS NOT NULL`);
+    if (from) qb.andWhere('rep.beginDate >= :from', { from });
+    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    const rows = await qb.orderBy('v', 'ASC').getRawMany();
     return rows.map((r: any) => r.v).filter(Boolean);
   }
 

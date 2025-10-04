@@ -402,8 +402,14 @@ export class DmarcReportController {
       | 'dkimDomain'
       | 'spfDomain'
       | 'country',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.dmarcReportService.getDistinctValues(field);
+    return this.dmarcReportService.getDistinctValues(
+      field,
+      from ? new Date(from) : undefined,
+      to ? new Date(to) : undefined,
+    );
   }
 
   @Get('domains-with-dns-issues')
