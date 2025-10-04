@@ -27,8 +27,9 @@ interface CountryData {
   country: string;
   countryName: string;
   count: number;
-  passCount: number;
-  failCount: number;
+  dmarcPassCount: number;
+  dkimPassCount: number;
+  spfPassCount: number;
 }
 
 interface HeaderFromRow {
@@ -269,8 +270,10 @@ interface HeaderFromRow {
                           [class.warning]="getPassRate(country) >= 50 && getPassRate(country) < 80"
                           [class.danger]="getPassRate(country) < 50"
                         >
-                          {{ getPassRate(country) }}% pass rate
+                          {{ getPassRate(country) }}% DMARC pass
                         </span>
+                        <span><strong>DKIM:</strong> {{ getDkimPassRate(country) }}%</span>
+                        <span><strong>SPF:</strong> {{ getSpfPassRate(country) }}%</span>
                       </div>
                     </div>
                     <div class="country-progress">
@@ -1127,7 +1130,15 @@ export class DashboardComponent implements OnInit {
   }
 
   getPassRate(country: CountryData): number {
-    return country.count > 0 ? Math.round((country.passCount / country.count) * 100) : 0;
+    return country.count > 0 ? Math.round((country.dmarcPassCount / country.count) * 100) : 0;
+  }
+
+  getDkimPassRate(country: CountryData): number {
+    return country.count > 0 ? Math.round((country.dkimPassCount / country.count) * 100) : 0;
+  }
+
+  getSpfPassRate(country: CountryData): number {
+    return country.count > 0 ? Math.round((country.spfPassCount / country.count) * 100) : 0;
   }
 
   getProgressColor(country: CountryData): 'primary' | 'accent' | 'warn' {

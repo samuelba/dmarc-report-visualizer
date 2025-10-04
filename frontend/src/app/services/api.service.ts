@@ -264,8 +264,9 @@ export class ApiService {
         country: string;
         countryName: string;
         count: number;
-        passCount: number;
-        failCount: number;
+        dmarcPassCount: number;
+        dkimPassCount: number;
+        spfPassCount: number;
       }>
     >(`${this.apiBase}/dmarc-reports/top-countries`, { params: hp });
   }

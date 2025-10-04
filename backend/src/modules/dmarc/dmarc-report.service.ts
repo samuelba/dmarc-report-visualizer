@@ -1361,8 +1361,9 @@ export class DmarcReportService {
       country: string;
       countryName: string;
       count: number;
-      passCount: number;
-      failCount: number;
+      dmarcPassCount: number;
+      dkimPassCount: number;
+      spfPassCount: number;
     }>
   > {
     const { domain, from, to, limit = 10 } = params;
@@ -1374,8 +1375,9 @@ export class DmarcReportService {
         'record.geoCountry as country',
         'record.geoCountryName as countryName',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN record.dmarcDkim = 'pass' AND record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as passCount",
-        "SUM(CASE WHEN record.dmarcDkim != 'pass' OR record.dmarcSpf != 'pass' THEN record.count ELSE 0 END) as failCount",
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as dmarcPassCount",
+        "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
+        "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
       .where('record.geoCountry IS NOT NULL')
       .groupBy('record.geoCountry, record.geoCountryName')
@@ -1401,8 +1403,9 @@ export class DmarcReportService {
       country: r.country,
       countryName: r.countryname || r.country,
       count: parseInt(r.count, 10),
-      passCount: parseInt(r.passcount, 10),
-      failCount: parseInt(r.failcount, 10),
+      dmarcPassCount: parseInt(r.dmarcpasscount, 10),
+      dkimPassCount: parseInt(r.dkimpasscount, 10),
+      spfPassCount: parseInt(r.spfpasscount, 10),
     }));
   }
 
@@ -1504,8 +1507,9 @@ export class DmarcReportService {
       country: string;
       countryName: string;
       count: number;
-      passCount: number;
-      failCount: number;
+      dmarcPassCount: number;
+      dkimPassCount: number;
+      spfPassCount: number;
     }>;
     total: number;
   }> {
@@ -1544,8 +1548,9 @@ export class DmarcReportService {
         'record.geoCountry as country',
         'record.geoCountryName as countryName',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN record.dmarcDkim = 'pass' AND record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as passCount",
-        "SUM(CASE WHEN record.dmarcDkim != 'pass' OR record.dmarcSpf != 'pass' THEN record.count ELSE 0 END) as failCount",
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as dmarcPassCount",
+        "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
+        "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
       .groupBy('record.geoCountry, record.geoCountryName')
       .orderBy('count', 'DESC')
@@ -1557,8 +1562,9 @@ export class DmarcReportService {
       country: r.country,
       countryName: r.countryname || r.country,
       count: parseInt(r.count, 10),
-      passCount: parseInt(r.passcount, 10),
-      failCount: parseInt(r.failcount, 10),
+      dmarcPassCount: parseInt(r.dmarcpasscount, 10),
+      dkimPassCount: parseInt(r.dkimpasscount, 10),
+      spfPassCount: parseInt(r.spfpasscount, 10),
     }));
 
     return { data, total };

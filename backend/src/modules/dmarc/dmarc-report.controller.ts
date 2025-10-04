@@ -238,16 +238,18 @@ export class DmarcReportController {
         country: string;
         countryName: string;
         count: number;
-        passCount: number;
-        failCount: number;
+        dmarcPassCount: number;
+        dkimPassCount: number;
+        spfPassCount: number;
       }>
     | {
         data: Array<{
           country: string;
           countryName: string;
           count: number;
-          passCount: number;
-          failCount: number;
+          dmarcPassCount: number;
+          dkimPassCount: number;
+          spfPassCount: number;
         }>;
         total: number;
       }
