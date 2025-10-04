@@ -344,4 +344,25 @@ export class ApiService {
       }>
     >(`${this.apiBase}/dmarc-reports/domains-with-dns-issues`, { params: hp });
   }
+
+  getTopHeaderFrom(params: { domain?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
+    let hp = new HttpParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        hp = hp.set(k, String(v));
+      }
+    });
+    return this.http.get<{
+      data: Array<{
+        headerFrom: string;
+        count: number;
+        dmarcPassCount: number;
+        dkimPassCount: number;
+        spfPassCount: number;
+      }>;
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`${this.apiBase}/dmarc-reports/top-header-from`, { params: hp });
+  }
 }

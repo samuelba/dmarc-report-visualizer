@@ -326,6 +326,37 @@ export class DmarcReportController {
     });
   }
 
+  @Get('top-header-from')
+  async getTopHeaderFrom(
+    @Query('domain') domain?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ): Promise<{
+    data: Array<{
+      headerFrom: string;
+      count: number;
+      dmarcPassCount: number;
+      dkimPassCount: number;
+      spfPassCount: number;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const p = page ? parseInt(page, 10) : 1;
+    const ps = pageSize ? parseInt(pageSize, 10) : 10;
+    const result = await this.dmarcReportService.getTopHeaderFromDomainsPaginated({
+      domain,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      page: p,
+      pageSize: ps,
+    });
+    return { ...result, page: p, pageSize: ps } as any;
+  }
+
   // Parameterized routes must come last to avoid conflicts
   @Get('report/:id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DmarcReport | null> {

@@ -1716,4 +1716,75 @@ export class DmarcReportService {
       pageSize,
     };
   }
+
+  async getTopHeaderFromDomainsPaginated(params: {
+    domain?: string;
+    from?: Date;
+    to?: Date;
+    page: number;
+    pageSize: number;
+  }): Promise<{
+    data: Array<{
+      headerFrom: string;
+      count: number;
+      dmarcPassCount: number;
+      dkimPassCount: number;
+      spfPassCount: number;
+    }>;
+    total: number;
+  }> {
+    const { domain, from, to, page, pageSize } = params;
+
+    let baseQuery = this.dmarcRecordRepository
+      .createQueryBuilder('record')
+      .leftJoin('record.report', 'report')
+      .where('record.headerFrom IS NOT NULL');
+
+    if (domain) {
+      baseQuery = baseQuery.andWhere('record.headerFrom ILIKE :domain', {
+        domain: `%${domain}%`,
+      });
+    }
+
+    if (from) {
+      baseQuery = baseQuery.andWhere('report.beginDate >= :from', { from });
+    }
+
+    if (to) {
+      baseQuery = baseQuery.andWhere('report.endDate <= :to', { to });
+    }
+
+    // Total distinct headerFrom count
+    const totalQuery = baseQuery
+      .clone()
+      .select('COUNT(DISTINCT record.headerFrom) as total');
+    const totalResult = await totalQuery.getRawOne();
+    const total = parseInt(totalResult.total, 10) || 0;
+
+    // Paginated data
+    const dataQuery = baseQuery
+      .select([
+        'record.headerFrom as headerFrom',
+        'SUM(record.count) as count',
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as dmarcPassCount",
+        "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
+        "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
+      ])
+      .groupBy('record.headerFrom')
+      .orderBy('count', 'DESC')
+      .offset((page - 1) * pageSize)
+      .limit(pageSize);
+
+    const result = await dataQuery.getRawMany();
+
+    const data = result.map((r) => ({
+      headerFrom: r.headerfrom,
+      count: parseInt(r.count, 10),
+      dmarcPassCount: parseInt(r.dmarcpasscount, 10),
+      dkimPassCount: parseInt(r.dkimpasscount, 10),
+      spfPassCount: parseInt(r.spfpasscount, 10),
+    }));
+
+    return { data, total };
+  }
 }

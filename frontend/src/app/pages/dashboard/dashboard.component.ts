@@ -31,6 +31,14 @@ interface CountryData {
   failCount: number;
 }
 
+interface HeaderFromRow {
+  headerFrom: string;
+  count: number;
+  dmarcPassCount: number;
+  dkimPassCount: number;
+  spfPassCount: number;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -225,68 +233,136 @@ interface CountryData {
         </mat-card>
         -->
 
-        <!-- Top Countries -->
-        <mat-card class="countries-card">
-          <mat-card-header>
-            <mat-card-title>
-              <mat-icon>flag</mat-icon>
-              Top Countries by Email Volume
-            </mat-card-title>
-            <mat-card-subtitle>
-              Countries with the highest number of email records ({{ totalCountriesCount }} total)
-            </mat-card-subtitle>
-          </mat-card-header>
-          <mat-card-content>
-            <div *ngIf="loadingCountries" class="loading-container">
-              <mat-spinner></mat-spinner>
-              <p>Loading country data...</p>
-            </div>
-
-            <div *ngIf="!loadingCountries">
-              <div class="countries-list">
-                <div *ngFor="let country of topCountries; let i = index" class="country-item">
-                  <div class="country-rank">{{ (countriesPage - 1) * countriesPageSize + i + 1 }}</div>
-                  <div class="country-info">
-                    <div class="country-name">
-                      <mat-icon>flag</mat-icon>
-                      {{ country.countryName || country.country }}
-                    </div>
-                    <div class="country-stats">
-                      <span class="total-count">{{ country.count | number }} records</span>
-                      <span
-                        class="pass-rate"
-                        [class.success]="getPassRate(country) >= 80"
-                        [class.warning]="getPassRate(country) >= 50 && getPassRate(country) < 80"
-                        [class.danger]="getPassRate(country) < 50"
-                      >
-                        {{ getPassRate(country) }}% pass rate
-                      </span>
-                    </div>
-                  </div>
-                  <div class="country-progress">
-                    <mat-progress-bar
-                      mode="determinate"
-                      [value]="getPassRate(country)"
-                      [color]="getProgressColor(country)"
-                    >
-                    </mat-progress-bar>
-                  </div>
-                </div>
+        <!-- Top Countries + Header-From Domains -->
+        <div class="top-tables-grid">
+          <!-- Top Countries -->
+          <mat-card class="countries-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>flag</mat-icon>
+                Top Countries by Email Volume
+              </mat-card-title>
+              <mat-card-subtitle>
+                Countries with the highest number of email records ({{ totalCountriesCount }} total)
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngIf="loadingCountries" class="loading-container">
+                <mat-spinner></mat-spinner>
+                <p>Loading country data...</p>
               </div>
 
-              <mat-paginator
-                *ngIf="totalCountriesCount > countriesPageSize"
-                [length]="totalCountriesCount"
-                [pageSize]="countriesPageSize"
-                [pageIndex]="countriesPage - 1"
-                [pageSizeOptions]="[5, 10, 25, 50]"
-                (page)="onCountriesPageChange($event)"
-                showFirstLastButtons
-              >
-              </mat-paginator>
-            </div>
-          </mat-card-content>
-        </mat-card>
+              <div *ngIf="!loadingCountries">
+                <div class="countries-list">
+                  <div *ngFor="let country of topCountries; let i = index" class="country-item">
+                    <div class="country-rank">{{ (countriesPage - 1) * countriesPageSize + i + 1 }}</div>
+                    <div class="country-info">
+                      <div class="country-name">
+                        <mat-icon>flag</mat-icon>
+                        {{ country.countryName || country.country }}
+                      </div>
+                      <div class="country-stats">
+                        <span class="total-count">{{ country.count | number }} records</span>
+                        <span
+                          class="pass-rate"
+                          [class.success]="getPassRate(country) >= 80"
+                          [class.warning]="getPassRate(country) >= 50 && getPassRate(country) < 80"
+                          [class.danger]="getPassRate(country) < 50"
+                        >
+                          {{ getPassRate(country) }}% pass rate
+                        </span>
+                      </div>
+                    </div>
+                    <div class="country-progress">
+                      <mat-progress-bar
+                        mode="determinate"
+                        [value]="getPassRate(country)"
+                        [color]="getProgressColor(country)"
+                      >
+                      </mat-progress-bar>
+                    </div>
+                  </div>
+                </div>
+
+                <mat-paginator
+                  *ngIf="totalCountriesCount > countriesPageSize"
+                  [length]="totalCountriesCount"
+                  [pageSize]="countriesPageSize"
+                  [pageIndex]="countriesPage - 1"
+                  [pageSizeOptions]="[5, 10, 25, 50]"
+                  (page)="onCountriesPageChange($event)"
+                  showFirstLastButtons
+                >
+                </mat-paginator>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <!-- Top Header-From Domains -->
+          <mat-card class="headerfrom-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>alternate_email</mat-icon>
+                Top Header-From Domains
+              </mat-card-title>
+              <mat-card-subtitle>
+                Domains found in the email Header-From ({{ headerFromTotal }} total)
+              </mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div *ngIf="loadingHeaderFrom" class="loading-container">
+                <mat-spinner></mat-spinner>
+                <p>Loading domain data...</p>
+              </div>
+
+              <div *ngIf="!loadingHeaderFrom">
+                <div class="headerfrom-list">
+                  <div *ngFor="let row of headerFromRows; let i = index" class="headerfrom-item">
+                    <div class="hf-rank">{{ (headerFromPage - 1) * headerFromPageSize + i + 1 }}</div>
+                    <div class="hf-info">
+                      <div class="hf-name">
+                        <mat-icon>alternate_email</mat-icon>
+                        {{ row.headerFrom || 'Unknown' }}
+                      </div>
+                      <div class="hf-stats">
+                        <span class="total-count">{{ row.count | number }} records</span>
+                        <span
+                          class="pass-rate"
+                          [class.success]="getHeaderFromDmarcPassRate(row) >= 80"
+                          [class.warning]="getHeaderFromDmarcPassRate(row) >= 50 && getHeaderFromDmarcPassRate(row) < 80"
+                          [class.danger]="getHeaderFromDmarcPassRate(row) < 50"
+                        >
+                          {{ getHeaderFromDmarcPassRate(row) }}% DMARC pass
+                        </span>
+                        <span><strong>DKIM:</strong> {{ getHeaderFromDkimPassRate(row) }}%</span>
+                        <span><strong>SPF:</strong> {{ getHeaderFromSpfPassRate(row) }}%</span>
+                      </div>
+                    </div>
+                    <div class="hf-progress">
+                      <mat-progress-bar
+                        mode="determinate"
+                        [value]="getHeaderFromDmarcPassRate(row)"
+                        [color]="getHeaderFromProgressColor(row)"
+                      >
+                      </mat-progress-bar>
+                    </div>
+                  </div>
+                </div>
+
+                <mat-paginator
+                  *ngIf="headerFromTotal > headerFromPageSize"
+                  [length]="headerFromTotal"
+                  [pageSize]="headerFromPageSize"
+                  [pageIndex]="headerFromPage - 1"
+                  [pageSizeOptions]="[5, 10, 25, 50]"
+                  (page)="onHeaderFromPageChange($event)"
+                  showFirstLastButtons
+                >
+                </mat-paginator>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
 
         <!-- World Map -->
         <app-world-map [heatmapData]="heatmapData" [loading]="loadingHeatmap"> </app-world-map>
@@ -387,8 +463,15 @@ interface CountryData {
         color: #555;
       }
 
-      .countries-card {
+      .top-tables-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 20px;
         margin-bottom: 20px;
+      }
+
+      .countries-card {
+        margin-bottom: 0;
       }
 
       .dns-issues-card {
@@ -569,6 +652,7 @@ interface CountryData {
         display: flex;
         flex-direction: column;
         gap: 12px;
+        margin-bottom: 16px; /* Add gap before pagination */
       }
 
       .country-item {
@@ -622,6 +706,54 @@ interface CountryData {
       }
 
       .country-progress {
+        width: 100px;
+      }
+
+      /* Header-From list styles */
+      .headerfrom-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px; /* Add gap before pagination */
+      }
+
+      .headerfrom-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+      }
+
+      .hf-rank {
+        font-size: 18px;
+        font-weight: bold;
+        color: #666;
+        min-width: 30px;
+      }
+
+      .hf-info {
+        flex: 1;
+      }
+
+      .hf-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+        margin-bottom: 4px;
+        word-break: break-all;
+      }
+
+      .hf-stats {
+        display: flex;
+        gap: 16px;
+        font-size: 14px;
+        flex-wrap: wrap;
+      }
+
+      .hf-progress {
         width: 100px;
       }
 
@@ -698,6 +830,8 @@ export class DashboardComponent implements OnInit {
   heatmapData: HeatmapPoint[] = [];
   topCountries: CountryData[] = [];
 
+  headerFromRows: HeaderFromRow[] = [];
+
   // Summary metrics
   totalCountries = 0;
   totalLocations = 0;
@@ -710,11 +844,17 @@ export class DashboardComponent implements OnInit {
   loadingHeatmap = false;
   loadingCountries = false;
   loadingDnsIssues = false;
+  loadingHeaderFrom = false;
 
   // Countries pagination
   countriesPage = 1;
   countriesPageSize = 10;
   totalCountriesCount = 0;
+
+  // Header-From pagination
+  headerFromPage = 1;
+  headerFromPageSize = 10;
+  headerFromTotal = 0;
 
   // Charts
   volumeChartOptions: any;
@@ -782,6 +922,8 @@ export class DashboardComponent implements OnInit {
 
   onFilterChange(filter: FilterParams) {
     this.currentFilter = filter;
+    this.countriesPage = 1;
+    this.headerFromPage = 1;
     this.loadData();
   }
 
@@ -795,9 +937,16 @@ export class DashboardComponent implements OnInit {
     this.loadCountriesData();
   }
 
+  onHeaderFromPageChange(event: PageEvent) {
+    this.headerFromPage = event.pageIndex + 1;
+    this.headerFromPageSize = event.pageSize;
+    this.loadHeaderFromData();
+  }
+
   private loadData() {
     this.loadHeatmapData();
     this.loadCountriesData();
+    this.loadHeaderFromData();
     this.loadCharts();
     this.loadAuthSummary();
     // this.loadDnsIssues(); // Hidden for now
@@ -953,12 +1102,55 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  private loadHeaderFromData() {
+    this.loadingHeaderFrom = true;
+
+    const params = {
+      domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
+      from: this.currentFilter.fromDate?.toISOString(),
+      to: this.currentFilter.toDate?.toISOString(),
+      page: this.headerFromPage,
+      pageSize: this.headerFromPageSize,
+    };
+
+    this.apiService.getTopHeaderFrom(params).subscribe({
+      next: (response) => {
+        this.headerFromRows = response.data || [];
+        this.headerFromTotal = response.total || 0;
+        this.loadingHeaderFrom = false;
+      },
+      error: (error) => {
+        console.error('Failed to load header-from data:', error);
+        this.loadingHeaderFrom = false;
+      },
+    });
+  }
+
   getPassRate(country: CountryData): number {
     return country.count > 0 ? Math.round((country.passCount / country.count) * 100) : 0;
   }
 
   getProgressColor(country: CountryData): 'primary' | 'accent' | 'warn' {
     const passRate = this.getPassRate(country);
+    if (passRate >= 80) return 'primary';
+    if (passRate >= 50) return 'accent';
+    return 'warn';
+  }
+
+  getHeaderFromDmarcPassRate(row: HeaderFromRow): number {
+    return row.count > 0 ? Math.round((row.dmarcPassCount / row.count) * 100) : 0;
+  }
+
+  getHeaderFromDkimPassRate(row: HeaderFromRow): number {
+    return row.count > 0 ? Math.round((row.dkimPassCount / row.count) * 100) : 0;
+  }
+
+  getHeaderFromSpfPassRate(row: HeaderFromRow): number {
+    return row.count > 0 ? Math.round((row.spfPassCount / row.count) * 100) : 0;
+  }
+
+  getHeaderFromProgressColor(row: HeaderFromRow): 'primary' | 'accent' | 'warn' {
+    const passRate = this.getHeaderFromDmarcPassRate(row);
     if (passRate >= 80) return 'primary';
     if (passRate >= 50) return 'accent';
     return 'warn';
