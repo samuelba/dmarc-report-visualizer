@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -103,7 +103,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
         <mat-form-field appearance="outline">
           <mat-label>Country</mat-label>
           <mat-select [(ngModel)]="filters.country" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of countries()" [value]="v">{{ getCountryName(v) }}</mat-option>
+            <mat-option *ngFor="let v of sortedCountries()" [value]="v">{{ getCountryName(v) }}</mat-option>
           </mat-select>
         </mat-form-field>
         <mat-form-field appearance="outline">
@@ -538,6 +538,15 @@ export class ExploreComponent implements OnInit {
   readonly dkimDomains = signal<string[]>([]);
   readonly spfDomains = signal<string[]>([]);
   readonly countries = signal<string[]>([]);
+
+  // Computed signal to return countries sorted alphabetically by their display names
+  readonly sortedCountries = computed(() => {
+    return this.countries().slice().sort((a, b) => {
+      const nameA = this.getCountryName(a);
+      const nameB = this.getCountryName(b);
+      return nameA.localeCompare(nameB);
+    });
+  });
 
   // Country code to name mapping
   private countryNames: { [key: string]: string } = {
