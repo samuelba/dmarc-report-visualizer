@@ -336,6 +336,13 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
       }
     `,
     `
+      td.mat-mdc-cell,
+      th.mat-mdc-header-cell {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+      }
+    `,
+    `
       .auth {
         font-size: 12px;
       }

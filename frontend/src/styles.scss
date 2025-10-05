@@ -211,7 +211,7 @@ body {
     pre[class*="language-"],
     code[class*="language-"] {
       color: #657b83;
-      background: #fdf6e3;
+      background: #ffffff;
       text-shadow: 0 1px white;
     }
 
@@ -309,7 +309,7 @@ body {
 
     // Line highlight styling for light theme
     .line-highlight {
-      background: linear-gradient(to right, rgba(255, 193, 7, 0.2) 70%, rgba(255, 193, 7, 0)) !important;
+      background: rgba(255, 193, 7, 0.2) !important;
     }
 
     .line-highlight:before,
@@ -645,7 +645,8 @@ body {
 
     // Line highlight styling for dark theme
     .line-highlight {
-      background: linear-gradient(to right, rgba(255, 193, 7, 0.15) 70%, rgba(255, 193, 7, 0)) !important;
+      background: rgba(255, 193, 7, 0.15) !important;
+      //background: linear-gradient(to right, rgba(255, 193, 7, 0.15) 70%, rgba(255, 193, 7, 0)) !important;
     }
 
     .line-highlight:before,
