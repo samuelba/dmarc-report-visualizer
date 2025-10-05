@@ -13,6 +13,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSortModule, Sort } from '@angular/material/sort';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
 
 @Component({
   standalone: true,
@@ -30,6 +32,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
     MatDatepickerModule,
     MatNativeDateModule,
     MatSortModule,
+    MatDialogModule,
   ],
   template: `
     <main class="explore">
@@ -222,7 +225,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let r">
-              <button mat-button color="primary" (click)="viewXml(r.reportId)">View XML</button>
+              <button mat-button color="primary" (click)="viewXml(r)">View XML</button>
             </td>
           </ng-container>
 
@@ -503,6 +506,7 @@ export class ExploreComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
 
   readonly rows = signal<DmarcRecord[]>([]);
   readonly total = signal(0);
@@ -906,13 +910,23 @@ export class ExploreComponent implements OnInit {
     });
   }
 
-  viewXml(reportId?: string) {
+  viewXml(record: DmarcRecord) {
+    // Get the report ID from the nested report object
+    const reportId = (record as any).report?.id;
     if (!reportId) return;
+    
     this.api.getReportXml(reportId).subscribe((xml) => {
-      const blob = new Blob([xml], { type: 'application/xml' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      this.dialog.open(XmlViewerDialogComponent, {
+        data: { 
+          xml, 
+          record, 
+          reportId: reportId,
+          title: `DMARC Report XML - ${record.sourceIp || 'Unknown IP'}` 
+        },
+        width: '90%',
+        maxWidth: '1400px',
+        height: '85vh',
+      });
     });
   }
 

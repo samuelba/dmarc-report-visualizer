@@ -35,6 +35,107 @@ $dark-theme: mat.m2-define-dark-theme(
 // Dark theme styles
 .dark-theme {
   @include mat.all-component-colors($dark-theme);
+
+  // Override Prism theme for dark mode - use Twilight
+  // Hide the default light theme
+  pre[class*="language-"],
+  code[class*="language-"] {
+    color: #f8f8f2;
+    background: #141414;
+    text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+  }
+
+  pre[class*="language-"]::selection,
+  code[class*="language-"]::selection,
+  pre[class*="language-"] *::selection,
+  code[class*="language-"] *::selection {
+    text-shadow: none;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  pre[class*="language-"] {
+    padding: 1em;
+    margin: 0.5em 0;
+    overflow: auto;
+    border-radius: 0.3em;
+    box-shadow: none !important;
+  }
+
+  :not(pre) > code[class*="language-"] {
+    padding: 0.15em 0.2em 0.05em;
+    border-radius: 0.3em;
+    border: 0.13em solid #545454;
+    box-shadow: 1px 1px 0.3em -0.1em #000 inset;
+  }
+
+  .token.comment,
+  .token.prolog,
+  .token.doctype,
+  .token.cdata {
+    color: #777;
+  }
+
+  .token.punctuation {
+    color: #f8f8f2;
+  }
+
+  .token.property,
+  .token.tag,
+  .token.boolean,
+  .token.number,
+  .token.constant,
+  .token.symbol,
+  .token.deleted {
+    color: #cf6a4c;
+  }
+
+  .token.selector,
+  .token.attr-name,
+  .token.string,
+  .token.char,
+  .token.builtin,
+  .token.inserted {
+    color: #8f9d6a;
+  }
+
+  .token.operator,
+  .token.entity,
+  .token.url,
+  .language-css .token.string,
+  .style .token.string {
+    color: #cda869;
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .token.atrule,
+  .token.attr-value,
+  .token.keyword {
+    color: #ac885b;
+  }
+
+  .token.function,
+  .token.class-name {
+    color: #9b703f;
+  }
+
+  .token.regex,
+  .token.important,
+  .token.variable {
+    color: #e9c062;
+  }
+
+  .token.important,
+  .token.bold {
+    font-weight: bold;
+  }
+
+  .token.italic {
+    font-style: italic;
+  }
+
+  .token.entity {
+    cursor: help;
+  }
 }
 
 // Global styles
@@ -89,6 +190,128 @@ body {
   // Toolbar
   .app-toolbar {
     background-color: mat.get-theme-color($light-theme, primary, 600) !important;
+  }
+
+  // XML viewer light theme specific overrides
+  .xml-viewer-dialog {
+    pre {
+      padding-top: 0 !important;
+    }
+
+    code {
+      padding: 0 !important;
+    }
+
+    // Solarized Light theme colors for Prism
+    pre[class*="language-"],
+    code[class*="language-"] {
+      color: #657b83;
+      background: #fdf6e3;
+      text-shadow: 0 1px white;
+    }
+
+    pre[class*="language-"]::selection,
+    code[class*="language-"]::selection,
+    pre[class*="language-"] *::selection,
+    code[class*="language-"] *::selection {
+      background: #073642;
+    }
+
+    pre[class*="language-"] {
+      margin: 0.5em 0;
+      overflow: auto;
+      border-radius: 0.3em;
+      box-shadow: none !important;
+    }
+
+    :not(pre) > code[class*="language-"] {
+      padding: 0.15em 0.2em 0.05em;
+      border-radius: 0.3em;
+      border: 0.13em solid #c5c8c6;
+    }
+
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata {
+      color: #93a1a1;
+    }
+
+    .token.punctuation {
+      color: #586e75;
+    }
+
+    .token.property,
+    .token.tag,
+    .token.boolean,
+    .token.number,
+    .token.constant,
+    .token.symbol,
+    .token.deleted {
+      color: #268bd2;
+    }
+
+    .token.selector,
+    .token.attr-name,
+    .token.string,
+    .token.char,
+    .token.builtin,
+    .token.url,
+    .token.inserted {
+      color: #2aa198;
+    }
+
+    .token.entity {
+      color: #657b83;
+      background: #eee8d5;
+      cursor: help;
+    }
+
+    .token.atrule,
+    .token.attr-value,
+    .token.keyword {
+      color: #859900;
+    }
+
+    .token.function,
+    .token.class-name {
+      color: #b58900;
+    }
+
+    .token.regex,
+    .token.important,
+    .token.variable {
+      color: #cb4b16;
+    }
+
+    .token.important,
+    .token.bold {
+      font-weight: bold;
+    }
+
+    .token.italic {
+      font-style: italic;
+    }
+
+    // Line numbers styling for light theme
+    .line-numbers-rows {
+      border-right-color: #e0e0e0 !important;
+    }
+
+    .line-numbers-rows > span:before {
+      color: #93a1a1 !important;
+    }
+
+    // Line highlight styling for light theme
+    .line-highlight {
+      background: linear-gradient(to right, rgba(255, 193, 7, 0.2) 70%, rgba(255, 193, 7, 0)) !important;
+    }
+
+    .line-highlight:before,
+    .line-highlight[data-end]:after {
+      background-color: #ffc107 !important;
+      color: #000 !important;
+    }
   }
 }
 
@@ -358,6 +581,79 @@ body {
     background: rgba(18, 18, 18, 0.8) !important;
     color: #e0e0e0;
   }
+
+  // XML viewer dialog
+  .xml-viewer-dialog {
+    .dialog-header {
+      background-color: #2d2d2d;
+      border-bottom-color: #404040;
+    }
+
+    h2[mat-dialog-title] {
+      color: #e0e0e0;
+    }
+
+    .xml-container {
+      background-color: #1e1e1e;
+    }
+
+    pre {
+      background-color: #2d2d2d !important;
+      border-color: #404040 !important;
+      color: #e0e0e0 !important;
+      padding-top: 0 !important;
+    }
+
+    code {
+      padding: 0 !important;
+    }
+
+    // PrismJS token styling for dark theme
+    .token.tag {
+      color: #569cd6 !important;
+    }
+
+    .token.attr-name {
+      color: #9cdcfe !important;
+    }
+
+    .token.attr-value {
+      color: #ce9178 !important;
+    }
+
+    .token.punctuation {
+      color: #d4d4d4 !important;
+    }
+
+    .token.comment {
+      color: #6a9955 !important;
+    }
+
+    // Line numbers styling for dark theme
+    .line-numbers-rows {
+      border-right-color: #404040 !important;
+    }
+
+    .line-numbers-rows > span:before {
+      color: #858585 !important;
+    }
+
+    // Line highlight styling for dark theme
+    .line-highlight {
+      background: linear-gradient(to right, rgba(255, 193, 7, 0.15) 70%, rgba(255, 193, 7, 0)) !important;
+    }
+
+    .line-highlight:before,
+    .line-highlight[data-end]:after {
+      background-color: #ffc107 !important;
+      color: #000 !important;
+    }
+  }
+
+  // Dialog overlay
+  .cdk-overlay-dark-backdrop {
+    background: rgba(0, 0, 0, 0.6);
+  }
 }
 
 // Leaflet styles for maps
@@ -415,4 +711,40 @@ body {
 // Dark mode support for Leaflet map tiles
 .dark-theme .leaflet-tile {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+// XML Viewer Dialog Styling
+.xml-viewer-dialog {
+  .dialog-header {
+    background-color: #f5f5f5;
+  }
+
+  .xml-container {
+    background-color: #f9f9f9;
+  }
+
+  pre {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    padding-top: 0 !important;
+  }
+
+  code {
+    padding: 0 !important;
+  }
+}
+
+// Light theme PrismJS customization
+.light-theme {
+  .token.tag {
+    color: #800000 !important;
+  }
+
+  .token.attr-name {
+    color: #ff0000 !important;
+  }
+
+  .token.attr-value {
+    color: #0000ff !important;
+  }
 }

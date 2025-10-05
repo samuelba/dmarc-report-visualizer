@@ -7,6 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
 
 @Component({
   standalone: true,
@@ -19,6 +21,7 @@ import { FormsModule } from '@angular/forms';
     MatSelectModule,
     MatButtonModule,
     FormsModule,
+    MatDialogModule,
   ],
   template: `
     <main>
@@ -88,6 +91,7 @@ import { FormsModule } from '@angular/forms';
 })
 export class ReportsComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly dialog = inject(MatDialog);
 
   readonly reports = signal<DmarcReport[]>([]);
   readonly total = signal(0);
@@ -130,10 +134,11 @@ export class ReportsComponent implements OnInit {
 
   viewXml(id: string) {
     this.api.getReportXml(id).subscribe((xml) => {
-      const blob = new Blob([xml], { type: 'application/xml' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      this.dialog.open(XmlViewerDialogComponent, {
+        data: { xml, title: 'DMARC Report XML' },
+        width: '80%',
+        height: '80%',
+      });
     });
   }
 }
