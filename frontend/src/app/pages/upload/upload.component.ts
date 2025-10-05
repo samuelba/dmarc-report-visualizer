@@ -130,6 +130,10 @@ import { forkJoin } from 'rxjs';
         cursor: pointer;
         transition: all 0.3s ease;
         margin: 20px 0;
+
+        h3 {
+          color: #666 !important;
+        }
       }
 
       .upload-area:hover {
