@@ -212,6 +212,10 @@ export class ApiService {
     return this.http.get<DmarcRecord>(`${this.apiBase}/dmarc-reports/record/${id}`);
   }
 
+  findOne(id: string) {
+    return this.http.get<DmarcReport>(`${this.apiBase}/dmarc-reports/report/${id}`);
+  }
+
   searchRecords(params: {
     page?: number;
     pageSize?: number;

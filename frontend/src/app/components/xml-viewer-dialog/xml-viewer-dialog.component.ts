@@ -457,9 +457,13 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     // Get current query params
     const currentParams = new URLSearchParams(window.location.search);
     
-    // Add the recordId to query params
+    // Determine which ID to include based on what data we have
     if (this.data.record?.id) {
+      // We're viewing a specific record from the explore page
       currentParams.set('recordId', this.data.record.id);
+    } else if (this.data.reportId) {
+      // We're viewing a report from the reports page
+      currentParams.set('reportId', this.data.reportId);
     }
     
     // Build the shareable URL
