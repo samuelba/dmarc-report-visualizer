@@ -392,7 +392,8 @@ export class DmarcReportService {
         'spfPass',
       )
       .addSelect(
-        `COALESCE(SUM(CASE WHEN (rec.dmarcDkim = 'pass' OR rec.dmarcSpf = 'pass') AND COALESCE(rec.disposition,'none') = 'none' THEN rec.count ELSE 0 END),0)`,
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        `COALESCE(SUM(CASE WHEN (rec.dmarcDkim = 'pass' OR rec.dmarcSpf = 'pass') THEN rec.count ELSE 0 END),0)`,
         'dmarcPass',
       )
       .addSelect(
@@ -414,6 +415,66 @@ export class DmarcReportService {
       dmarcPass: Number(row?.dmarcPass ?? 0),
       enforcement: Number(row?.enforcement ?? 0),
     };
+  }
+
+  async authPassRateTimeseries(params: {
+    domain?: string;
+    from?: Date;
+    to?: Date;
+    interval: 'day' | 'week';
+  }): Promise<
+    Array<{
+      date: string;
+      dkimPassRate: number;
+      spfPassRate: number;
+      totalCount: number;
+      dkimPassCount: number;
+      spfPassCount: number;
+    }>
+  > {
+    const { domain, from, to, interval } = params;
+    const dateTrunc = interval === 'week' ? 'week' : 'day';
+    const qb = this.dmarcRecordRepository
+      .createQueryBuilder('rec')
+      .leftJoin('rec.report', 'rep');
+    if (domain)
+      qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
+    if (from) qb.andWhere('rep.beginDate >= :from', { from });
+    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+
+    const rows = await qb
+      .select(`DATE_TRUNC('${dateTrunc}', rep.beginDate)`, 'bucket')
+      .addSelect(`COALESCE(SUM(rec.count),0)`, 'total')
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN rec.dmarcDkim = 'pass' THEN rec.count ELSE 0 END),0)`,
+        'dkimPass',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN rec.dmarcSpf = 'pass' THEN rec.count ELSE 0 END),0)`,
+        'spfPass',
+      )
+      .groupBy('bucket')
+      .orderBy('bucket', 'ASC')
+      .getRawMany<{
+        bucket: string;
+        total: string;
+        dkimPass: string;
+        spfPass: string;
+      }>();
+
+    return rows.map((r) => {
+      const total = Number(r.total ?? 0);
+      const dkimPass = Number(r.dkimPass ?? 0);
+      const spfPass = Number(r.spfPass ?? 0);
+      return {
+        date: r.bucket,
+        totalCount: total,
+        dkimPassCount: dkimPass,
+        spfPassCount: spfPass,
+        dkimPassRate: total > 0 ? Math.round((dkimPass / total) * 10000) / 100 : 0,
+        spfPassRate: total > 0 ? Math.round((spfPass / total) * 10000) / 100 : 0,
+      };
+    });
   }
 
   async dispositionTimeseries(params: {
@@ -547,11 +608,12 @@ export class DmarcReportService {
       .select('rec.sourceIp', 'ip')
       .addSelect('COUNT(*)', 'total')
       .addSelect(
-        `SUM(CASE WHEN (rec.dmarcDkim = 'pass' OR rec.dmarcSpf = 'pass') AND COALESCE(rec.disposition,'none') = 'none' THEN 1 ELSE 0 END)`,
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        `SUM(CASE WHEN (rec.dmarcDkim = 'pass' OR rec.dmarcSpf = 'pass') THEN 1 ELSE 0 END)`,
         'pass',
       )
       .addSelect(
-        `SUM(CASE WHEN NOT ((rec.dmarcDkim = 'pass' OR rec.dmarcSpf = 'pass') AND COALESCE(rec.disposition,'none') = 'none') THEN 1 ELSE 0 END)`,
+        `SUM(CASE WHEN NOT (rec.dmarcDkim = 'pass' OR rec.dmarcSpf = 'pass') THEN 1 ELSE 0 END)`,
         'fail',
       )
       .addSelect('MAX(rep.beginDate)', 'lastSeen')
@@ -1396,7 +1458,8 @@ export class DmarcReportService {
         'record.geoCountry as country',
         'record.geoCountryName as countryName',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as dmarcPassCount",
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as dmarcPassCount",
         "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
@@ -1569,7 +1632,8 @@ export class DmarcReportService {
         'record.geoCountry as country',
         'record.geoCountryName as countryName',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as dmarcPassCount",
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as dmarcPassCount",
         "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
@@ -1613,8 +1677,9 @@ export class DmarcReportService {
         'record.geoLatitude as latitude',
         'record.geoLongitude as longitude',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN record.dmarcDkim = 'pass' AND record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as passCount",
-        "SUM(CASE WHEN record.dmarcDkim != 'pass' OR record.dmarcSpf != 'pass' THEN record.count ELSE 0 END) as failCount",
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as passCount",
+        "SUM(CASE WHEN NOT (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as failCount",
       ])
       .where(
         'record.geoLatitude IS NOT NULL AND record.geoLongitude IS NOT NULL',
@@ -1708,8 +1773,9 @@ export class DmarcReportService {
         'record.geoLatitude as latitude',
         'record.geoLongitude as longitude',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as passCount",
-        "SUM(CASE WHEN NOT ((record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none') THEN record.count ELSE 0 END) as failCount",
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as passCount",
+        "SUM(CASE WHEN NOT (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as failCount",
         "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
@@ -1793,7 +1859,8 @@ export class DmarcReportService {
       .select([
         'record.headerFrom as headerFrom',
         'SUM(record.count) as count',
-        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') AND COALESCE(record.disposition,'none') = 'none' THEN record.count ELSE 0 END) as dmarcPassCount",
+        // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
+        "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as dmarcPassCount",
         "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])

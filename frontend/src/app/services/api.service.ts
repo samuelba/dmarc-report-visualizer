@@ -138,6 +138,25 @@ export class ApiService {
     );
   }
 
+  authPassRateTimeseries(params: { domain?: string; from?: string; to?: string; interval?: 'day' | 'week' }) {
+    let hp = new HttpParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        hp = hp.set(k, String(v));
+      }
+    });
+    return this.http.get<
+      Array<{
+        date: string;
+        dkimPassRate: number;
+        spfPassRate: number;
+        totalCount: number;
+        dkimPassCount: number;
+        spfPassCount: number;
+      }>
+    >(`${this.apiBase}/dmarc-reports/stats/auth-pass-rate-timeseries`, { params: hp });
+  }
+
   dispositionTimeseries(params: { domain?: string; from?: string; to?: string; interval?: 'day' | 'week' }) {
     let hp = new HttpParams();
     Object.entries(params).forEach(([k, v]) => {

@@ -107,11 +107,11 @@ interface HeaderFromRow {
               <div class="metric-sub">
                 <span
                   ><strong>DKIM:</strong>
-                  {{ (totalReports > 0 ? (dkimPass / totalReports) * 100 : 0) | number: '1.0-0' }}%</span
+                  {{ globalDkimPassRate }}%</span
                 >
                 <span
                   ><strong>SPF:</strong>
-                  {{ (totalReports > 0 ? (spfPass / totalReports) * 100 : 0) | number: '1.0-0' }}%</span
+                  {{ globalSpfPassRate }}%</span
                 >
               </div>
               <div class="metric-label">DMARC Authentication</div>
@@ -138,11 +138,11 @@ interface HeaderFromRow {
             <mat-card-header>
               <mat-card-title>
                 <mat-icon>show_chart</mat-icon>
-                Email Reports Over Time
+                DKIM / SPF Pass Rate Over Time
               </mat-card-title>
             </mat-card-header>
             <mat-card-content>
-              <div echarts [options]="volumeChartOptions" class="chart"></div>
+              <div echarts [options]="authPassRateChartOptions" class="chart"></div>
             </mat-card-content>
           </mat-card>
 
@@ -372,6 +372,21 @@ interface HeaderFromRow {
 
         <!-- Enhanced Top IPs -->
         <app-enhanced-top-ips [filterParams]="currentFilter"> </app-enhanced-top-ips>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+          <mat-card class="chart-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>show_chart</mat-icon>
+                Email Reports Over Time
+              </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div echarts [options]="volumeChartOptions" class="chart"></div>
+            </mat-card-content>
+          </mat-card>
+        </div>
 
         <!-- DMARC Insights -->
         <mat-card class="insights-card">
@@ -841,6 +856,8 @@ export class DashboardComponent implements OnInit {
   totalCountries = 0;
   totalLocations = 0;
   globalPassRate = 0;
+  globalDkimPassRate = 0;
+  globalSpfPassRate = 0;
   totalReports = 0;
   dkimPass = 0;
   spfPass = 0;
@@ -864,6 +881,8 @@ export class DashboardComponent implements OnInit {
   // Charts
   volumeChartOptions: any;
   dispositionChartOptions: any;
+  authPassRateChartOptions: any;
+  emailVolumeChartOptions: any;
 
   // DNS validation issues
   domainsWithDnsIssues: Array<{
@@ -993,7 +1012,9 @@ export class DashboardComponent implements OnInit {
         this.totalReports = s.total;
         this.dkimPass = s.dkimPass;
         this.spfPass = s.spfPass;
-        this.globalPassRate = s.total > 0 ? Math.round((s.dmarcPass / s.total) * 100) : 0;
+        this.globalPassRate = s.total > 0 ? Math.round((s.dmarcPass / s.total) * 1000) / 10 : 0;
+        this.globalDkimPassRate = s.total > 0 ? Math.round((s.dkimPass / s.total) * 1000) / 10 : 0;
+        this.globalSpfPassRate = s.total > 0 ? Math.round((s.spfPass / s.total) * 1000) / 10 : 0;
       },
       error: (e) => console.error('Failed to load auth summary', e),
     });
@@ -1007,27 +1028,58 @@ export class DashboardComponent implements OnInit {
       interval: 'day' as const,
     };
 
-    this.apiService.timeseries(params).subscribe({
+    // Load auth pass rate timeseries for DKIM/SPF chart at the top
+    this.apiService.authPassRateTimeseries(params).subscribe({
       next: (rows) => {
-        this.volumeChartOptions = {
-          tooltip: { trigger: 'axis' },
+        this.authPassRateChartOptions = {
+          tooltip: {
+            trigger: 'axis',
+            formatter: (params: any) => {
+              const data = params[0];
+              const date = new Date(data.value[0]).toLocaleDateString();
+              let tooltip = `<strong>${date}</strong><br/>`;
+              params.forEach((param: any) => {
+                tooltip += `${param.marker} ${param.seriesName}: ${param.value[1].toFixed(1)}%<br/>`;
+              });
+              return tooltip;
+            },
+          },
+          legend: {
+            data: ['DKIM Pass Rate', 'SPF Pass Rate'],
+            top: 0,
+            left: 'center',
+          },
           xAxis: { type: 'time' },
-          yAxis: { type: 'value' },
-          grid: { left: 12, right: 12, bottom: 12, top: 24, containLabel: true },
+          yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            axisLabel: {
+              formatter: '{value}%',
+            },
+          },
+          grid: { left: 12, right: 12, bottom: 12, top: 40, containLabel: true },
           series: [
             {
+              name: 'DKIM Pass Rate',
               type: 'line',
               symbol: 'circle',
               symbolSize: 6,
               smooth: false,
-              areaStyle: { opacity: 0.08 },
-              lineStyle: { width: 2 },
-              data: rows.map((pt) => [pt.date, pt.count]),
+              data: rows.map((pt) => [pt.date, pt.dkimPassRate]),
+            },
+            {
+              name: 'SPF Pass Rate',
+              type: 'line',
+              symbol: 'circle',
+              symbolSize: 6,
+              smooth: false,
+              data: rows.map((pt) => [pt.date, pt.spfPassRate]),
             },
           ],
         } as any;
       },
-      error: (e) => console.error('Failed to load volume timeseries', e),
+      error: (e) => console.error('Failed to load auth pass rate timeseries', e),
     });
 
     this.apiService.dispositionTimeseries(params).subscribe({
@@ -1071,6 +1123,27 @@ export class DashboardComponent implements OnInit {
         } as any;
       },
       error: (e) => console.error('Failed to load disposition timeseries', e),
+    });
+
+    // Load email volume timeseries for the chart at the bottom
+    this.apiService.timeseries(params).subscribe({
+      next: (rows) => {
+        this.volumeChartOptions = {
+          tooltip: { trigger: 'axis' },
+          xAxis: { type: 'time' },
+          yAxis: { type: 'value' },
+          grid: { left: 12, right: 12, bottom: 12, top: 24, containLabel: true },
+          series: [
+            {
+              type: 'line',
+              areaStyle: {},
+              smooth: false,
+              data: rows.map((pt) => [pt.date, pt.count]),
+            },
+          ],
+        } as any;
+      },
+      error: (e) => console.error('Failed to load volume timeseries', e),
     });
   }
 
@@ -1132,15 +1205,15 @@ export class DashboardComponent implements OnInit {
   }
 
   getPassRate(country: CountryData): number {
-    return country.count > 0 ? Math.round((country.dmarcPassCount / country.count) * 100) : 0;
+    return country.count > 0 ? Math.round((country.dmarcPassCount / country.count) * 1000) / 10 : 0;
   }
 
   getDkimPassRate(country: CountryData): number {
-    return country.count > 0 ? Math.round((country.dkimPassCount / country.count) * 100) : 0;
+    return country.count > 0 ? Math.round((country.dkimPassCount / country.count) * 1000) / 10 : 0;
   }
 
   getSpfPassRate(country: CountryData): number {
-    return country.count > 0 ? Math.round((country.spfPassCount / country.count) * 100) : 0;
+    return country.count > 0 ? Math.round((country.spfPassCount / country.count) * 1000) / 10 : 0;
   }
 
   getProgressColor(country: CountryData): 'primary' | 'accent' | 'warn' {
@@ -1151,15 +1224,15 @@ export class DashboardComponent implements OnInit {
   }
 
   getHeaderFromDmarcPassRate(row: HeaderFromRow): number {
-    return row.count > 0 ? Math.round((row.dmarcPassCount / row.count) * 100) : 0;
+    return row.count > 0 ? Math.round((row.dmarcPassCount / row.count) * 1000) / 10 : 0;
   }
 
   getHeaderFromDkimPassRate(row: HeaderFromRow): number {
-    return row.count > 0 ? Math.round((row.dkimPassCount / row.count) * 100) : 0;
+    return row.count > 0 ? Math.round((row.dkimPassCount / row.count) * 1000) / 10 : 0;
   }
 
   getHeaderFromSpfPassRate(row: HeaderFromRow): number {
-    return row.count > 0 ? Math.round((row.spfPassCount / row.count) * 100) : 0;
+    return row.count > 0 ? Math.round((row.spfPassCount / row.count) * 1000) / 10 : 0;
   }
 
   getHeaderFromProgressColor(row: HeaderFromRow): 'primary' | 'accent' | 'warn' {

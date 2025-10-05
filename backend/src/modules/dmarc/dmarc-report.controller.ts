@@ -86,6 +86,18 @@ export class DmarcReportController {
     return this.dmarcReportService.authSummary({ domain: q.domain, from, to });
   }
 
+  @Get('stats/auth-pass-rate-timeseries')
+  async authPassRateTimeseries(@Query() q: TimeSeriesQueryDto) {
+    const from = q.from ? new Date(q.from) : undefined;
+    const to = q.to ? new Date(q.to) : undefined;
+    return this.dmarcReportService.authPassRateTimeseries({
+      domain: q.domain,
+      from,
+      to,
+      interval: q.interval ?? 'day',
+    });
+  }
+
   @Get('stats/disposition-timeseries')
   async dispositionTimeseries(@Query() q: TimeSeriesQueryDto) {
     const from = q.from ? new Date(q.from) : undefined;
