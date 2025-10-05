@@ -19,6 +19,7 @@ export interface GeoLocationData {
 @Injectable()
 export class GeolocationService {
   private readonly logger = new Logger(GeolocationService.name);
+  private readonly regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
   constructor(
     @InjectRepository(IpLocation)
@@ -114,61 +115,12 @@ export class GeolocationService {
   }
 
   private getCountryName(countryCode: string): string {
-    const countries: Record<string, string> = {
-      US: 'United States',
-      GB: 'United Kingdom',
-      DE: 'Germany',
-      FR: 'France',
-      JP: 'Japan',
-      CN: 'China',
-      IN: 'India',
-      CA: 'Canada',
-      AU: 'Australia',
-      BR: 'Brazil',
-      RU: 'Russia',
-      IT: 'Italy',
-      ES: 'Spain',
-      NL: 'Netherlands',
-      SE: 'Sweden',
-      CH: 'Switzerland',
-      NO: 'Norway',
-      DK: 'Denmark',
-      FI: 'Finland',
-      BE: 'Belgium',
-      AT: 'Austria',
-      IE: 'Ireland',
-      PL: 'Poland',
-      CZ: 'Czech Republic',
-      HU: 'Hungary',
-      PT: 'Portugal',
-      GR: 'Greece',
-      TR: 'Turkey',
-      IL: 'Israel',
-      SG: 'Singapore',
-      HK: 'Hong Kong',
-      KR: 'South Korea',
-      TW: 'Taiwan',
-      TH: 'Thailand',
-      MY: 'Malaysia',
-      ID: 'Indonesia',
-      PH: 'Philippines',
-      VN: 'Vietnam',
-      ZA: 'South Africa',
-      EG: 'Egypt',
-      NG: 'Nigeria',
-      KE: 'Kenya',
-      MX: 'Mexico',
-      AR: 'Argentina',
-      CL: 'Chile',
-      CO: 'Colombia',
-      PE: 'Peru',
-      VE: 'Venezuela',
-      UY: 'Uruguay',
-      EC: 'Ecuador',
-      BO: 'Bolivia',
-      PY: 'Paraguay',
-    };
-    return countries[countryCode] || countryCode;
+    try {
+      return this.regionNames.of(countryCode) || countryCode;
+    } catch (error) {
+      // If the country code is invalid, just return it as-is
+      return countryCode;
+    }
   }
 
   async getTopCountries(params: {

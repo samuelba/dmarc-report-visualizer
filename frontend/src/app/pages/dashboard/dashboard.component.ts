@@ -829,6 +829,8 @@ interface HeaderFromRow {
   ],
 })
 export class DashboardComponent implements OnInit {
+  private readonly regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  
   currentFilter: FilterParams = { domains: [] };
   heatmapData: HeatmapPoint[] = [];
   topCountries: CountryData[] = [];

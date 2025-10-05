@@ -20,5 +20,6 @@ export default registerAs('database', () => ({
     process.env.DB_SYNCHRONIZE,
     process.env.NODE_ENV !== 'production',
   ),
-  migrationsRun: toBool(process.env.DB_MIGRATIONS_RUN, false),
+  // Run migrations automatically on startup (can be disabled with DB_MIGRATIONS_RUN=false)
+  migrationsRun: toBool(process.env.DB_MIGRATIONS_RUN, true),
 }));
