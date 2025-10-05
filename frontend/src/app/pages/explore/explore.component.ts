@@ -338,7 +338,6 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
     `
       .auth {
         font-size: 12px;
-        color: #fff;
       }
     `,
     `
