@@ -417,6 +417,66 @@ export class DmarcReportService {
     };
   }
 
+  async authBreakdown(params: {
+    domain?: string;
+    from?: Date;
+    to?: Date;
+  }): Promise<{
+    dkim: {
+      pass: number;
+      fail: number;
+    };
+    spf: {
+      pass: number;
+      fail: number;
+    };
+  }> {
+    const { domain, from, to } = params;
+    const qb = this.dmarcRecordRepository
+      .createQueryBuilder('rec')
+      .leftJoin('rec.report', 'rep');
+    
+    if (domain)
+      qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
+    if (from) qb.andWhere('rep.beginDate >= :from', { from });
+    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+
+    const row = await qb
+      .select(
+        `COALESCE(SUM(CASE WHEN rec.dmarcDkim = 'pass' THEN rec.count ELSE 0 END),0)`,
+        'dkimPass',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN rec.dmarcDkim = 'fail' THEN rec.count ELSE 0 END),0)`,
+        'dkimFail',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN rec.dmarcSpf = 'pass' THEN rec.count ELSE 0 END),0)`,
+        'spfPass',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN rec.dmarcSpf = 'fail' THEN rec.count ELSE 0 END),0)`,
+        'spfFail',
+      )
+      .getRawOne<{
+        dkimPass: string;
+        dkimFail: string;
+        spfPass: string;
+        spfFail: string;
+      }>();
+
+    return {
+      dkim: {
+        pass: Number(row?.dkimPass ?? 0),
+        fail: Number(row?.dkimFail ?? 0),
+      },
+      spf: {
+        pass: Number(row?.spfPass ?? 0),
+        fail: Number(row?.spfFail ?? 0),
+      },
+    };
+  }
+
   async authPassRateTimeseries(params: {
     domain?: string;
     from?: Date;

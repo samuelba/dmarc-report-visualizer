@@ -138,6 +138,19 @@ export class ApiService {
     );
   }
 
+  authBreakdown(params: { domain?: string; from?: string; to?: string }) {
+    let hp = new HttpParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        hp = hp.set(k, String(v));
+      }
+    });
+    return this.http.get<{
+      dkim: { pass: number; fail: number; missing: number };
+      spf: { pass: number; fail: number; missing: number };
+    }>(`${this.apiBase}/dmarc-reports/stats/auth-breakdown`, { params: hp });
+  }
+
   authPassRateTimeseries(params: { domain?: string; from?: string; to?: string; interval?: 'day' | 'week' }) {
     let hp = new HttpParams();
     Object.entries(params).forEach(([k, v]) => {

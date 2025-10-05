@@ -88,6 +88,32 @@ interface HeaderFromRow {
             </mat-card-content>
           </mat-card>
 
+          <!-- DKIM Pie Chart Card -->
+          <mat-card class="summary-card pie-chart-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>pie_chart</mat-icon>
+                DKIM
+              </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div echarts [options]="dkimPieChartOptions" [merge]="dkimPieChartOptions" class="small-pie-chart" *ngIf="dkimPieChartOptions"></div>
+            </mat-card-content>
+          </mat-card>
+
+          <!-- SPF Pie Chart Card -->
+          <mat-card class="summary-card pie-chart-card">
+            <mat-card-header>
+              <mat-card-title>
+                <mat-icon>pie_chart</mat-icon>
+                SPF
+              </mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div echarts [options]="spfPieChartOptions" [merge]="spfPieChartOptions" class="small-pie-chart" *ngIf="spfPieChartOptions"></div>
+            </mat-card-content>
+          </mat-card>
+          
           <mat-card class="summary-card">
             <mat-card-header>
               <mat-card-title>
@@ -169,8 +195,7 @@ interface HeaderFromRow {
             </mat-card-title>
             <mat-card-subtitle>
               Real-time DNS validation of DMARC, SPF, and DKIM records for your domains
-            </mat-card-subtitle>
-          </mat-card-header>
+            </mat-card-header>
           <mat-card-content>
             <div *ngIf="loadingDnsIssues" class="loading-container">
               <mat-spinner></mat-spinner>
@@ -479,6 +504,19 @@ interface HeaderFromRow {
         gap: 16px;
         margin-top: 4px;
         color: #555;
+      }
+
+      /* Pie chart cards */
+      .pie-chart-card mat-card-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100px;
+      }
+
+      .small-pie-chart {
+        width: 100%;
+        height: 100px;
       }
 
       .top-tables-grid {
@@ -867,6 +905,7 @@ export class DashboardComponent implements OnInit {
   loadingCountries = false;
   loadingDnsIssues = false;
   loadingHeaderFrom = false;
+  loadingAuthBreakdown = false;
 
   // Countries pagination
   countriesPage = 1;
@@ -883,6 +922,8 @@ export class DashboardComponent implements OnInit {
   dispositionChartOptions: any;
   authPassRateChartOptions: any;
   emailVolumeChartOptions: any;
+  dkimPieChartOptions: any;
+  spfPieChartOptions: any;
 
   // DNS validation issues
   domainsWithDnsIssues: Array<{
@@ -1018,6 +1059,74 @@ export class DashboardComponent implements OnInit {
       },
       error: (e) => console.error('Failed to load auth summary', e),
     });
+
+    // Load auth breakdown for pie charts
+    this.apiService.authBreakdown(params).subscribe({
+      next: (data) => {
+        // DKIM Pie Chart
+        this.dkimPieChartOptions = {
+          animation: false,
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c} ({d}%)'
+          },
+          series: [
+            {
+              name: 'DKIM',
+              type: 'pie',
+              radius: ['50%', '100%'],
+              center: ['50%', '55%'],
+              startAngle: 220,
+              endAngle: -40,
+              animation: false,
+              data: [
+                { value: data.dkim.pass, name: 'Pass', itemStyle: { color: '#4caf50' } },
+                { value: data.dkim.fail, name: 'Fail', itemStyle: { color: '#f44336' } }
+              ],
+              label: {
+                show: false,
+                position: 'center'
+              },
+              labelLine: {
+                show: false
+              },
+            }
+          ]
+        };
+
+        // SPF Pie Chart
+        this.spfPieChartOptions = {
+          animation: false,
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c} ({d}%)'
+          },
+          series: [
+            {
+              name: 'SPF',
+              type: 'pie',
+              radius: ['50%', '100%'],
+              center: ['50%', '55%'],
+              startAngle: 220,
+              endAngle: -40,
+              animation: false,
+              data: [
+                { value: data.spf.pass, name: 'Pass', itemStyle: { color: '#4caf50' } },
+                { value: data.spf.fail, name: 'Fail', itemStyle: { color: '#f44336' } }
+              ],
+              label: {
+                show: false,
+                position: 'center'
+              },
+              labelLine: {
+                show: false
+              },
+            }
+          ]
+        };
+      },
+      error: (e) => console.error('Failed to load auth breakdown', e),
+    });
   }
 
   private loadCharts() {
@@ -1058,7 +1167,7 @@ export class DashboardComponent implements OnInit {
               formatter: '{value}%',
             },
           },
-          grid: { left: 12, right: 12, bottom: 12, top: 40, containLabel: true },
+          grid: { left: 50, right: 20, bottom: 30, top: 50 },
           series: [
             {
               name: 'DKIM Pass Rate',
@@ -1093,11 +1202,12 @@ export class DashboardComponent implements OnInit {
           },
           xAxis: { type: 'time' },
           yAxis: { type: 'value' },
-          grid: { left: 12, right: 12, bottom: 12, top: 40, containLabel: true },
+          grid: { left: 50, right: 20, bottom: 30, top: 50 },
           series: [
             {
               name: 'none',
               type: 'line',
+              symbol: 'circle',
               stack: 'total',
               areaStyle: {},
               smooth: false,
@@ -1106,6 +1216,7 @@ export class DashboardComponent implements OnInit {
             {
               name: 'quarantine',
               type: 'line',
+              symbol: 'circle',
               stack: 'total',
               areaStyle: {},
               smooth: false,
@@ -1114,7 +1225,9 @@ export class DashboardComponent implements OnInit {
             {
               name: 'reject',
               type: 'line',
+              symbol: 'circle',
               stack: 'total',
+              color: '#ff9800',
               areaStyle: {},
               smooth: false,
               data: rows.map((d) => [d.date, d.reject]),
@@ -1132,10 +1245,11 @@ export class DashboardComponent implements OnInit {
           tooltip: { trigger: 'axis' },
           xAxis: { type: 'time' },
           yAxis: { type: 'value' },
-          grid: { left: 12, right: 12, bottom: 12, top: 24, containLabel: true },
+          grid: { left: 50, right: 20, bottom: 30, top: 30 },
           series: [
             {
               type: 'line',
+              symbol: 'circle',
               areaStyle: {},
               smooth: false,
               data: rows.map((pt) => [pt.date, pt.count]),
