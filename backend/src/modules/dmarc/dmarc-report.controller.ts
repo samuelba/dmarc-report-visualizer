@@ -365,6 +365,44 @@ export class DmarcReportController {
     return { ...result, page: p, pageSize: ps } as any;
   }
 
+  @Get('records/distinct')
+  async getDistinct(
+    @Query('field')
+    field:
+      | 'domain'
+      | 'sourceIp'
+      | 'envelopeTo'
+      | 'envelopeFrom'
+      | 'headerFrom'
+      | 'dkimDomain'
+      | 'spfDomain'
+      | 'country',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.dmarcReportService.getDistinctValues(
+      field,
+      from ? new Date(from) : undefined,
+      to ? new Date(to) : undefined,
+    );
+  }
+
+  @Get('record/:id')
+  async getRecordById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.dmarcReportService.getRecordById(id);
+  }
+
+  @Get('domains-with-dns-issues')
+  async getDomainsWithDnsIssues(
+    @Query('domain') domain?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.dmarcReportService.getDomainsWithDnsIssues({
+      domain,
+      limit: limit ? parseInt(limit, 10) : 10,
+    });
+  }
+
   // Parameterized routes must come last to avoid conflicts
   @Get('report/:id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DmarcReport | null> {
@@ -426,39 +464,6 @@ export class DmarcReportController {
       contains,
       sort,
       order,
-    });
-  }
-
-  @Get('records/distinct')
-  async getDistinct(
-    @Query('field')
-    field:
-      | 'domain'
-      | 'sourceIp'
-      | 'envelopeTo'
-      | 'envelopeFrom'
-      | 'headerFrom'
-      | 'dkimDomain'
-      | 'spfDomain'
-      | 'country',
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-  ) {
-    return this.dmarcReportService.getDistinctValues(
-      field,
-      from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
-    );
-  }
-
-  @Get('domains-with-dns-issues')
-  async getDomainsWithDnsIssues(
-    @Query('domain') domain?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.dmarcReportService.getDomainsWithDnsIssues({
-      domain,
-      limit: limit ? parseInt(limit, 10) : 10,
     });
   }
 }

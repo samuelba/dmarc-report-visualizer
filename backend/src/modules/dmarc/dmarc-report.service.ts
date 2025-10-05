@@ -209,14 +209,23 @@ export class DmarcReportService {
   }
 
   async getRecordOriginalXml(recordId: string): Promise<string | null> {
-    const rec = await this.dmarcRecordRepository.findOne({
+    const record = await this.dmarcRecordRepository.findOne({
       where: { id: recordId },
+      relations: { report: true },
     });
-    if (!rec) return null;
-    const rep = await this.dmarcReportRepository.findOne({
-      where: { id: rec.reportId },
+    return record?.report?.originalXml || null;
+  }
+
+  async getRecordById(recordId: string) {
+    return this.dmarcRecordRepository.findOne({
+      where: { id: recordId },
+      relations: {
+        report: true,
+        dkimResults: true,
+        spfResults: true,
+        policyOverrideReasons: true,
+      },
     });
-    return rep?.originalXml ?? null;
   }
 
   async update(

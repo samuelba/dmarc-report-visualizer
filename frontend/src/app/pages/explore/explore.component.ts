@@ -14,6 +14,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
 
 @Component({
@@ -507,6 +508,7 @@ export class ExploreComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   readonly rows = signal<DmarcRecord[]>([]);
   readonly total = signal(0);
@@ -817,6 +819,54 @@ export class ExploreComponent implements OnInit {
     this.loadDistincts();
 
     this.search();
+
+    // Check if there's a recordId in the URL to auto-open XML viewer
+    if (params['recordId']) {
+      this.openRecordXmlViewer(params['recordId']);
+    }
+  }
+
+  private openRecordXmlViewer(recordId: string) {
+    // First fetch the record details
+    this.api.getRecordById(recordId).subscribe({
+      next: (record) => {
+        // Then get the report ID from the record
+        const reportId = (record as any).report?.id;
+        if (!reportId) {
+          this.snackBar.open('Cannot load XML: Report ID not found', 'Close', {
+            duration: 5000,
+          });
+          return;
+        }
+
+        // Get the XML and open the dialog
+        this.api.getReportXml(reportId).subscribe({
+          next: (xml) => {
+            this.dialog.open(XmlViewerDialogComponent, {
+              data: {
+                xml,
+                record,
+                reportId: reportId,
+                title: `DMARC Report XML - ${record.sourceIp || 'Unknown IP'}`,
+              },
+              width: '90%',
+              maxWidth: '1400px',
+              height: '85vh',
+            });
+          },
+          error: (err) => {
+            this.snackBar.open('Failed to load XML report', 'Close', {
+              duration: 5000,
+            });
+          },
+        });
+      },
+      error: (err) => {
+        this.snackBar.open('Failed to load record details', 'Close', {
+          duration: 5000,
+        });
+      },
+    });
   }
 
   private getFromToIso(): { from?: string; to?: string } {

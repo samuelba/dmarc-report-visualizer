@@ -451,10 +451,19 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
   }
 
   copyShareLink() {
-    const url = window.location.href;
-    const shareUrl = this.highlightedLines 
-      ? `${url.split('#')[0]}#L${this.highlightedLines}`
-      : url;
+    // Build the current page URL without hash
+    const baseUrl = window.location.origin + window.location.pathname;
+    
+    // Get current query params
+    const currentParams = new URLSearchParams(window.location.search);
+    
+    // Add the recordId to query params
+    if (this.data.record?.id) {
+      currentParams.set('recordId', this.data.record.id);
+    }
+    
+    // Build the shareable URL
+    const shareUrl = `${baseUrl}?${currentParams.toString()}`;
 
     navigator.clipboard.writeText(shareUrl).then(
       () => {

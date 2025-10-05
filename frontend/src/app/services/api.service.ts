@@ -208,6 +208,10 @@ export class ApiService {
     return this.http.get(`${this.apiBase}/dmarc-reports/record/${id}/xml`, { responseType: 'text' });
   }
 
+  getRecordById(id: string) {
+    return this.http.get<DmarcRecord>(`${this.apiBase}/dmarc-reports/record/${id}`);
+  }
+
   searchRecords(params: {
     page?: number;
     pageSize?: number;
