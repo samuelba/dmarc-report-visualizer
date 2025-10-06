@@ -425,6 +425,7 @@ export class DmarcReportService {
     dkim: {
       pass: number;
       fail: number;
+      missing: number;
     };
     spf: {
       pass: number;
@@ -447,8 +448,12 @@ export class DmarcReportService {
         'dkimPass',
       )
       .addSelect(
-        `COALESCE(SUM(CASE WHEN rec.dmarcDkim = 'fail' THEN rec.count ELSE 0 END),0)`,
+        `COALESCE(SUM(CASE WHEN rec.dmarcDkim = 'fail' AND rec.dkimMissing = false THEN rec.count ELSE 0 END),0)`,
         'dkimFail',
+      )
+      .addSelect(
+        `COALESCE(SUM(CASE WHEN rec.dkimMissing = true THEN rec.count ELSE 0 END),0)`,
+        'dkimMissing',
       )
       .addSelect(
         `COALESCE(SUM(CASE WHEN rec.dmarcSpf = 'pass' THEN rec.count ELSE 0 END),0)`,
@@ -461,6 +466,7 @@ export class DmarcReportService {
       .getRawOne<{
         dkimPass: string;
         dkimFail: string;
+        dkimMissing: string;
         spfPass: string;
         spfFail: string;
       }>();
@@ -469,6 +475,7 @@ export class DmarcReportService {
       dkim: {
         pass: Number(row?.dkimPass ?? 0),
         fail: Number(row?.dkimFail ?? 0),
+        missing: Number(row?.dkimMissing ?? 0),
       },
       spf: {
         pass: Number(row?.spfPass ?? 0),
@@ -1151,6 +1158,9 @@ export class DmarcReportService {
           });
         }
       }
+
+      // Set dkimMissing flag - true if auth_results has no dkim entry
+      (dmarcRecord as any).dkimMissing = dkimResults.length === 0;
 
       // Parse SPF results
       const spfResults: Partial<SpfResult>[] = [];

@@ -47,6 +47,10 @@ export class DmarcRecord {
   @Column({ type: 'varchar', length: 10, nullable: true })
   dmarcSpf: 'pass' | 'fail';
 
+  // DKIM missing indicator - true if auth_results has no dkim entry
+  @Column({ type: 'boolean', default: false })
+  dkimMissing: boolean;
+
   // Identifiers
   @Column({ nullable: true })
   envelopeTo: string;

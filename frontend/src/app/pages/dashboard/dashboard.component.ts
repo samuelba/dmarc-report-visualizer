@@ -1063,7 +1063,7 @@ export class DashboardComponent implements OnInit {
     // Load auth breakdown for pie charts
     this.apiService.authBreakdown(params).subscribe({
       next: (data) => {
-        // DKIM Pie Chart
+        // DKIM Pie Chart with Pass, Fail, and Missing
         this.dkimPieChartOptions = {
           animation: false,
           tooltip: {
@@ -1081,7 +1081,8 @@ export class DashboardComponent implements OnInit {
               animation: false,
               data: [
                 { value: data.dkim.pass, name: 'Pass', itemStyle: { color: '#4caf50' } },
-                { value: data.dkim.fail, name: 'Fail', itemStyle: { color: '#f44336' } }
+                { value: data.dkim.fail, name: 'Fail', itemStyle: { color: '#f44336' } },
+                { value: data.dkim.missing, name: 'Missing', itemStyle: { color: '#9e9e9e' } }
               ],
               label: {
                 show: false,
