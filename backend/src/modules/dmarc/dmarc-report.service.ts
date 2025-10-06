@@ -902,15 +902,33 @@ export class DmarcReportService {
     }
     if (dkimDomain) {
       const arr = Array.isArray(dkimDomain) ? dkimDomain : [dkimDomain];
-      qb.andWhere('dk.domain ILIKE ANY(:dkdoms)', {
-        dkdoms: arr.map((v) => `%${v}%`),
-      });
+      // Use a subquery to filter records that have at least one matching DKIM domain
+      // This way we don't filter out other DKIM results from the same record
+      qb.andWhere(
+        `EXISTS (
+        SELECT 1 FROM dkim_results dk_filter 
+        WHERE dk_filter."recordId" = rec.id 
+        AND dk_filter.domain ILIKE ANY(:dkdoms)
+      )`,
+        {
+          dkdoms: arr.map((v) => `%${v}%`),
+        },
+      );
     }
     if (spfDomain) {
       const arr = Array.isArray(spfDomain) ? spfDomain : [spfDomain];
-      qb.andWhere('sf.domain ILIKE ANY(:sfdoms)', {
-        sfdoms: arr.map((v) => `%${v}%`),
-      });
+      // Use a subquery to filter records that have at least one matching SPF domain
+      // This way we don't filter out other SPF results from the same record
+      qb.andWhere(
+        `EXISTS (
+        SELECT 1 FROM spf_results sf_filter 
+        WHERE sf_filter."recordId" = rec.id 
+        AND sf_filter.domain ILIKE ANY(:sfdoms)
+      )`,
+        {
+          sfdoms: arr.map((v) => `%${v}%`),
+        },
+      );
     }
     if (country) {
       const arr = Array.isArray(country) ? country : [country];
@@ -938,10 +956,8 @@ export class DmarcReportService {
         LOWER(rec.reasonComment) LIKE :searchTerm OR
         LOWER(rep.domain) LIKE :searchTerm OR
         LOWER(rep.orgName) LIKE :searchTerm OR
-        LOWER(dk.domain) LIKE :searchTerm OR
-        LOWER(dk.result) LIKE :searchTerm OR
-        LOWER(sf.domain) LIKE :searchTerm OR
-        LOWER(sf.result) LIKE :searchTerm
+        EXISTS (SELECT 1 FROM dkim_results dk_search WHERE dk_search."recordId" = rec.id AND (LOWER(dk_search.domain) LIKE :searchTerm OR LOWER(dk_search.result) LIKE :searchTerm)) OR
+        EXISTS (SELECT 1 FROM spf_results sf_search WHERE sf_search."recordId" = rec.id AND (LOWER(sf_search.domain) LIKE :searchTerm OR LOWER(sf_search.result) LIKE :searchTerm))
       )`,
         { searchTerm },
       );
