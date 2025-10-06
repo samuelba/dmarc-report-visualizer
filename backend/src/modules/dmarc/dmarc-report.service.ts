@@ -996,23 +996,29 @@ export class DmarcReportService {
       return rows.map((r) => r.v).filter(Boolean);
     }
     if (field === 'dkimDomain') {
-      // Note: timeframe filtering for dkim/spf domains is not required right now.
-      const rows = await this.dkimResultRepository
+      // Filter DKIM domains by date range using record's report relationship
+      const qb = this.dkimResultRepository
         .createQueryBuilder('dk')
+        .innerJoin('dk.record', 'rec')
+        .innerJoin('rec.report', 'rep')
         .select('DISTINCT dk.domain', 'v')
-        .where('dk.domain IS NOT NULL')
-        .orderBy('v', 'ASC')
-        .getRawMany();
+        .where('dk.domain IS NOT NULL');
+      if (from) qb.andWhere('rep.beginDate >= :from', { from });
+      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
     if (field === 'spfDomain') {
-      // Note: timeframe filtering for dkim/spf domains is not required right now.
-      const rows = await this.spfResultRepository
+      // Filter SPF domains by date range using record's report relationship
+      const qb = this.spfResultRepository
         .createQueryBuilder('sf')
+        .innerJoin('sf.record', 'rec')
+        .innerJoin('rec.report', 'rep')
         .select('DISTINCT sf.domain', 'v')
-        .where('sf.domain IS NOT NULL')
-        .orderBy('v', 'ASC')
-        .getRawMany();
+        .where('sf.domain IS NOT NULL');
+      if (from) qb.andWhere('rep.beginDate >= :from', { from });
+      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
     const map: any = {

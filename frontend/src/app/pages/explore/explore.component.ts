@@ -633,19 +633,17 @@ export class ExploreComponent implements OnInit {
     const { from, to } = this.getFromToIso();
     this.api.getRecordDistinct('domain', { from, to }).subscribe((v) => this.domains.set(v));
     this.api.getRecordDistinct('headerFrom', { from, to }).subscribe((v) => this.headerFroms.set(v));
+    this.api.getRecordDistinct('sourceIp', { from, to }).subscribe((v) => this.ips.set(v));
+    this.api.getRecordDistinct('envelopeFrom', { from, to }).subscribe((v) => this.envelopeFroms.set(v));
+    this.api.getRecordDistinct('envelopeTo', { from, to }).subscribe((v) => this.envelopeTos.set(v));
+    this.api.getRecordDistinct('dkimDomain', { from, to }).subscribe((v) => this.dkimDomains.set(v));
+    this.api.getRecordDistinct('spfDomain', { from, to }).subscribe((v) => this.spfDomains.set(v));
+    this.api.getRecordDistinct('country', { from, to }).subscribe((v) => this.countries.set(v));
   }
 
   private loadDistincts() {
-    // Date-scoped lists
+    // All lists are now date-scoped
     this.loadDateScopedDistincts();
-
-    // Other lists unchanged
-    this.api.getRecordDistinct('sourceIp').subscribe((v) => this.ips.set(v));
-    this.api.getRecordDistinct('envelopeTo').subscribe((v) => this.envelopeTos.set(v));
-    this.api.getRecordDistinct('envelopeFrom').subscribe((v) => this.envelopeFroms.set(v));
-    this.api.getRecordDistinct('dkimDomain').subscribe((v) => this.dkimDomains.set(v));
-    this.api.getRecordDistinct('spfDomain').subscribe((v) => this.spfDomains.set(v));
-    this.api.getRecordDistinct('country').subscribe((v) => this.countries.set(v));
   }
 
   onPage(e: PageEvent) {
