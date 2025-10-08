@@ -459,6 +459,7 @@ export class DmarcReportController {
     @Query('spfDomain') spfDomain?: string | string[],
     @Query('country') country?: string | string[],
     @Query('contains') contains?: string,
+    @Query('isForwarded') isForwarded?: string,
     @Query('sort') sort?: string,
     @Query('order') order?: 'asc' | 'desc',
   ) {
@@ -481,6 +482,16 @@ export class DmarcReportController {
       spfDomain: coerce(spfDomain),
       country: coerce(country),
       contains,
+      isForwarded:
+        isForwarded !== undefined
+          ? isForwarded === 'true'
+            ? true
+            : isForwarded === 'false'
+              ? false
+              : isForwarded === 'null' || isForwarded === 'unknown'
+                ? null
+                : undefined
+          : undefined,
       sort,
       order,
     });

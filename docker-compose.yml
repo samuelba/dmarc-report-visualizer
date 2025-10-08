@@ -37,6 +37,9 @@ services:
       # CORS Configuration
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
 
+      # Reprocessing Configuration
+      REPROCESSING_WORKERS: ${REPROCESSING_WORKERS:-}
+
       # File Watcher Configuration
       ENABLE_FILE_WATCHER: ${ENABLE_FILE_WATCHER:-false}
       FILE_WATCH_DIR: ${FILE_WATCH_DIR:-reports/incoming}

@@ -15,6 +15,7 @@ import { PolicyOverrideReason } from './policy-override-reason.entity';
 @Index('idx_dmarc_record_source_ip', ['sourceIp'])
 @Index('idx_dmarc_record_header_from', ['headerFrom'])
 @Index('idx_dmarc_record_count', ['count'])
+@Index('idx_dmarc_record_is_forwarded', ['isForwarded'])
 @Entity('dmarc_records')
 export class DmarcRecord {
   @PrimaryGeneratedColumn('uuid')
@@ -50,6 +51,18 @@ export class DmarcRecord {
   // DKIM missing indicator - true if auth_results has no dkim entry
   @Column({ type: 'boolean', default: false })
   dkimMissing: boolean;
+
+  // Forwarding detection
+  @Column({ type: 'boolean', nullable: true })
+  isForwarded: boolean | null;
+
+  @Column({ type: 'text', nullable: true })
+  forwardReason: string | null;
+
+  // Reprocessing tracking
+  @Column({ type: 'boolean', default: true })
+  @Index('idx_dmarc_record_reprocessed')
+  reprocessed: boolean;
 
   // Identifiers
   @Column({ nullable: true })

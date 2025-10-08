@@ -13,7 +13,31 @@ import { Observable, startWith, map } from 'rxjs';
   template: `
     <div class="compact-filter">
       <div class="filter-row">
-        <mat-form-field appearance="outline" class="domain-field">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="time-period-field">
+          <mat-label>Time Period</mat-label>
+          <input
+            matInput
+            [(ngModel)]="timePeriodInput"
+            (input)="onTimePeriodInputChange()"
+            placeholder="e.g. 30, 7d, 4m, 5y, or 'all'"
+          />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="date-field">
+          <mat-label>From</mat-label>
+          <input matInput [matDatepicker]="fromPicker" [formControl]="fromDateControl" />
+          <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+          <mat-datepicker #fromPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="date-field">
+          <mat-label>To</mat-label>
+          <input matInput [matDatepicker]="toPicker" [formControl]="toDateControl" />
+          <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+          <mat-datepicker #toPicker></mat-datepicker>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="domain-field">
           <mat-label>Domain</mat-label>
           <mat-select [formControl]="domainControl" multiple>
             <mat-option value="">All Domains</mat-option>
@@ -24,37 +48,12 @@ import { Observable, startWith, map } from 'rxjs';
           <mat-icon matSuffix>domain</mat-icon>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="time-period-field">
-          <mat-label>Time Period</mat-label>
-          <input
-            matInput
-            [(ngModel)]="timePeriodInput"
-            (input)="onTimePeriodInputChange()"
-            placeholder="e.g. 30, 7d, 4m, 5y, or 'all'"
-          />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="date-field">
-          <mat-label>From</mat-label>
-          <input matInput [matDatepicker]="fromPicker" [formControl]="fromDateControl" />
-          <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
-          <mat-datepicker #fromPicker></mat-datepicker>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="date-field">
-          <mat-label>To</mat-label>
-          <input matInput [matDatepicker]="toPicker" [formControl]="toDateControl" />
-          <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
-          <mat-datepicker #toPicker></mat-datepicker>
-        </mat-form-field>
-
         <div class="filter-buttons">
-          <button mat-stroked-button (click)="clearFilter()" matTooltip="Clear Filter">
-            <mat-icon>clear</mat-icon>
+          <button mat-raised-button color="primary" (click)="refreshData()" matTooltip="Refresh Data">
+            Apply
           </button>
-          <button mat-stroked-button color="primary" (click)="refreshData()" matTooltip="Refresh Data">
-            <mat-icon>refresh</mat-icon>
-            Refresh
+          <button mat-button (click)="clearFilter()" matTooltip="Clear Filter">
+            Clear
           </button>
         </div>
       </div>

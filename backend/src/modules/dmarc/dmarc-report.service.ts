@@ -7,6 +7,7 @@ import { DkimResult } from './entities/dkim-result.entity';
 import { SpfResult } from './entities/spf-result.entity';
 import { PolicyOverrideReason } from './entities/policy-override-reason.entity';
 import { GeolocationService } from './services/geolocation.service';
+import { ForwardingDetectionService } from './services/forwarding-detection.service';
 import { XMLParser } from 'fast-xml-parser';
 import * as zlib from 'zlib';
 const AdmZip = require('adm-zip');
@@ -35,6 +36,7 @@ export class DmarcReportService {
     @InjectRepository(PolicyOverrideReason)
     private policyOverrideReasonRepository: Repository<PolicyOverrideReason>,
     private geolocationService: GeolocationService,
+    private forwardingDetectionService: ForwardingDetectionService,
   ) {}
 
   async findAll(): Promise<DmarcReport[]> {
@@ -762,6 +764,7 @@ export class DmarcReportService {
     spfDomain?: string | string[];
     country?: string | string[];
     contains?: string;
+    isForwarded?: boolean | null;
     sort?: string;
     order?: 'asc' | 'desc';
   }): Promise<PagedResult<DmarcRecord>> {
@@ -937,6 +940,17 @@ export class DmarcReportService {
       });
     }
 
+    // Filter by forwarding status
+    if (params.isForwarded !== undefined) {
+      if (params.isForwarded === true) {
+        qb.andWhere('rec.isForwarded = :isForwarded', { isForwarded: true });
+      } else if (params.isForwarded === false) {
+        qb.andWhere('rec.isForwarded = :isForwarded', { isForwarded: false });
+      } else if (params.isForwarded === null) {
+        qb.andWhere('rec.isForwarded IS NULL');
+      }
+    }
+
     // Contains filter - search across all main text columns (case insensitive)
     if (contains) {
       const searchTerm = `%${contains.toLowerCase()}%`;
@@ -954,6 +968,7 @@ export class DmarcReportService {
         LOWER(rec.geoCity) LIKE :searchTerm OR
         LOWER(rec.reasonType) LIKE :searchTerm OR
         LOWER(rec.reasonComment) LIKE :searchTerm OR
+        LOWER(rec.forwardReason) LIKE :searchTerm OR
         LOWER(rep.domain) LIKE :searchTerm OR
         LOWER(rep.orgName) LIKE :searchTerm OR
         EXISTS (SELECT 1 FROM dkim_results dk_search WHERE dk_search."recordId" = rec.id AND (LOWER(dk_search.domain) LIKE :searchTerm OR LOWER(dk_search.result) LIKE :searchTerm)) OR
@@ -974,6 +989,7 @@ export class DmarcReportService {
       envelopeTo: 'rec.envelopeTo',
       envelopeFrom: 'rec.envelopeFrom',
       country: 'rec.geoCountry',
+      isForwarded: 'rec.isForwarded',
     };
     const col =
       params.sort && sortsMap[params.sort]
@@ -1239,6 +1255,24 @@ export class DmarcReportService {
             `Failed to get geolocation for IP ${dmarcRecord.sourceIp}: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
+      }
+
+      // Detect if email was forwarded
+      try {
+        const forwardingResult =
+          await this.forwardingDetectionService.detectForwarding(dmarcRecord);
+        (dmarcRecord as any).isForwarded = forwardingResult.isForwarded;
+        (dmarcRecord as any).forwardReason = forwardingResult.reason;
+        // Mark as reprocessed since we just processed it successfully
+        (dmarcRecord as any).reprocessed = true;
+      } catch (error) {
+        this.logger.warn(
+          `Failed to detect forwarding for record: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        (dmarcRecord as any).isForwarded = null;
+        (dmarcRecord as any).forwardReason = null;
+        // Mark as not reprocessed since detection failed
+        (dmarcRecord as any).reprocessed = false;
       }
 
       parsedRecords.push(dmarcRecord);

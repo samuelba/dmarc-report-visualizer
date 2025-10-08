@@ -40,9 +40,56 @@ export interface DmarcRecord {
   headerFrom?: string;
   reasonType?: string;
   reasonComment?: string;
+  isForwarded?: boolean | null;
+  forwardReason?: string | null;
   dkimResults: DkimResult[];
   spfResults: SpfResult[];
   policyOverrideReasons: PolicyOverrideReason[];
+}
+
+export interface ThirdPartySender {
+  id: string;
+  name: string;
+  description?: string;
+  dkimPattern?: string;
+  spfPattern?: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateThirdPartySenderDto {
+  name: string;
+  description?: string;
+  dkimPattern?: string;
+  spfPattern?: string;
+  enabled?: boolean;
+}
+
+export interface UpdateThirdPartySenderDto {
+  name?: string;
+  description?: string;
+  dkimPattern?: string;
+  spfPattern?: string;
+  enabled?: boolean;
+}
+
+export interface ReprocessingJob {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  totalRecords?: number;
+  processedRecords: number;
+  forwardedCount: number;
+  notForwardedCount: number;
+  unknownCount: number;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+  progress?: number;
+  elapsedSeconds?: number | null;
+  isFinished?: boolean;
 }
 
 export interface DmarcReport {
@@ -265,12 +312,18 @@ export class ApiService {
     spfDomain?: string | string[];
     country?: string | string[];
     contains?: string;
+    isForwarded?: boolean | null;
     sort?: string;
     order?: 'asc' | 'desc';
   }) {
     let hp = new HttpParams();
     Object.entries(params).forEach(([k, v]) => {
-      if (v === undefined || v === null || v === '') return;
+      if (v === undefined || v === '') return;
+      // Special handling for null values (e.g., isForwarded: null means "unknown")
+      if (v === null) {
+        hp = hp.set(k, 'null');
+        return;
+      }
       if (Array.isArray(v)) {
         v.forEach((item) => {
           if (item !== undefined && item !== null && item !== '') {
@@ -409,5 +462,43 @@ export class ApiService {
       page: number;
       pageSize: number;
     }>(`${this.apiBase}/dmarc-reports/top-header-from`, { params: hp });
+  }
+
+  // Third-Party Senders API
+  getThirdPartySenders() {
+    return this.http.get<ThirdPartySender[]>(`${this.apiBase}/settings/third-party-senders`);
+  }
+
+  getThirdPartySender(id: string) {
+    return this.http.get<ThirdPartySender>(`${this.apiBase}/settings/third-party-senders/${id}`);
+  }
+
+  createThirdPartySender(dto: CreateThirdPartySenderDto) {
+    return this.http.post<ThirdPartySender>(`${this.apiBase}/settings/third-party-senders`, dto);
+  }
+
+  updateThirdPartySender(id: string, dto: UpdateThirdPartySenderDto) {
+    return this.http.put<ThirdPartySender>(`${this.apiBase}/settings/third-party-senders/${id}`, dto);
+  }
+
+  deleteThirdPartySender(id: string) {
+    return this.http.delete<void>(`${this.apiBase}/settings/third-party-senders/${id}`);
+  }
+
+  // Reprocessing API
+  startReprocessing() {
+    return this.http.post<ReprocessingJob>(`${this.apiBase}/reprocessing/start`, {});
+  }
+
+  getCurrentReprocessingJob() {
+    return this.http.get<ReprocessingJob | null>(`${this.apiBase}/reprocessing/current`);
+  }
+
+  getReprocessingJobs() {
+    return this.http.get<ReprocessingJob[]>(`${this.apiBase}/reprocessing/jobs`);
+  }
+
+  getReprocessingJob(id: string) {
+    return this.http.get<ReprocessingJob>(`${this.apiBase}/reprocessing/jobs/${id}`);
   }
 }

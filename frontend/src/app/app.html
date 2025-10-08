@@ -2,11 +2,25 @@
   <span class="brand">{{ title() }}</span>
   <span class="spacer"></span>
   <a mat-button routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }"
-    >Dashboard</a
+    >
+    <mat-icon>dashboard</mat-icon>
+    Dashboard</a
   >
-  <a mat-button routerLink="/explore" routerLinkActive="active-link">Explore</a>
-  <a mat-button routerLink="/reports" routerLinkActive="active-link">Reports</a>
-  <a mat-button routerLink="/upload" routerLinkActive="active-link">Upload</a>
+  <a mat-button routerLink="/explore" routerLinkActive="active-link">
+    <mat-icon>explore</mat-icon>
+    Explore</a>
+  <a mat-button routerLink="/reports" routerLinkActive="active-link">
+    <mat-icon>assessment</mat-icon>
+    Reports
+  </a>
+  <a mat-button routerLink="/upload" routerLinkActive="active-link">
+    <mat-icon>upload</mat-icon>
+    Upload
+  </a>
+  <a mat-button routerLink="/settings" routerLinkActive="active-link">
+    <mat-icon>settings</mat-icon>
+    Settings
+  </a>
   <app-theme-toggle></app-theme-toggle>
 </mat-toolbar>
 

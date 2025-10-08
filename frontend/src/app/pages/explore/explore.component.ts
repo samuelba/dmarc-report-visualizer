@@ -38,79 +38,7 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
   template: `
     <main class="explore">
       <section class="filters">
-        <mat-form-field appearance="outline">
-          <mat-label>Domain</mat-label>
-          <mat-select [(ngModel)]="filters.domain" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of domains()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Disposition</mat-label>
-          <mat-select [(ngModel)]="filters.disposition" multiple (selectionChange)="onFilterChange()">
-            <mat-option value="none">none</mat-option>
-            <mat-option value="quarantine">quarantine</mat-option>
-            <mat-option value="reject">reject</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>DKIM</mat-label>
-          <mat-select [(ngModel)]="filters.dkim" multiple (selectionChange)="onFilterChange()">
-            <mat-option value="pass">pass</mat-option>
-            <mat-option value="fail">fail</mat-option>
-            <mat-option value="missing">missing</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>SPF</mat-label>
-          <mat-select [(ngModel)]="filters.spf" multiple (selectionChange)="onFilterChange()">
-            <mat-option value="pass">pass</mat-option>
-            <mat-option value="fail">fail</mat-option>
-            <mat-option value="missing">missing</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Source IP</mat-label>
-          <mat-select [(ngModel)]="filters.sourceIp" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of ips()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Header From</mat-label>
-          <mat-select [(ngModel)]="filters.headerFrom" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of headerFroms()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Envelope From</mat-label>
-          <mat-select [(ngModel)]="filters.envelopeFrom" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of envelopeFroms()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Envelope To</mat-label>
-          <mat-select [(ngModel)]="filters.envelopeTo" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of envelopeTos()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>DKIM Domain</mat-label>
-          <mat-select [(ngModel)]="filters.dkimDomain" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of dkimDomains()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>SPF Domain</mat-label>
-          <mat-select [(ngModel)]="filters.spfDomain" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of spfDomains()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
-          <mat-label>Country</mat-label>
-          <mat-select [(ngModel)]="filters.country" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of sortedCountries()" [value]="v">{{ getCountryName(v) }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Time Period</mat-label>
           <input
             matInput
@@ -119,19 +47,100 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
             placeholder="e.g. 30, 7d, 4m, 5y, or 'all'"
           />
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>From</mat-label>
           <input matInput [matDatepicker]="fromPicker" [(ngModel)]="filters.from" (dateChange)="onFilterChange()" />
           <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
           <mat-datepicker #fromPicker></mat-datepicker>
         </mat-form-field>
-        <mat-form-field appearance="outline">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>To</mat-label>
           <input matInput [matDatepicker]="toPicker" [(ngModel)]="filters.to" (dateChange)="onFilterChange()" />
           <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
           <mat-datepicker #toPicker></mat-datepicker>
         </mat-form-field>
-        <mat-form-field appearance="outline" class="contains-filter">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Domain (Report)</mat-label>
+          <mat-select [(ngModel)]="filters.domain" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of domains()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Disposition</mat-label>
+          <mat-select [(ngModel)]="filters.disposition" multiple (selectionChange)="onFilterChange()">
+            <mat-option value="none">none</mat-option>
+            <mat-option value="quarantine">quarantine</mat-option>
+            <mat-option value="reject">reject</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>DKIM</mat-label>
+          <mat-select [(ngModel)]="filters.dkim" multiple (selectionChange)="onFilterChange()">
+            <mat-option value="pass">pass</mat-option>
+            <mat-option value="fail">fail</mat-option>
+            <mat-option value="missing">missing</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>SPF</mat-label>
+          <mat-select [(ngModel)]="filters.spf" multiple (selectionChange)="onFilterChange()">
+            <mat-option value="pass">pass</mat-option>
+            <mat-option value="fail">fail</mat-option>
+            <mat-option value="missing">missing</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Source IP</mat-label>
+          <mat-select [(ngModel)]="filters.sourceIp" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of ips()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Header From</mat-label>
+          <mat-select [(ngModel)]="filters.headerFrom" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of headerFroms()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Envelope From</mat-label>
+          <mat-select [(ngModel)]="filters.envelopeFrom" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of envelopeFroms()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Envelope To</mat-label>
+          <mat-select [(ngModel)]="filters.envelopeTo" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of envelopeTos()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>DKIM Domain</mat-label>
+          <mat-select [(ngModel)]="filters.dkimDomain" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of dkimDomains()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>SPF Domain</mat-label>
+          <mat-select [(ngModel)]="filters.spfDomain" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of spfDomains()" [value]="v">{{ v }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Country</mat-label>
+          <mat-select [(ngModel)]="filters.country" multiple (selectionChange)="onFilterChange()">
+            <mat-option *ngFor="let v of sortedCountries()" [value]="v">{{ getCountryName(v) }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Forwarded</mat-label>
+          <mat-select [(ngModel)]="filters.isForwarded" (selectionChange)="onFilterChange()">
+            <mat-option value="">All</mat-option>
+            <mat-option value="true">Yes</mat-option>
+            <mat-option value="false">No</mat-option>
+            <mat-option value="unknown">Unknown</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="contains-filter">
           <mat-label>Contains (search all columns)</mat-label>
           <input matInput [(ngModel)]="filters.contains" (input)="onFilterChange()" placeholder="Search..." />
           <mat-icon matSuffix>search</mat-icon>
@@ -195,6 +204,14 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
               <span [class]="getSpfAuthClass(r)"> {{ getSpfAuthIcon(r) }} {{ getSpfAuthLabel(r) }} </span>
             </td>
           </ng-container>
+          <ng-container matColumnDef="forwarded">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="isForwarded">Forwarded</th>
+            <td mat-cell *matCellDef="let r">
+              <span [class]="getForwardedClass(r)" [title]="r.forwardReason || ''">
+                {{ getForwardedIcon(r) }} {{ getForwardedLabel(r) }}
+              </span>
+            </td>
+          </ng-container>
           <ng-container matColumnDef="country">
             <th mat-header-cell *matHeaderCellDef mat-sort-header="country">Country</th>
             <td mat-cell *matCellDef="let r">{{ getCountryName(r.geoCountry) }}</td>
@@ -226,7 +243,7 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let r">
-              <button mat-button color="primary" (click)="viewXml(r)">View XML</button>
+              <button mat-button color="primary" (click)="viewXml(r)">XML</button>
             </td>
           </ng-container>
 
@@ -243,6 +260,19 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
                   <h4>Policy Override</h4>
                   <div *ngIf="r.reasonType"><strong>Reason Type:</strong> {{ r.reasonType }}</div>
                   <div *ngIf="r.reasonComment"><strong>Reason Comment:</strong> {{ r.reasonComment }}</div>
+                </div>
+
+                <div class="detail-section" *ngIf="r.isForwarded !== undefined && r.isForwarded !== null">
+                  <h4>Forwarding Detection</h4>
+                  <div>
+                    <strong>Forwarded:</strong>
+                    <span [class]="getForwardedClass(r)">
+                      {{ getForwardedIcon(r) }} {{ getForwardedLabel(r) }}
+                    </span>
+                  </div>
+                  <div *ngIf="r.forwardReason">
+                    <strong>Reason:</strong> {{ r.forwardReason }}
+                  </div>
                 </div>
 
                 <div class="detail-section" *ngIf="r.report?.policy">
@@ -303,7 +333,7 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, max-content));
         gap: 12px;
-        align-items: end;
+        align-items: center;
         margin-bottom: 16px;
       }
     `,
@@ -312,15 +342,14 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
         display: flex;
         gap: 8px;
         white-space: nowrap;
-        grid-column: 1/-1;
+        grid-column: span 1;
         justify-self: start;
-        margin-top: 12px;
       }
     `,
     `
       .contains-filter {
-        grid-column: 1/-1;
-        max-width: 400px;
+        grid-column: span 2;
+        max-width: 100%;
       }
     `,
     `
@@ -338,8 +367,8 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
     `
       td.mat-mdc-cell,
       th.mat-mdc-header-cell {
-        padding-left: 6px !important;
-        padding-right: 6px !important;
+        padding-left: 4px !important;
+        padding-right: 4px !important;
       }
     `,
     `
@@ -507,6 +536,41 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
         border: 1px dashed #ccc;
       }
     `,
+
+    // Forwarded email styling
+    `
+      .forwarded-yes {
+        color: #1976d2;
+        font-weight: 500;
+        background-color: #e3f2fd;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 12px;
+        cursor: help;
+      }
+    `,
+    `
+      .forwarded-no {
+        color: #616161;
+        font-weight: 400;
+        background-color: #fafafa;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+    `,
+    `
+      .forwarded-unknown {
+        color: #9e9e9e;
+        font-weight: 400;
+        background-color: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-style: italic;
+        border: 1px dashed #ccc;
+      }
+    `,
   ],
 })
 export class ExploreComponent implements OnInit {
@@ -524,7 +588,7 @@ export class ExploreComponent implements OnInit {
   sort: { active?: string; direction?: 'asc' | 'desc' } = { active: 'date', direction: 'desc' };
   timePeriodInput: string = '30d';
 
-  displayed = ['expand', 'date', 'org', 'ip', 'country', 'count', 'disp', 'dkim', 'spf', 'from', 'auth', 'actions'];
+  displayed = ['expand', 'date', 'org', 'ip', 'country', 'count', 'disp', 'dkim', 'spf', 'forwarded', 'from', 'auth', 'actions'];
 
   filters: any = {
     domain: [] as string[],
@@ -541,6 +605,7 @@ export class ExploreComponent implements OnInit {
     from: '',
     to: '',
     contains: '',
+    isForwarded: '',
   };
 
   readonly domains = signal<string[]>([]);
@@ -675,6 +740,7 @@ export class ExploreComponent implements OnInit {
       from: '',
       to: '',
       contains: '',
+      isForwarded: '',
     };
     this.timePeriodInput = '30d';
     this.applyTimePeriodToFilter();
@@ -703,6 +769,7 @@ export class ExploreComponent implements OnInit {
       from: this.filters.from ? new Date(this.filters.from).toISOString() : undefined,
       to: this.filters.to ? new Date(this.filters.to).toISOString() : undefined,
       contains: this.filters.contains ? this.filters.contains : undefined,
+      isForwarded: this.filters.isForwarded ? (this.filters.isForwarded === 'true' ? true : this.filters.isForwarded === 'false' ? false : this.filters.isForwarded === 'unknown' ? null : undefined) : undefined,
       sort: this.sort.active,
       order: this.sort.direction,
     };
@@ -890,6 +957,7 @@ export class ExploreComponent implements OnInit {
     if (params['from']) this.filters.from = new Date(params['from']);
     if (params['to']) this.filters.to = new Date(params['to']);
     if (params['contains']) this.filters.contains = params['contains'];
+    if (params['isForwarded']) this.filters.isForwarded = params['isForwarded'];
     if (params['page']) this.page.set(parseInt(params['page'], 10));
     if (params['pageSize']) this.pageSize.set(parseInt(params['pageSize'], 10));
   }
@@ -1035,6 +1103,37 @@ export class ExploreComponent implements OnInit {
     }
   }
 
+  // Forwarded email helpers
+  getForwardedLabel(record: DmarcRecord): string {
+    if (record.isForwarded === true) {
+      return 'Yes';
+    } else if (record.isForwarded === false) {
+      return 'No';
+    } else {
+      return '?';
+    }
+  }
+
+  getForwardedIcon(record: DmarcRecord): string {
+    if (record.isForwarded === true) {
+      return '↪️';
+    } else if (record.isForwarded === false) {
+      return '📧';
+    } else {
+      return '❓';
+    }
+  }
+
+  getForwardedClass(record: DmarcRecord): string {
+    if (record.isForwarded === true) {
+      return 'forwarded-yes';
+    } else if (record.isForwarded === false) {
+      return 'forwarded-no';
+    } else {
+      return 'forwarded-unknown';
+    }
+  }
+
   // Policy styling method
   getPolicyClass(policy: string): string {
     switch (policy) {
@@ -1067,6 +1166,7 @@ export class ExploreComponent implements OnInit {
     if (this.filters.from) queryParams.from = this.filters.from.toISOString().split('T')[0];
     if (this.filters.to) queryParams.to = this.filters.to.toISOString().split('T')[0];
     if (this.filters.contains) queryParams.contains = this.filters.contains;
+    if (this.filters.isForwarded) queryParams.isForwarded = this.filters.isForwarded;
     if (this.page() > 1) queryParams.page = this.page();
     if (this.pageSize() !== 20) queryParams.pageSize = this.pageSize();
 
