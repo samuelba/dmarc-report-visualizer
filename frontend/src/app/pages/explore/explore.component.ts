@@ -16,6 +16,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
+import { CombinedDateFilterComponent, DateFilterValue } from '../../components/combined-date-filter/combined-date-filter.component';
 
 @Component({
   standalone: true,
@@ -34,31 +35,15 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
     MatNativeDateModule,
     MatSortModule,
     MatDialogModule,
+    CombinedDateFilterComponent,
   ],
   template: `
     <main class="explore">
       <section class="filters">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Time Period</mat-label>
-          <input
-            matInput
-            [(ngModel)]="timePeriodInput"
-            (input)="onTimePeriodInputChange()"
-            placeholder="e.g. 30, 7d, 4m, 5y, or 'all'"
-          />
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>From</mat-label>
-          <input matInput [matDatepicker]="fromPicker" [(ngModel)]="filters.from" (dateChange)="onFilterChange()" />
-          <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
-          <mat-datepicker #fromPicker></mat-datepicker>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>To</mat-label>
-          <input matInput [matDatepicker]="toPicker" [(ngModel)]="filters.to" (dateChange)="onFilterChange()" />
-          <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
-          <mat-datepicker #toPicker></mat-datepicker>
-        </mat-form-field>
+        <app-combined-date-filter
+          [value]="dateFilterValue"
+          (valueChange)="onDateFilterChange($event)"
+        ></app-combined-date-filter>
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
           <mat-label>Domain (Report)</mat-label>
           <mat-select [(ngModel)]="filters.domain" multiple (selectionChange)="onFilterChange()">
@@ -338,6 +323,11 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
       }
     `,
     `
+      app-combined-date-filter {
+        grid-column: span 1;
+      }
+    `,
+    `
       .actions {
         display: flex;
         gap: 8px;
@@ -586,7 +576,9 @@ export class ExploreComponent implements OnInit {
   readonly page = signal(1);
   readonly pageSize = signal(20);
   sort: { active?: string; direction?: 'asc' | 'desc' } = { active: 'date', direction: 'desc' };
-  timePeriodInput: string = '30d';
+  
+  // Combined date filter value
+  dateFilterValue: DateFilterValue = { mode: 'period', periodInput: '30d' };
 
   displayed = ['expand', 'date', 'org', 'ip', 'country', 'count', 'disp', 'dkim', 'spf', 'forwarded', 'from', 'auth', 'actions'];
 
@@ -630,8 +622,8 @@ export class ExploreComponent implements OnInit {
     this.loadFiltersFromUrl();
     // Apply default 30d time period if no date filters in URL
     const params = this.route.snapshot.queryParams;
-    if (!params['from'] && !params['to']) {
-      this.applyTimePeriodToFilter();
+    if (!params['from'] && !params['to'] && !params['period']) {
+      this.applyTimePeriodToFilter('30d');
     }
 
     // Load distincts (date-scoped for domain + headerFrom)
@@ -742,8 +734,8 @@ export class ExploreComponent implements OnInit {
       contains: '',
       isForwarded: '',
     };
-    this.timePeriodInput = '30d';
-    this.applyTimePeriodToFilter();
+    this.dateFilterValue = { mode: 'period', periodInput: '30d' };
+    this.applyTimePeriodToFilter('30d');
     // reload date-scoped options after resetting time period
     this.loadDateScopedDistincts();
     this.page.set(1);
@@ -852,15 +844,24 @@ export class ExploreComponent implements OnInit {
     this.search();
   }
 
-  onTimePeriodInputChange() {
-    this.applyTimePeriodToFilter();
-    // Refresh date-scoped distincts when time period changes
+  onDateFilterChange(value: DateFilterValue) {
+    this.dateFilterValue = value;
+    
+    if (value.mode === 'period') {
+      this.applyTimePeriodToFilter(value.periodInput || '30d');
+    } else {
+      // Date range mode
+      this.filters.from = value.fromDate || '';
+      this.filters.to = value.toDate || '';
+    }
+    
+    // Refresh date-scoped distincts when dates change
     this.loadDateScopedDistincts();
     this.onFilterChange();
   }
 
-  private applyTimePeriodToFilter() {
-    const input = this.timePeriodInput.trim().toLowerCase();
+  private applyTimePeriodToFilter(periodInput: string = '30d') {
+    const input = periodInput.trim().toLowerCase();
 
     if (input === 'all' || input === '') {
       this.filters.from = '';
@@ -929,6 +930,15 @@ export class ExploreComponent implements OnInit {
     }
   }
 
+  // Format date for URL without timezone issues
+  private formatDateForUrl(date: Date): string {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   // Load filters from URL parameters
   private loadFiltersFromUrl() {
     const params = this.route.snapshot.queryParams;
@@ -954,8 +964,21 @@ export class ExploreComponent implements OnInit {
       this.filters.spfDomain = Array.isArray(params['spfDomain']) ? params['spfDomain'] : [params['spfDomain']];
     if (params['country'])
       this.filters.country = Array.isArray(params['country']) ? params['country'] : [params['country']];
-    if (params['from']) this.filters.from = new Date(params['from']);
-    if (params['to']) this.filters.to = new Date(params['to']);
+    
+    // Load date filter from URL
+    if (params['period']) {
+      this.dateFilterValue = { mode: 'period', periodInput: params['period'] };
+      this.applyTimePeriodToFilter(params['period']);
+    } else if (params['from'] || params['to']) {
+      this.dateFilterValue = { 
+        mode: 'range', 
+        fromDate: params['from'] ? new Date(params['from']) : undefined,
+        toDate: params['to'] ? new Date(params['to']) : undefined
+      };
+      if (params['from']) this.filters.from = new Date(params['from']);
+      if (params['to']) this.filters.to = new Date(params['to']);
+    }
+    
     if (params['contains']) this.filters.contains = params['contains'];
     if (params['isForwarded']) this.filters.isForwarded = params['isForwarded'];
     if (params['page']) this.page.set(parseInt(params['page'], 10));
@@ -1163,8 +1186,15 @@ export class ExploreComponent implements OnInit {
     if (this.filters.dkimDomain.length) queryParams.dkimDomain = this.filters.dkimDomain;
     if (this.filters.spfDomain.length) queryParams.spfDomain = this.filters.spfDomain;
     if (this.filters.country.length) queryParams.country = this.filters.country;
-    if (this.filters.from) queryParams.from = this.filters.from.toISOString().split('T')[0];
-    if (this.filters.to) queryParams.to = this.filters.to.toISOString().split('T')[0];
+    
+    // Save date filter to URL
+    if (this.dateFilterValue.mode === 'period' && this.dateFilterValue.periodInput) {
+      queryParams.period = this.dateFilterValue.periodInput;
+    } else if (this.dateFilterValue.mode === 'range') {
+      if (this.filters.from) queryParams.from = this.formatDateForUrl(this.filters.from);
+      if (this.filters.to) queryParams.to = this.formatDateForUrl(this.filters.to);
+    }
+    
     if (this.filters.contains) queryParams.contains = this.filters.contains;
     if (this.filters.isForwarded) queryParams.isForwarded = this.filters.isForwarded;
     if (this.page() > 1) queryParams.page = this.page();

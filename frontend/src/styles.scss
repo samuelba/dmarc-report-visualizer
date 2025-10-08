@@ -754,3 +754,14 @@ body {
     color: #0000ff !important;
   }
 }
+
+// Combined Date Filter Menu - override Material's default constraints
+.combined-date-filter-menu.mat-mdc-menu-panel {
+  max-width: none !important;
+  min-width: 300px !important;
+}
+
+.combined-date-filter-menu .mat-mdc-menu-content {
+  padding: 0 !important;
+  overflow: visible !important;
+}

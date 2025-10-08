@@ -28,6 +28,16 @@ import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 export class DmarcReportController {
   constructor(private readonly dmarcReportService: DmarcReportService) {}
 
+  /**
+   * Helper to make 'to' date inclusive by setting it to end of day
+   */
+  private makeToDateInclusive(dateStr?: string): Date | undefined {
+    if (!dateStr) return undefined;
+    const date = new Date(dateStr);
+    date.setHours(23, 59, 59, 999);
+    return date;
+  }
+
   @Get()
   findAll(): Promise<DmarcReport[]> {
     return this.dmarcReportService.findAll();
@@ -36,7 +46,7 @@ export class DmarcReportController {
   @Get('list')
   async list(@Query() q: QueryReportsDto) {
     const from = q.from ? new Date(q.from) : undefined;
-    const to = q.to ? new Date(q.to) : undefined;
+    const to = this.makeToDateInclusive(q.to);
     return this.dmarcReportService.list({
       domain: q.domain,
       from,
@@ -120,7 +130,7 @@ export class DmarcReportController {
   @Get('stats/auth-matrix')
   async authMatrix(@Query() q: StatsQueryDto) {
     const from = q.from ? new Date(q.from) : undefined;
-    const to = q.to ? new Date(q.to) : undefined;
+    const to = this.makeToDateInclusive(q.to);
     return this.dmarcReportService.authMatrix({ domain: q.domain, from, to });
   }
 
@@ -132,7 +142,7 @@ export class DmarcReportController {
     @Query('limit') limitStr?: string,
   ) {
     const from = fromStr ? new Date(fromStr) : undefined;
-    const to = toStr ? new Date(toStr) : undefined;
+    const to = this.makeToDateInclusive(toStr);
     const limit = limitStr ? parseInt(limitStr, 10) : 10;
     return this.dmarcReportService.topIps({ domain, from, to, limit });
   }
@@ -145,7 +155,7 @@ export class DmarcReportController {
     @Query('limit') limitStr?: string,
   ) {
     const from = fromStr ? new Date(fromStr) : undefined;
-    const to = toStr ? new Date(toStr) : undefined;
+    const to = this.makeToDateInclusive(toStr);
     const limit = limitStr ? parseInt(limitStr, 10) : 10;
     return this.dmarcReportService.newIps({ domain, from, to, limit });
   }
@@ -284,7 +294,7 @@ export class DmarcReportController {
       return this.dmarcReportService.getTopCountriesPaginated({
         domain,
         from: from ? new Date(from) : undefined,
-        to: to ? new Date(to) : undefined,
+        to: this.makeToDateInclusive(to),
         page: parseInt(page, 10),
         pageSize: parseInt(pageSize, 10),
       });
@@ -292,7 +302,7 @@ export class DmarcReportController {
       return this.dmarcReportService.getTopCountries({
         domain,
         from: from ? new Date(from) : undefined,
-        to: to ? new Date(to) : undefined,
+        to: this.makeToDateInclusive(to),
         limit: limit ? parseInt(limit, 10) : 10,
       });
     }
@@ -315,7 +325,7 @@ export class DmarcReportController {
     return this.dmarcReportService.getGeoHeatmapData({
       domain,
       from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      to: this.makeToDateInclusive(to),
     });
   }
 
@@ -347,7 +357,7 @@ export class DmarcReportController {
     return this.dmarcReportService.getTopIpsEnhanced({
       domain,
       from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      to: this.makeToDateInclusive(to),
       page: page ? parseInt(page, 10) : 1,
       pageSize: pageSize ? parseInt(pageSize, 10) : 10,
     });
@@ -377,7 +387,7 @@ export class DmarcReportController {
     const result = await this.dmarcReportService.getTopHeaderFromDomainsPaginated({
       domain,
       from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      to: this.makeToDateInclusive(to),
       page: p,
       pageSize: ps,
     });
@@ -402,7 +412,7 @@ export class DmarcReportController {
     return this.dmarcReportService.getDistinctValues(
       field,
       from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
+      this.makeToDateInclusive(to),
     );
   }
 
@@ -465,12 +475,13 @@ export class DmarcReportController {
   ) {
     const coerce = (v: any) =>
       v === undefined ? undefined : Array.isArray(v) ? v : [v];
+    
     return this.dmarcReportService.searchRecords({
       page: page ? parseInt(page, 10) : 1,
       pageSize: pageSize ? parseInt(pageSize, 10) : 20,
       domain,
       from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
+      to: this.makeToDateInclusive(to),
       disposition: coerce(disposition) as any,
       dkim: coerce(dkim) as any,
       spf: coerce(spf) as any,

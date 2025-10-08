@@ -1017,13 +1017,23 @@ export class DashboardComponent implements OnInit {
     // this.loadDnsIssues(); // Hidden for now
   }
 
+  // Format date for API without timezone issues
+  private formatDateForApi(date?: Date): string | undefined {
+    if (!date) return undefined;
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private loadHeatmapData() {
     this.loadingHeatmap = true;
 
     const params = {
       domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
-      from: this.currentFilter.fromDate?.toISOString(),
-      to: this.currentFilter.toDate?.toISOString(),
+      from: this.formatDateForApi(this.currentFilter.fromDate),
+      to: this.formatDateForApi(this.currentFilter.toDate),
     };
 
     this.apiService.getGeoHeatmap(params).subscribe({
@@ -1045,8 +1055,8 @@ export class DashboardComponent implements OnInit {
   private loadAuthSummary() {
     const params = {
       domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
-      from: this.currentFilter.fromDate?.toISOString(),
-      to: this.currentFilter.toDate?.toISOString(),
+      from: this.formatDateForApi(this.currentFilter.fromDate),
+      to: this.formatDateForApi(this.currentFilter.toDate),
     };
     this.apiService.authSummary(params).subscribe({
       next: (s) => {
@@ -1133,8 +1143,8 @@ export class DashboardComponent implements OnInit {
   private loadCharts() {
     const params = {
       domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
-      from: this.currentFilter.fromDate?.toISOString(),
-      to: this.currentFilter.toDate?.toISOString(),
+      from: this.formatDateForApi(this.currentFilter.fromDate),
+      to: this.formatDateForApi(this.currentFilter.toDate),
       interval: 'day' as const,
     };
 
@@ -1267,8 +1277,8 @@ export class DashboardComponent implements OnInit {
 
     const params = {
       domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
-      from: this.currentFilter.fromDate?.toISOString(),
-      to: this.currentFilter.toDate?.toISOString(),
+      from: this.formatDateForApi(this.currentFilter.fromDate),
+      to: this.formatDateForApi(this.currentFilter.toDate),
       page: this.countriesPage,
       pageSize: this.countriesPageSize,
     };
@@ -1300,8 +1310,8 @@ export class DashboardComponent implements OnInit {
 
     const params = {
       domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
-      from: this.currentFilter.fromDate?.toISOString(),
-      to: this.currentFilter.toDate?.toISOString(),
+      from: this.formatDateForApi(this.currentFilter.fromDate),
+      to: this.formatDateForApi(this.currentFilter.toDate),
       page: this.headerFromPage,
       pageSize: this.headerFromPageSize,
     };
