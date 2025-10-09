@@ -12,6 +12,23 @@ main {
 
 .app-toolbar {
   min-height: 56px;
+  gap: 8px;
+
+  .logo {
+    height: 100%;
+    max-height: 100%;
+    width: auto;
+    display: block;
+
+    img {
+      height: 100%;
+      max-height: 100%;
+      width: auto;
+      display: block;
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+  }
 }
 
 .brand {

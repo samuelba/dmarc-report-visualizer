@@ -14,7 +14,7 @@ import { ThemeService } from './services/theme.service';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly title = signal('DMARC');
+  protected readonly title = signal('DMARC Report Visualizer');
 
   // Initialize theme service
   private readonly themeService = inject(ThemeService);
