@@ -323,8 +323,9 @@ export class ReprocessingService {
         relations: ['dkimResults', 'spfResults', 'policyOverrideReasons'],
       });
 
-      // Process each record
-      const updatePromises = records.map(async (record) => {
+      // Process each record SEQUENTIALLY to avoid overwhelming the database
+      // This respects the WORKER_COUNT setting properly
+      for (const record of records) {
         try {
           const result = await this.forwardingDetectionService.detectForwarding(record);
           
@@ -333,7 +334,7 @@ export class ReprocessingService {
           record.forwardReason = result.reason;
           record.reprocessed = true; // Mark as reprocessed
           
-          // Save asynchronously
+          // Save synchronously (one at a time)
           await this.recordRepository.save(record);
 
           // Update local counters
@@ -353,10 +354,7 @@ export class ReprocessingService {
           await this.recordRepository.save(record);
           processed++;
         }
-      });
-
-      // Wait for all records in this batch to complete
-      await Promise.all(updatePromises);
+      }
 
       // Report progress
       await onProgress({ processed, forwarded, notForwarded, unknown });
