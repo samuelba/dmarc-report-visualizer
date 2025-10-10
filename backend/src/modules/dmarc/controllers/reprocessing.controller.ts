@@ -28,6 +28,16 @@ export class ReprocessingController {
   }
 
   /**
+   * POST /reprocessing/cancel/:id
+   * Cancel a running reprocessing job
+   */
+  @Post('cancel/:id')
+  @HttpCode(HttpStatus.OK)
+  async cancelReprocessing(@Param('id') id: string): Promise<ReprocessingJob> {
+    return this.reprocessingService.cancelReprocessing(id);
+  }
+
+  /**
    * GET /reprocessing/current
    * Get the current active job (if any)
    */

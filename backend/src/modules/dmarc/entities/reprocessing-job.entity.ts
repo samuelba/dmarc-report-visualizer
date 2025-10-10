@@ -12,6 +12,7 @@ export enum ReprocessingJobStatus {
   RUNNING = 'running',
   COMPLETED = 'completed',
   FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }
 
 /**
@@ -77,7 +78,8 @@ export class ReprocessingJob {
   get isFinished(): boolean {
     return (
       this.status === ReprocessingJobStatus.COMPLETED ||
-      this.status === ReprocessingJobStatus.FAILED
+      this.status === ReprocessingJobStatus.FAILED ||
+      this.status === ReprocessingJobStatus.CANCELLED
     );
   }
 

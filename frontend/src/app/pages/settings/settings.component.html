@@ -132,7 +132,7 @@
                     <li>To ensure all records reflect current settings</li>
                   </ul>
                   <p class="warning">
-                    ⚠️ Reprocessing may take several minutes/hours depending on the number of records and threads.
+                    ⚠️ Reprocessing may take several minutes/hours depending on the number of records and workers configured.
                   </p>
                 </div>
               </div>
@@ -213,6 +213,17 @@
                     Start Reprocessing
                   }
                 </button>
+
+                @if (isReprocessing() && currentJob()) {
+                  <button
+                    mat-raised-button
+                    color="warn"
+                    (click)="cancelReprocessing()"
+                    class="cancel-button">
+                    <mat-icon>cancel</mat-icon>
+                    Cancel Reprocessing
+                  </button>
+                }
               </div>
             </div>
 

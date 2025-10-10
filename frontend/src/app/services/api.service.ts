@@ -76,7 +76,7 @@ export interface UpdateThirdPartySenderDto {
 
 export interface ReprocessingJob {
   id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   totalRecords?: number;
   processedRecords: number;
   forwardedCount: number;
@@ -488,6 +488,10 @@ export class ApiService {
   // Reprocessing API
   startReprocessing() {
     return this.http.post<ReprocessingJob>(`${this.apiBase}/reprocessing/start`, {});
+  }
+
+  cancelReprocessing(jobId: string) {
+    return this.http.post<ReprocessingJob>(`${this.apiBase}/reprocessing/cancel/${jobId}`, {});
   }
 
   getCurrentReprocessingJob() {

@@ -15,6 +15,8 @@ import * as os from 'os';
 export class ReprocessingService {
   private readonly logger = new Logger(ReprocessingService.name);
   private isProcessing = false;
+  private cancelRequested = false; // Flag to track cancellation requests
+  private currentJobId: string | null = null; // Track current job ID
   private readonly BATCH_SIZE = 100;
   private readonly WORKER_COUNT: number;
 
@@ -147,6 +149,39 @@ export class ReprocessingService {
   }
 
   /**
+   * Cancel a running reprocessing job
+   */
+  async cancelReprocessing(jobId: string): Promise<ReprocessingJob> {
+    const job = await this.jobRepository.findOne({ where: { id: jobId } });
+    
+    if (!job) {
+      throw new NotFoundException(`Reprocessing job ${jobId} not found`);
+    }
+
+    if (job.status !== ReprocessingJobStatus.RUNNING && job.status !== ReprocessingJobStatus.PENDING) {
+      throw new Error(`Cannot cancel job in ${job.status} status`);
+    }
+
+    // Check if this is the current job
+    if (this.currentJobId === jobId && this.isProcessing) {
+      this.logger.log(`Cancellation requested for job ${jobId}`);
+      this.cancelRequested = true;
+      
+      // The actual cancellation will happen in the processing loop
+      // Just return the job - status will be updated by the worker
+      return job;
+    } else {
+      // Job is not currently processing (maybe pending), mark it as cancelled directly
+      job.status = ReprocessingJobStatus.CANCELLED;
+      job.completedAt = new Date();
+      await this.jobRepository.save(job);
+      
+      this.logger.log(`Job ${jobId} cancelled (was not actively processing)`);
+      return job;
+    }
+  }
+
+  /**
    * Process a reprocessing job in the background with parallel workers
    * @param jobId The job ID to process
    * @param isResume Whether this is resuming an interrupted job (don't reset records)
@@ -158,6 +193,8 @@ export class ReprocessingService {
     }
 
     this.isProcessing = true;
+    this.cancelRequested = false; // Reset cancellation flag
+    this.currentJobId = jobId; // Track current job
     const startTime = Date.now();
 
     try {
@@ -233,6 +270,11 @@ export class ReprocessingService {
       // Process chunks in parallel
       const workerPromises = workerChunks.map(async (chunk, workerIndex) => {
         return this.processChunk(chunk, workerIndex, async (stats) => {
+          // Check for cancellation
+          if (this.cancelRequested) {
+            throw new Error('Reprocessing cancelled by user');
+          }
+
           // Update shared counters
           totalProcessed += stats.processed;
           forwardedCount += stats.forwarded;
@@ -279,14 +321,25 @@ export class ReprocessingService {
       );
 
     } catch (error) {
-      this.logger.error(`Reprocessing job ${jobId} failed:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isCancelled = this.cancelRequested || errorMessage.includes('cancelled by user');
+      
+      if (isCancelled) {
+        this.logger.log(`Reprocessing job ${jobId} was cancelled by user`);
+      } else {
+        this.logger.error(`Reprocessing job ${jobId} failed:`, error);
+      }
 
-      // Mark job as failed
+      // Mark job as failed or cancelled
       try {
         const job = await this.jobRepository.findOne({ where: { id: jobId } });
         if (job) {
-          job.status = ReprocessingJobStatus.FAILED;
-          job.errorMessage = error instanceof Error ? error.message : String(error);
+          if (isCancelled) {
+            job.status = ReprocessingJobStatus.CANCELLED;
+          } else {
+            job.status = ReprocessingJobStatus.FAILED;
+            job.errorMessage = errorMessage;
+          }
           job.completedAt = new Date();
           await this.jobRepository.save(job);
         }
@@ -294,7 +347,22 @@ export class ReprocessingService {
         this.logger.error(`Failed to update job status:`, updateError);
       }
     } finally {
+      // Keep cancelRequested=true for a bit longer to let running workers detect it
+      // Workers check this flag before processing each record
+      const wasCancelled = this.cancelRequested;
+      
       this.isProcessing = false;
+      this.currentJobId = null;
+      
+      // Only reset cancel flag after a delay if it was a cancellation
+      if (wasCancelled) {
+        setTimeout(() => {
+          this.cancelRequested = false;
+          this.logger.log('Cancellation flag reset after worker shutdown period');
+        }, 5000); // Give workers 5 seconds to detect and stop
+      } else {
+        this.cancelRequested = false;
+      }
     }
   }
 
@@ -315,6 +383,11 @@ export class ReprocessingService {
     const batchSize = this.BATCH_SIZE;
     
     for (let i = 0; i < recordIds.length; i += batchSize) {
+      // Check for cancellation before processing each batch
+      if (this.cancelRequested) {
+        throw new Error('Reprocessing cancelled by user');
+      }
+
       const batchIds = recordIds.slice(i, i + batchSize);
       
       // Fetch records with relations
@@ -326,6 +399,11 @@ export class ReprocessingService {
       // Process each record SEQUENTIALLY to avoid overwhelming the database
       // This respects the WORKER_COUNT setting properly
       for (const record of records) {
+        // Check for cancellation before processing each record
+        if (this.cancelRequested) {
+          throw new Error('Reprocessing cancelled by user');
+        }
+
         try {
           const result = await this.forwardingDetectionService.detectForwarding(record);
           

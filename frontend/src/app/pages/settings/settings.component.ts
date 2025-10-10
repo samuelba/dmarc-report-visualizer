@@ -212,6 +212,28 @@ export class SettingsComponent implements OnInit {
     });
   }
 
+  cancelReprocessing() {
+    const job = this.currentJob();
+    if (!job) {
+      return;
+    }
+
+    if (!confirm('Are you sure you want to cancel the reprocessing job?')) {
+      return;
+    }
+
+    this.api.cancelReprocessing(job.id).subscribe({
+      next: () => {
+        this.snackBar.open('Reprocessing cancellation requested', 'Close', { duration: 3000 });
+        // Continue polling to see the cancellation complete
+      },
+      error: (err) => {
+        console.error('Failed to cancel reprocessing:', err);
+        this.snackBar.open('Failed to cancel reprocessing', 'Close', { duration: 5000 });
+      },
+    });
+  }
+
   private pollJobStatus(jobId: string) {
     // Poll immediately, then every 10 seconds (only when reprocessing tab is active)
     timer(0, 10000)
@@ -229,12 +251,14 @@ export class SettingsComponent implements OnInit {
             this.currentJob.set(job);
             
             // Stop polling if job is finished
-            if (job.status === 'completed' || job.status === 'failed') {
+            if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
               this.isReprocessing.set(false);
               this.loadReprocessingHistory();
               
               if (job.status === 'completed') {
                 this.snackBar.open('Reprocessing completed successfully!', 'Close', { duration: 5000 });
+              } else if (job.status === 'cancelled') {
+                this.snackBar.open('Reprocessing was cancelled', 'Close', { duration: 5000 });
               } else {
                 this.snackBar.open('Reprocessing failed', 'Close', { duration: 5000 });
               }
@@ -259,6 +283,7 @@ export class SettingsComponent implements OnInit {
       case 'running': return 'autorenew';
       case 'completed': return 'check_circle';
       case 'failed': return 'error';
+      case 'cancelled': return 'cancel';
       default: return 'help';
     }
   }
@@ -269,6 +294,7 @@ export class SettingsComponent implements OnInit {
       case 'running': return 'primary';
       case 'completed': return 'green';
       case 'failed': return 'warn';
+      case 'cancelled': return 'warn';
       default: return '';
     }
   }
