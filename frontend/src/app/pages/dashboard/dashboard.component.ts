@@ -453,7 +453,7 @@ interface HeaderFromRow {
 
       .dashboard-content {
         flex: 1;
-        padding: 20px;
+        //padding: 16px;
       }
 
       .summary-cards {

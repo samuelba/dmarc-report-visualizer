@@ -7,11 +7,16 @@
 }
 
 main {
-  padding: 16px;
+  padding: 20px;
 }
 
 .app-toolbar {
-  min-height: 56px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000; // above sidenav
+  min-height: 64px;
   gap: 8px;
 
   .logo {
@@ -35,6 +40,87 @@ main {
   font-weight: 600;
 }
 
-.active-link {
-  background-color: rgba(255, 255, 255, 0.16);
+/* Layout */
+.app-container {
+  min-height: calc(100vh - 64px);
+  margin-top: 64px;
+}
+
+/* Ensure browser (body) scroll instead of in-page */
+.app-container.mat-drawer-container {
+  height: auto !important;
+}
+
+.app-container .mat-drawer-content,
+.app-content.mat-drawer-content {
+  overflow: visible !important;
+  height: auto;
+}
+
+.app-sidenav {
+  width: 240px;
+  padding-top: 8px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-left: 6px;
+  padding-right: 6px;
+  border: 0;
+
+  &.collapsed {
+    width: 72px;
+
+    .label {
+      display: none;
+    }
+    .collapse-toggle {
+      margin-left: 8px;
+    }
+    a[mat-list-item] {
+      margin: 0 0px;
+      padding-right: 0px;
+      padding-left: 2px;
+    }
+  }
+
+  .sidenav-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .collapse-toggle {
+    align-self: flex-end;
+    margin: 0 8px 8px 0;
+  }
+
+  .nav-top, .nav-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: visible;
+  }
+
+  mat-nav-list {
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  a[mat-list-item] {
+    border-radius: 8px;
+    margin: 0 0px;
+    overflow: hidden;
+  }
+}
+
+.menu-toggle {
+  margin-right: 4px;
+}
+
+.app-content {
+  overflow: visible !important;
 }

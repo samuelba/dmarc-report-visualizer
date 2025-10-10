@@ -1,4 +1,4 @@
-.settings-container {
+.settings-content {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
@@ -316,7 +316,7 @@ mat-slide-toggle {
 
 // Responsive
 @media (max-width: 768px) {
-  .settings-container {
+  .settings-content {
     padding: 1rem;
   }
 

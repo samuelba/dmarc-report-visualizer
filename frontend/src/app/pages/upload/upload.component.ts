@@ -13,7 +13,7 @@ import { forkJoin } from 'rxjs';
   selector: 'app-upload',
   imports: [CommonModule, MatButtonModule, MatCardModule, MatIconModule, MatProgressBarModule, MatChipsModule],
   template: `
-    <main class="upload-container">
+    <main class="upload-content">
       <mat-card class="upload-card">
         <mat-card-header>
           <mat-card-title>
@@ -106,14 +106,14 @@ import { forkJoin } from 'rxjs';
   `,
   styles: [
     `
-      .upload-container {
-        padding: 20px;
-        max-width: 800px;
-        margin: 0 auto;
+      .upload-content {
+        display: block;
       }
 
       .upload-card {
         margin-bottom: 20px;
+        max-width: 800px;
+        margin: 0 auto;
       }
 
       mat-card-title {

@@ -38,7 +38,7 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../../components/c
     CombinedDateFilterComponent,
   ],
   template: `
-    <main class="explore">
+    <main class="explore-content">
       <section class="filters">
         <app-combined-date-filter
           [value]="dateFilterValue"
@@ -308,9 +308,8 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../../components/c
   `,
   styles: [
     `
-      .explore {
+      .explore-content {
         display: block;
-        padding: 16px;
       }
     `,
     `

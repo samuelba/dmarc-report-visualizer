@@ -1,28 +1,54 @@
 <mat-toolbar color="primary" class="app-toolbar">
+  <button mat-icon-button class="menu-toggle" (click)="toggleSidenav()" [attr.aria-label]="isCollapsed() ? 'Expand navigation' : 'Collapse navigation'">
+    <mat-icon>menu</mat-icon>
+  </button>
   <a routerLink="/" class="logo"><img src="assets/dmarc-logo.png" alt="DMARC Logo" /></a>
   <span class="brand">{{ title() }}</span>
   <span class="spacer"></span>
-  <a mat-button routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }"
-    >
-    <mat-icon>dashboard</mat-icon>
-    Dashboard</a
-  >
-  <a mat-button routerLink="/explore" routerLinkActive="active-link">
-    <mat-icon>explore</mat-icon>
-    Explore</a>
-  <a mat-button routerLink="/reports" routerLinkActive="active-link">
-    <mat-icon>assessment</mat-icon>
-    Reports
-  </a>
-  <a mat-button routerLink="/upload" routerLinkActive="active-link">
-    <mat-icon>upload</mat-icon>
-    Upload
-  </a>
-  <a mat-button routerLink="/settings" routerLinkActive="active-link">
-    <mat-icon>settings</mat-icon>
-    Settings
-  </a>
   <app-theme-toggle></app-theme-toggle>
 </mat-toolbar>
 
-<router-outlet />
+<mat-sidenav-container class="app-container" autosize>
+  <mat-sidenav class="app-sidenav" mode="side" [opened]="true" [class.collapsed]="isCollapsed()" [style.width.px]="isCollapsed() ? 72 : 240" [fixedInViewport]="true" [fixedTopGap]="64" [fixedBottomGap]="0">
+    <div class="sidenav-inner">
+
+      <nav class="nav-top">
+        <mat-nav-list>
+          <a mat-list-item routerLink="/dashboard" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }" matTooltip="Dashboard" matTooltipPosition="right">
+            <mat-icon matListItemIcon>dashboard</mat-icon>
+            <span class="label" matListItemTitle>Dashboard</span>
+          </a>
+          <a mat-list-item routerLink="/explore" routerLinkActive="active-link" matTooltip="Explore" matTooltipPosition="right">
+            <mat-icon matListItemIcon>explore</mat-icon>
+            <span class="label" matListItemTitle>Explore</span>
+          </a>
+          <a mat-list-item routerLink="/reports" routerLinkActive="active-link" matTooltip="Reports" matTooltipPosition="right">
+            <mat-icon matListItemIcon>assessment</mat-icon>
+            <span class="label" matListItemTitle>Reports</span>
+          </a>
+          <a mat-list-item routerLink="/upload" routerLinkActive="active-link" matTooltip="Upload" matTooltipPosition="right">
+            <mat-icon matListItemIcon>upload</mat-icon>
+            <span class="label" matListItemTitle>Upload</span>
+          </a>
+        </mat-nav-list>
+      </nav>
+
+      <mat-divider></mat-divider>
+
+      <nav class="nav-bottom">
+        <mat-nav-list>
+          <a mat-list-item routerLink="/settings" routerLinkActive="active-link" matTooltip="Settings" matTooltipPosition="right">
+            <mat-icon matListItemIcon>settings</mat-icon>
+            <span class="label" matListItemTitle>Settings</span>
+          </a>
+        </mat-nav-list>
+      </nav>
+    </div>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="app-content">
+    <main>
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

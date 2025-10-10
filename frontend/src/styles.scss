@@ -156,13 +156,29 @@ body {
   background-color: #fafafa;
   color: #333;
 
+  .mat-drawer-container {
+    background-color: #f5f5f5;
+  }
+
   // Custom component backgrounds
   .dashboard-content {
     background-color: #f5f5f5;
   }
 
-  .explore {
-    background-color: #ffffff;
+  .explore-content {
+    background-color: #f5f5f5;
+  }
+
+  .reports-content {
+    background-color: #f5f5f5;
+  }
+
+  .upload-content {
+    background-color: #f5f5f5;
+  }
+
+  .settings-content {
+    background-color: #f5f5f5;
   }
 
   // Style the actual text field wrapper (where the dropdown background should be)
@@ -194,7 +210,12 @@ body {
 
   // Toolbar
   .app-toolbar {
-    background-color: mat.get-theme-color($light-theme, primary, 600) !important;
+    background-color: #ffffff !important;
+    color: #333333 !important;
+  }
+
+  .active-link {
+    background-color: rgba(100, 100, 100, 0.20);
   }
 
   // XML viewer light theme specific overrides
@@ -325,12 +346,36 @@ body {
   background-color: #121212;
   color: #e0e0e0;
 
+  .active-link {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .mat-drawer {
+    background-color: #1e1e1e;
+  }
+
+  .mat-drawer-container {
+    background-color: #121212;
+  }
+
   // Custom component backgrounds
   .dashboard-content {
     background-color: #121212;
   }
 
-  .explore {
+  .explore-content {
+    background-color: #121212;
+  }
+
+  .reports-content {
+    background-color: #121212;
+  }
+
+  .upload-content {
+    background-color: #121212;
+  }
+
+  .settings-content {
     background-color: #121212;
   }
 

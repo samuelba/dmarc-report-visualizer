@@ -26,8 +26,8 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
     MatDialogModule,
   ],
   template: `
-    <main>
-      <mat-form-field appearance="outline">
+    <main class="reports-content">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Filter by domain</mat-label>
         <mat-select [(ngModel)]="domainFilter" (selectionChange)="onFilterChange()">
           <mat-option value="">All domains</mat-option>
@@ -81,7 +81,6 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
   styles: [
     `
       main {
-        padding: 16px;
         display: block;
       }
       table {
