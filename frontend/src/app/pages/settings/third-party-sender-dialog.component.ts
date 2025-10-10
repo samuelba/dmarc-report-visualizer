@@ -101,9 +101,9 @@ export interface ThirdPartySenderDialogData {
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
-      <button mat-button (click)="cancel()">Cancel</button>
+      <button matButton="text" (click)="cancel()">Cancel</button>
       <button 
-        mat-raised-button 
+        matButton="filled"
         color="primary" 
         (click)="save()"
         [disabled]="!isValid() || saving()">

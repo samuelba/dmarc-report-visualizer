@@ -1,40 +1,19 @@
 @use '@angular/material' as mat;
+@use 'theme/theme' as app-theme; // imports src/theme/_theme.scss
 
 @include mat.core();
 
-// Define color palettes
-$primary: mat.m2-define-palette(mat.$m2-blue-palette, 600);
-$accent: mat.m2-define-palette(mat.$m2-orange-palette, 500);
-$warn: mat.m2-define-palette(mat.$m2-red-palette, 500);
-
-// Light theme
-$light-theme: mat.m2-define-light-theme(
-  (
-    color: (
-      primary: $primary,
-      accent: $accent,
-      warn: $warn,
-    ),
-  )
-);
-
-// Dark theme
-$dark-theme: mat.m2-define-dark-theme(
-  (
-    color: (
-      primary: $primary,
-      accent: $accent,
-      warn: $warn,
-    ),
-  )
-);
-
-// Apply light theme by default
-@include mat.all-component-themes($light-theme);
-
 // Dark theme styles
 .dark-theme {
-  @include mat.all-component-colors($dark-theme);
+  color-scheme: dark;
+  // Apply dark theme tokens to components within the dark theme container
+  @include mat.all-component-themes(app-theme.$dark-theme);
+
+  // Adjust a few system tokens to better reflect brand hues in dark mode
+  @include mat.theme-overrides((
+    primary: #90caf9,
+    tertiary: #ffb74d,
+  ));
 
   // Override Prism theme for dark mode - use Twilight
   // Hide the default light theme
@@ -153,6 +132,16 @@ body {
 
 // Light theme styles
 .light-theme {
+  color-scheme: light;
+  // Apply light theme tokens to components within the light theme container
+  @include mat.all-component-themes(app-theme.$light-theme);
+
+  // Adjust a few system tokens to better reflect brand hues in light mode
+  @include mat.theme-overrides((
+    primary: #1e88e5,
+    tertiary: #ff9800,
+  ));
+
   background-color: #fafafa;
   color: #333;
 
@@ -200,6 +189,10 @@ body {
   .mat-mdc-row:hover {
     background-color: #f5f5f5;
   }
+
+  // .mat-mdc-paginator {
+  //   background-color: #ffffff;
+  // }
 
   // Form field backgrounds
   .mat-mdc-form-field {
@@ -538,9 +531,9 @@ body {
     color: #e0e0e0;
   }
 
-  // Icons
-  .mat-icon {
-    color: #e0e0e0;
+  // Paginator
+  .mat-mdc-paginator {
+    background-color: inherit;
   }
 
   // Detail content

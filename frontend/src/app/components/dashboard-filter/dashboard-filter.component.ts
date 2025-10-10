@@ -32,10 +32,10 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../combined-date-f
         </mat-form-field>
 
         <div class="filter-buttons">
-          <button mat-raised-button color="primary" (click)="refreshData()" matTooltip="Refresh Data">
+          <button matButton="filled" color="primary" (click)="refreshData()">
             Apply
           </button>
-          <button mat-button (click)="clearFilter()" matTooltip="Clear Filter">
+          <button matButton="text" (click)="clearFilter()">
             Clear
           </button>
         </div>
@@ -67,11 +67,6 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../combined-date-f
         display: flex;
         gap: 8px;
         align-items: center;
-      }
-
-      .filter-buttons button {
-        min-width: 40px;
-        padding: 0 8px;
       }
 
       /* Responsive behavior */

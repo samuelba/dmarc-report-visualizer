@@ -1,0 +1,25 @@
+@use '@angular/material' as mat;
+
+// Brand seed colors
+$brand-primary: #1e88e5; // Blue 600
+$brand-tertiary: #ff9800; // Orange 500
+
+// Use prebuilt M3 palettes that closely match the brand hues
+$light-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$azure-palette,
+    tertiary: mat.$orange-palette,
+  ),
+  density: (
+    scale: 0,
+  ),
+));
+
+$dark-theme: mat.define-theme((
+  color: (
+    theme-type: dark,
+    primary: mat.$azure-palette,
+    tertiary: mat.$orange-palette,
+  ),
+));

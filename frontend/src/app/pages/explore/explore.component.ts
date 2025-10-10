@@ -131,8 +131,8 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../../components/c
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
         <div class="actions">
-          <button mat-raised-button color="primary" (click)="apply()">Apply</button>
-          <button mat-button (click)="clear()">Clear</button>
+          <button matButton="filled" color="primary" (click)="apply()">Apply</button>
+          <button matButton="text" (click)="clear()">Clear</button>
         </div>
       </section>
 

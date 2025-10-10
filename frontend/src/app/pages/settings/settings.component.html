@@ -18,7 +18,7 @@
 
           <mat-card-content>
             <div class="actions-bar">
-              <button mat-raised-button color="primary" (click)="openCreateDialog()">
+              <button matButton="filled" color="primary" (click)="openCreateDialog()">
                 <mat-icon>add</mat-icon>
                 Add Third-Party Sender
               </button>
@@ -82,10 +82,10 @@
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>Actions</th>
                 <td mat-cell *matCellDef="let sender">
-                  <button mat-icon-button (click)="openEditDialog(sender)" matTooltip="Edit">
+                  <button matIconButton (click)="openEditDialog(sender)" matTooltip="Edit">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  <button mat-icon-button color="warn" (click)="deleteSender(sender)" matTooltip="Delete">
+                  <button matIconButton color="warn" (click)="deleteSender(sender)" matTooltip="Delete">
                     <mat-icon>delete</mat-icon>
                   </button>
                 </td>
@@ -202,7 +202,7 @@
 
               <div class="action-bar">
                 <button
-                  mat-raised-button
+                  matButton="filled"
                   color="primary"
                   (click)="startReprocessing()"
                   [disabled]="isReprocessing()">
@@ -216,7 +216,7 @@
 
                 @if (isReprocessing() && currentJob()) {
                   <button
-                    mat-raised-button
+                    matButton="filled"
                     color="warn"
                     (click)="cancelReprocessing()"
                     class="cancel-button">

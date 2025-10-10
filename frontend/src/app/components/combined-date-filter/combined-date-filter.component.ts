@@ -70,12 +70,12 @@ export interface DateFilterValue {
               </mat-form-field>
 
               <div class="quick-options">
-                <button mat-stroked-button (click)="selectQuickPeriod('7d')">Last 7 days</button>
-                <button mat-stroked-button (click)="selectQuickPeriod('30d')">Last 30 days</button>
-                <button mat-stroked-button (click)="selectQuickPeriod('3m')">Last 3 months</button>
-                <button mat-stroked-button (click)="selectQuickPeriod('6m')">Last 6 months</button>
-                <button mat-stroked-button (click)="selectQuickPeriod('1y')">Last year</button>
-                <button mat-stroked-button (click)="selectQuickPeriod('all')">All time</button>
+                <button matButton="outlined" (click)="selectQuickPeriod('7d')">Last 7 days</button>
+                <button matButton="outlined" (click)="selectQuickPeriod('30d')">Last 30 days</button>
+                <button matButton="outlined" (click)="selectQuickPeriod('3m')">Last 3 months</button>
+                <button matButton="outlined" (click)="selectQuickPeriod('6m')">Last 6 months</button>
+                <button matButton="outlined" (click)="selectQuickPeriod('1y')">Last year</button>
+                <button matButton="outlined" (click)="selectQuickPeriod('all')">All time</button>
               </div>
             </div>
 
@@ -94,8 +94,8 @@ export interface DateFilterValue {
           </div>
 
           <div class="menu-actions">
-            <button mat-button (click)="clearFilter()">Clear</button>
-            <button mat-raised-button color="primary" (click)="applyFilter()">Apply</button>
+            <button matButton="text" (click)="clearFilter()">Clear</button>
+            <button matButton="filled" color="primary" (click)="applyFilter()">Apply</button>
           </div>
         </div>
       </mat-menu>
