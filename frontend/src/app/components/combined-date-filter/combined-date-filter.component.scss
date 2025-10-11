@@ -1,0 +1,62 @@
+.combined-date-filter {
+  width: 100%;
+}
+
+.display-field {
+  width: 100%;
+}
+
+.menu-content {
+  padding: 16px;
+  min-width: 300px;
+  max-width: 350px;
+  width: max-content;
+  box-sizing: border-box;
+}
+
+.mode-selector {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.mode-selector mat-radio-button {
+  margin-right: 16px;
+}
+
+.filter-content {
+  margin-bottom: 16px;
+}
+
+.period-mode mat-form-field {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.period-mode mat-hint {
+  font-size: 12px;
+}
+
+.quick-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quick-options button {
+  font-size: 12px;
+}
+
+.range-mode mat-form-field {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.menu-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}

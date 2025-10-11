@@ -25,70 +25,8 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
     FormsModule,
     MatDialogModule,
   ],
-  template: `
-    <main class="reports-content">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Filter by domain</mat-label>
-        <mat-select [(ngModel)]="domainFilter" (selectionChange)="onFilterChange()">
-          <mat-option value="">All domains</mat-option>
-          <mat-option *ngFor="let domain of domains()" [value]="domain">{{ domain }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <table mat-table [dataSource]="reports()" class="mat-elevation-z1">
-        <ng-container matColumnDef="domain">
-          <th mat-header-cell *matHeaderCellDef>Domain</th>
-          <td mat-cell *matCellDef="let r">{{ r.domain }}</td>
-        </ng-container>
-        <ng-container matColumnDef="orgName">
-          <th mat-header-cell *matHeaderCellDef>Reporting Org</th>
-          <td mat-cell *matCellDef="let r">{{ r.orgName || 'N/A' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="reportId">
-          <th mat-header-cell *matHeaderCellDef>Report ID</th>
-          <td mat-cell *matCellDef="let r">{{ r.reportId }}</td>
-        </ng-container>
-        <ng-container matColumnDef="beginDate">
-          <th mat-header-cell *matHeaderCellDef>Begin</th>
-          <td mat-cell *matCellDef="let r">{{ r.beginDate | date: 'short' }}</td>
-        </ng-container>
-        <ng-container matColumnDef="endDate">
-          <th mat-header-cell *matHeaderCellDef>End</th>
-          <td mat-cell *matCellDef="let r">{{ r.endDate | date: 'short' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Actions</th>
-          <td mat-cell *matCellDef="let r">
-            <button mat-button color="primary" (click)="viewXml(r.id)">View XML</button>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-      </table>
-
-      <mat-paginator
-        [length]="total()"
-        [pageSize]="pageSize()"
-        [pageIndex]="page() - 1"
-        [pageSizeOptions]="[10, 25, 50, 100]"
-        showFirstLastButtons
-        (page)="onPage($event)"
-      ></mat-paginator>
-    </main>
-  `,
-  styles: [
-    `
-      main {
-        display: block;
-      }
-      table {
-        width: 100%;
-        margin: 16px 0;
-      }
-    `,
-  ],
+  templateUrl: './reports.component.html',
+  styleUrls: ['./reports.component.scss'],
 })
 export class ReportsComponent implements OnInit {
   private readonly api = inject(ApiService);
@@ -109,7 +47,7 @@ export class ReportsComponent implements OnInit {
     this.loadFiltersFromUrl();
     this.loadDomains();
     this.fetch();
-    
+
     // Check if there's a reportId in the URL to auto-open XML viewer
     const params = this.route.snapshot.queryParams;
     if (params['reportId']) {
@@ -215,13 +153,13 @@ export class ReportsComponent implements OnInit {
   viewXml(id: string) {
     this.api.getReportXml(id).subscribe((xml) => {
       // Find the report to get additional details
-      const report = this.reports().find(r => r.id === id);
-      
+      const report = this.reports().find((r) => r.id === id);
+
       this.dialog.open(XmlViewerDialogComponent, {
-        data: { 
-          xml, 
+        data: {
+          xml,
           reportId: id,
-          title: `DMARC Report XML - ${report?.domain || 'Unknown Domain'}` 
+          title: `DMARC Report XML - ${report?.domain || 'Unknown Domain'}`,
         },
         width: '90%',
         maxWidth: '1400px',

@@ -1,0 +1,388 @@
+<div class="dashboard-container">
+  <div class="dashboard-content">
+    <!-- Filter Section -->
+    <app-dashboard-filter (filterChange)="onFilterChange($event)" (refreshRequested)="refreshData()">
+    </app-dashboard-filter>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <mat-card class="summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>public</mat-icon>
+            Countries
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-value">{{ totalCountries }}</div>
+          <div class="metric-label">Unique Countries</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>location_on</mat-icon>
+            Locations
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-value">{{ totalLocations }}</div>
+          <div class="metric-label">Geographic Points</div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- DKIM Pie Chart Card -->
+      <mat-card class="summary-card pie-chart-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>pie_chart</mat-icon>
+            DKIM
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div
+            echarts
+            [options]="dkimPieChartOptions"
+            [merge]="dkimPieChartOptions"
+            class="small-pie-chart"
+            *ngIf="dkimPieChartOptions"
+          ></div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- SPF Pie Chart Card -->
+      <mat-card class="summary-card pie-chart-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>pie_chart</mat-icon>
+            SPF
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div
+            echarts
+            [options]="spfPieChartOptions"
+            [merge]="spfPieChartOptions"
+            class="small-pie-chart"
+            *ngIf="spfPieChartOptions"
+          ></div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>security</mat-icon>
+            Global Pass Rate
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div
+            class="metric-value"
+            [class.success]="globalPassRate >= 80"
+            [class.warning]="globalPassRate >= 50 && globalPassRate < 80"
+            [class.danger]="globalPassRate < 50"
+          >
+            {{ globalPassRate }}%
+          </div>
+          <div class="metric-sub">
+            <span><strong>DKIM:</strong> {{ globalDkimPassRate }}%</span>
+            <span><strong>SPF:</strong> {{ globalSpfPassRate }}%</span>
+          </div>
+          <div class="metric-label">DMARC Authentication</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="summary-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>email</mat-icon>
+            Total Records
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="metric-value">{{ totalReports | number }}</div>
+          <div class="metric-label">Email Records</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <mat-card class="chart-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>show_chart</mat-icon>
+            DKIM / SPF Pass Rate Over Time
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div echarts [options]="authPassRateChartOptions" class="chart"></div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="chart-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>stacked_line_chart</mat-icon>
+            Disposition Over Time
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div echarts [options]="dispositionChartOptions" class="chart"></div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- DNS Validation Issues - Hidden for now -->
+    <!--
+    <mat-card class="dns-issues-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>dns</mat-icon>
+          DNS Configuration Issues
+        </mat-card-title>
+        <mat-card-subtitle>
+          Real-time DNS validation of DMARC, SPF, and DKIM records for your domains
+        </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="loadingDnsIssues" class="loading-container">
+          <mat-spinner></mat-spinner>
+          <p>Validating DNS records...</p>
+        </div>
+
+        <div *ngIf="!loadingDnsIssues && domainsWithDnsIssues.length === 0" class="no-issues">
+          <mat-icon class="success-icon">check_circle</mat-icon>
+          <p>Excellent! All your domains have proper DNS configuration.</p>
+        </div>
+
+        <div *ngIf="!loadingDnsIssues && domainsWithDnsIssues.length > 0">
+          <div class="dns-issues-list">
+            <div *ngFor="let domain of domainsWithDnsIssues" class="dns-issue-item" [class]="'severity-' + domain.severity">
+              <div class="issue-header">
+                <div class="domain-name">
+                  <mat-icon [class]="getDnsSeverityIcon(domain.severity)">{{ getDnsSeverityIconName(domain.severity) }}</mat-icon>
+                  <strong>{{ domain.domain }}</strong>
+                  <span class="severity-badge" [class]="'severity-' + domain.severity">{{ domain.severity.toUpperCase() }}</span>
+                </div>
+              </div>
+              <div class="issue-summary">
+                {{ domain.summary }}
+              </div>
+              <div class="dns-status">
+                <div class="dns-record" [class.has-issues]="!domain.dmarc.exists || domain.dmarc.issues.length > 0">
+                  <span class="record-label">DMARC:</span>
+                  <span *ngIf="domain.dmarc.exists" class="record-exists">✅ {{ domain.dmarc.policy || 'Found' }}</span>
+                  <span *ngIf="!domain.dmarc.exists" class="record-missing">❌ Missing</span>
+                  <div *ngIf="domain.dmarc.issues.length > 0" class="record-issues">
+                    <small *ngFor="let issue of domain.dmarc.issues">• {{ issue }}</small>
+                  </div>
+                </div>
+                <div class="dns-record" [class.has-issues]="!domain.spf.exists || domain.spf.issues.length > 0">
+                  <span class="record-label">SPF:</span>
+                  <span *ngIf="domain.spf.exists" class="record-exists">✅ Found</span>
+                  <span *ngIf="!domain.spf.exists" class="record-missing">❌ Missing</span>
+                  <div *ngIf="domain.spf.issues.length > 0" class="record-issues">
+                    <small *ngFor="let issue of domain.spf.issues">• {{ issue }}</small>
+                  </div>
+                </div>
+                <div class="dns-record" [class.has-issues]="domain.dkim.foundSelectors === 0 || domain.dkim.issues.length > 0">
+                  <span class="record-label">DKIM:</span>
+                  <span *ngIf="domain.dkim.foundSelectors > 0" class="record-exists">✅ {{ domain.dkim.foundSelectors }} selector(s)</span>
+                  <span *ngIf="domain.dkim.foundSelectors === 0" class="record-missing">❌ No selectors found</span>
+                  <div *ngIf="domain.dkim.issues.length > 0" class="record-issues">
+                    <small *ngFor="let issue of domain.dkim.issues">• {{ issue }}</small>
+                  </div>
+                </div>
+              </div>
+              <div class="recommendations" *ngIf="domain.recommendations.length > 0">
+                <strong>Recommendations:</strong>
+                <ul>
+                  <li *ngFor="let rec of domain.recommendations">{{ rec }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+    -->
+
+    <!-- Top Countries + Header-From Domains -->
+    <div class="top-tables-grid">
+      <!-- Top Countries -->
+      <mat-card class="countries-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>flag</mat-icon>
+            Top Countries by Email Volume
+          </mat-card-title>
+          <mat-card-subtitle>
+            Countries with the highest number of email records ({{ totalCountriesCount }} total)
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="loadingCountries" class="loading-container">
+            <mat-spinner></mat-spinner>
+            <p>Loading country data...</p>
+          </div>
+
+          <div *ngIf="!loadingCountries">
+            <div class="countries-list">
+              <div *ngFor="let country of topCountries; let i = index" class="country-item">
+                <div class="country-rank">{{ (countriesPage - 1) * countriesPageSize + i + 1 }}</div>
+                <div class="country-info">
+                  <div class="country-name">
+                    <mat-icon>flag</mat-icon>
+                    {{ country.countryName || country.country }}
+                  </div>
+                  <div class="country-stats">
+                    <span class="total-count">{{ country.count | number }} records</span>
+                    <span
+                      class="pass-rate"
+                      [class.success]="getPassRate(country) >= 80"
+                      [class.warning]="getPassRate(country) >= 50 && getPassRate(country) < 80"
+                      [class.danger]="getPassRate(country) < 50"
+                    >
+                      {{ getPassRate(country) }}% DMARC pass
+                    </span>
+                    <span><strong>DKIM:</strong> {{ getDkimPassRate(country) }}%</span>
+                    <span><strong>SPF:</strong> {{ getSpfPassRate(country) }}%</span>
+                  </div>
+                </div>
+                <div class="country-progress">
+                  <mat-progress-bar
+                    mode="determinate"
+                    [value]="getPassRate(country)"
+                    [color]="getProgressColor(country)"
+                  >
+                  </mat-progress-bar>
+                </div>
+              </div>
+            </div>
+
+            <mat-paginator
+              *ngIf="totalCountriesCount > countriesPageSize"
+              [length]="totalCountriesCount"
+              [pageSize]="countriesPageSize"
+              [pageIndex]="countriesPage - 1"
+              [pageSizeOptions]="[5, 10, 25, 50]"
+              (page)="onCountriesPageChange($event)"
+              showFirstLastButtons
+            >
+            </mat-paginator>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Top Header-From Domains -->
+      <mat-card class="headerfrom-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>alternate_email</mat-icon>
+            Top Header-From Domains
+          </mat-card-title>
+          <mat-card-subtitle> Domains found in the email Header-From ({{ headerFromTotal }} total) </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="loadingHeaderFrom" class="loading-container">
+            <mat-spinner></mat-spinner>
+            <p>Loading domain data...</p>
+          </div>
+
+          <div *ngIf="!loadingHeaderFrom">
+            <div class="headerfrom-list">
+              <div *ngFor="let row of headerFromRows; let i = index" class="headerfrom-item">
+                <div class="hf-rank">{{ (headerFromPage - 1) * headerFromPageSize + i + 1 }}</div>
+                <div class="hf-info">
+                  <div class="hf-name">
+                    <mat-icon>alternate_email</mat-icon>
+                    {{ row.headerFrom || 'Unknown' }}
+                  </div>
+                  <div class="hf-stats">
+                    <span class="total-count">{{ row.count | number }} records</span>
+                    <span
+                      class="pass-rate"
+                      [class.success]="getHeaderFromDmarcPassRate(row) >= 80"
+                      [class.warning]="getHeaderFromDmarcPassRate(row) >= 50 && getHeaderFromDmarcPassRate(row) < 80"
+                      [class.danger]="getHeaderFromDmarcPassRate(row) < 50"
+                    >
+                      {{ getHeaderFromDmarcPassRate(row) }}% DMARC pass
+                    </span>
+                    <span><strong>DKIM:</strong> {{ getHeaderFromDkimPassRate(row) }}%</span>
+                    <span><strong>SPF:</strong> {{ getHeaderFromSpfPassRate(row) }}%</span>
+                  </div>
+                </div>
+                <div class="hf-progress">
+                  <mat-progress-bar
+                    mode="determinate"
+                    [value]="getHeaderFromDmarcPassRate(row)"
+                    [color]="getHeaderFromProgressColor(row)"
+                  >
+                  </mat-progress-bar>
+                </div>
+              </div>
+            </div>
+
+            <mat-paginator
+              *ngIf="headerFromTotal > headerFromPageSize"
+              [length]="headerFromTotal"
+              [pageSize]="headerFromPageSize"
+              [pageIndex]="headerFromPage - 1"
+              [pageSizeOptions]="[5, 10, 25, 50]"
+              (page)="onHeaderFromPageChange($event)"
+              showFirstLastButtons
+            >
+            </mat-paginator>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- World Map -->
+    <app-world-map [heatmapData]="heatmapData" [loading]="loadingHeatmap"> </app-world-map>
+
+    <!-- Enhanced Top IPs -->
+    <app-enhanced-top-ips [filterParams]="currentFilter"> </app-enhanced-top-ips>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <mat-card class="chart-card">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>show_chart</mat-icon>
+            Email Reports Over Time
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div echarts [options]="volumeChartOptions" class="chart"></div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- DMARC Insights -->
+    <mat-card class="insights-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>insights</mat-icon>
+          DMARC Insights & Recommendations
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="insights-grid">
+          <div class="insight-item" *ngFor="let insight of dmarcInsights">
+            <mat-icon [class]="insight.severity">{{ insight.icon }}</mat-icon>
+            <div class="insight-content">
+              <h4>{{ insight.title }}</h4>
+              <p>{{ insight.description }}</p>
+              <div *ngIf="insight.action" class="insight-action">
+                <strong>Recommended Action:</strong> {{ insight.action }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

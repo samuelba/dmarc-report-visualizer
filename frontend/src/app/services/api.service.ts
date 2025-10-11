@@ -338,7 +338,15 @@ export class ApiService {
   }
 
   getRecordDistinct(
-    field: 'domain' | 'sourceIp' | 'envelopeTo' | 'envelopeFrom' | 'headerFrom' | 'dkimDomain' | 'spfDomain' | 'country',
+    field:
+      | 'domain'
+      | 'sourceIp'
+      | 'envelopeTo'
+      | 'envelopeFrom'
+      | 'headerFrom'
+      | 'dkimDomain'
+      | 'spfDomain'
+      | 'country',
     opts?: { from?: string; to?: string }
   ) {
     let hp = new HttpParams().set('field', field);

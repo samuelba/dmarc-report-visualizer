@@ -1,0 +1,40 @@
+<div class="xml-viewer-dialog">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>
+      <mat-icon>code</mat-icon>
+      {{ data.title || 'XML Report Viewer' }}
+    </h2>
+    <div class="header-actions">
+      <button
+        *ngIf="highlightedLines"
+        mat-icon-button
+        (click)="scrollToHighlight()"
+        matTooltip="Jump to highlighted record"
+      >
+        <mat-icon>my_location</mat-icon>
+      </button>
+      <button mat-icon-button (click)="copyToClipboard()" matTooltip="Copy XML to clipboard">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+      <button mat-icon-button (click)="downloadXml()" matTooltip="Download XML file">
+        <mat-icon>download</mat-icon>
+      </button>
+      <button mat-icon-button (click)="copyShareLink()" matTooltip="Copy shareable link">
+        <mat-icon>share</mat-icon>
+      </button>
+      <button mat-icon-button mat-dialog-close matTooltip="Close">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+  <mat-dialog-content>
+    <div class="xml-container">
+      <pre
+        #xmlContent
+        class="line-numbers"
+        [attr.data-line]="highlightedLines"
+        [attr.data-line-offset]="lineOffset"
+      ><code class="language-markup">{{ highlightedXml }}</code></pre>
+    </div>
+  </mat-dialog-content>
+</div>

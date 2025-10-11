@@ -1,0 +1,39 @@
+<mat-card class="map-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>public</mat-icon>
+      Geographic Distribution of Email Records
+    </mat-card-title>
+    <mat-card-subtitle> Sender IP locations with DMARC authentication results </mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <div class="map-controls">
+      <div class="map-legend">
+        <div class="legend-item">
+          <div class="legend-color pass"></div>
+          <span>DMARC Pass</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color fail"></div>
+          <span>DMARC Fail</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color mixed"></div>
+          <span>Mixed Results</span>
+        </div>
+      </div>
+      <div class="map-filter">
+        <mat-radio-group [(ngModel)]="filterMode" (change)="onFilterChange()">
+          <mat-radio-button value="all">All Records</mat-radio-button>
+          <mat-radio-button value="pass">Pass Only</mat-radio-button>
+          <mat-radio-button value="fail">Fail Only</mat-radio-button>
+        </mat-radio-group>
+      </div>
+    </div>
+    <div #mapContainer class="map-container" id="world-map"></div>
+    <div *ngIf="loading" class="loading-overlay">
+      <mat-spinner></mat-spinner>
+      <p>Loading geographic data...</p>
+    </div>
+  </mat-card-content>
+</mat-card>

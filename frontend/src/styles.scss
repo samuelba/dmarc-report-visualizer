@@ -10,29 +10,31 @@
   @include mat.all-component-themes(app-theme.$dark-theme);
 
   // Adjust a few system tokens to better reflect brand hues in dark mode
-  @include mat.theme-overrides((
-    primary: #90caf9,
-    tertiary: #ffb74d,
-  ));
+  @include mat.theme-overrides(
+    (
+      primary: #90caf9,
+      tertiary: #ffb74d,
+    )
+  );
 
   // Override Prism theme for dark mode - use Twilight
   // Hide the default light theme
-  pre[class*="language-"],
-  code[class*="language-"] {
+  pre[class*='language-'],
+  code[class*='language-'] {
     color: #f8f8f2;
     background: #141414;
     text-shadow: 0 1px rgba(0, 0, 0, 0.3);
   }
 
-  pre[class*="language-"]::selection,
-  code[class*="language-"]::selection,
-  pre[class*="language-"] *::selection,
-  code[class*="language-"] *::selection {
+  pre[class*='language-']::selection,
+  code[class*='language-']::selection,
+  pre[class*='language-'] *::selection,
+  code[class*='language-'] *::selection {
     text-shadow: none;
     background: rgba(255, 255, 255, 0.15);
   }
 
-  pre[class*="language-"] {
+  pre[class*='language-'] {
     padding: 1em;
     margin: 0.5em 0;
     overflow: auto;
@@ -40,7 +42,7 @@
     box-shadow: none !important;
   }
 
-  :not(pre) > code[class*="language-"] {
+  :not(pre) > code[class*='language-'] {
     padding: 0.15em 0.2em 0.05em;
     border-radius: 0.3em;
     border: 0.13em solid #545454;
@@ -137,10 +139,12 @@ body {
   @include mat.all-component-themes(app-theme.$light-theme);
 
   // Adjust a few system tokens to better reflect brand hues in light mode
-  @include mat.theme-overrides((
-    primary: #1e88e5,
-    tertiary: #ff9800,
-  ));
+  @include mat.theme-overrides(
+    (
+      primary: #1e88e5,
+      tertiary: #ff9800,
+    )
+  );
 
   background-color: #fafafa;
   color: #333;
@@ -208,7 +212,7 @@ body {
   }
 
   .active-link {
-    background-color: rgba(100, 100, 100, 0.20);
+    background-color: rgba(100, 100, 100, 0.2);
   }
 
   // XML viewer light theme specific overrides
@@ -222,28 +226,28 @@ body {
     }
 
     // Solarized Light theme colors for Prism
-    pre[class*="language-"],
-    code[class*="language-"] {
+    pre[class*='language-'],
+    code[class*='language-'] {
       color: #657b83;
       background: #ffffff;
       text-shadow: 0 1px white;
     }
 
-    pre[class*="language-"]::selection,
-    code[class*="language-"]::selection,
-    pre[class*="language-"] *::selection,
-    code[class*="language-"] *::selection {
+    pre[class*='language-']::selection,
+    code[class*='language-']::selection,
+    pre[class*='language-'] *::selection,
+    code[class*='language-'] *::selection {
       background: #073642;
     }
 
-    pre[class*="language-"] {
+    pre[class*='language-'] {
       margin: 0.5em 0;
       overflow: auto;
       border-radius: 0.3em;
       box-shadow: none !important;
     }
 
-    :not(pre) > code[class*="language-"] {
+    :not(pre) > code[class*='language-'] {
       padding: 0.15em 0.2em 0.05em;
       border-radius: 0.3em;
       border: 0.13em solid #c5c8c6;

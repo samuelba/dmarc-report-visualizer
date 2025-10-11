@@ -1,0 +1,11 @@
+.theme-toggle {
+  transition: transform 0.2s ease-in-out;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+}
+
+.theme-toggle mat-icon {
+  transition: color 0.2s ease-in-out;
+}

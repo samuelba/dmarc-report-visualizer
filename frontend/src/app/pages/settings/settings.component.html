@@ -12,7 +12,8 @@
           <mat-card-header>
             <mat-card-title>Email Service Providers</mat-card-title>
             <mat-card-subtitle>
-              Configure legitimate third-party email senders (like SendGrid, Mailgun) that should NOT be marked as forwarded emails.
+              Configure legitimate third-party email senders (like SendGrid, Mailgun) that should NOT be marked as
+              forwarded emails.
             </mat-card-subtitle>
           </mat-card-header>
 
@@ -33,10 +34,7 @@
               <ng-container matColumnDef="enabled">
                 <th mat-header-cell *matHeaderCellDef>Enabled</th>
                 <td mat-cell *matCellDef="let sender">
-                  <mat-slide-toggle
-                    [checked]="sender.enabled"
-                    (change)="toggleEnabled(sender, $event)"
-                    color="primary">
+                  <mat-slide-toggle [checked]="sender.enabled" (change)="toggleEnabled(sender, $event)" color="primary">
                   </mat-slide-toggle>
                 </td>
               </ng-container>
@@ -92,16 +90,14 @@
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
             </table>
 
             @if (thirdPartySenders().length === 0 && !loadingSenders()) {
               <div class="empty-state">
                 <mat-icon>inbox</mat-icon>
                 <p>No third-party senders configured</p>
-                <button mat-raised-button color="primary" (click)="openCreateDialog()">
-                  Add Your First Sender
-                </button>
+                <button mat-raised-button color="primary" (click)="openCreateDialog()">Add Your First Sender</button>
               </div>
             }
           </mat-card-content>
@@ -116,7 +112,8 @@
           <mat-card-header>
             <mat-card-title>Reprocess DMARC Records</mat-card-title>
             <mat-card-subtitle>
-              Re-analyze all existing records with the current forwarding detection rules and third-party sender configurations.
+              Re-analyze all existing records with the current forwarding detection rules and third-party sender
+              configurations.
             </mat-card-subtitle>
           </mat-card-header>
 
@@ -132,7 +129,8 @@
                     <li>To ensure all records reflect current settings</li>
                   </ul>
                   <p class="warning">
-                    ⚠️ Reprocessing may take several minutes/hours depending on the number of records and workers configured.
+                    ⚠️ Reprocessing may take several minutes/hours depending on the number of records and workers
+                    configured.
                   </p>
                 </div>
               </div>
@@ -156,14 +154,14 @@
 
                     <div class="job-stat">
                       <span class="label">Progress:</span>
-                      <span>{{ currentJob()!.processedRecords | number }} / {{ currentJob()!.totalRecords | number }} records</span>
+                      <span
+                        >{{ currentJob()!.processedRecords | number }} /
+                        {{ currentJob()!.totalRecords | number }} records</span
+                      >
                     </div>
 
                     @if (currentJob()!.status === 'running' || currentJob()!.status === 'pending') {
-                      <mat-progress-bar
-                        mode="determinate"
-                        [value]="getProgress(currentJob()!)"
-                        class="progress-bar">
+                      <mat-progress-bar mode="determinate" [value]="getProgress(currentJob()!)" class="progress-bar">
                       </mat-progress-bar>
                       <div class="progress-text">{{ getProgress(currentJob()!) }}%</div>
                     }
@@ -201,11 +199,7 @@
               }
 
               <div class="action-bar">
-                <button
-                  matButton="filled"
-                  color="primary"
-                  (click)="startReprocessing()"
-                  [disabled]="isReprocessing()">
+                <button matButton="filled" color="primary" (click)="startReprocessing()" [disabled]="isReprocessing()">
                   <mat-icon>refresh</mat-icon>
                   @if (isReprocessing()) {
                     Reprocessing in Progress...
@@ -215,11 +209,7 @@
                 </button>
 
                 @if (isReprocessing() && currentJob()) {
-                  <button
-                    matButton="filled"
-                    color="warn"
-                    (click)="cancelReprocessing()"
-                    class="cancel-button">
+                  <button matButton="filled" color="warn" (click)="cancelReprocessing()" class="cancel-button">
                     <mat-icon>cancel</mat-icon>
                     Cancel Reprocessing
                   </button>
@@ -280,7 +270,7 @@
                   </ng-container>
 
                   <tr mat-header-row *matHeaderRowDef="jobDisplayedColumns"></tr>
-                  <tr mat-row *matRowDef="let row; columns: jobDisplayedColumns;"></tr>
+                  <tr mat-row *matRowDef="let row; columns: jobDisplayedColumns"></tr>
                 </table>
               </div>
             }

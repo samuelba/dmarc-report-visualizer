@@ -16,7 +16,10 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
-import { CombinedDateFilterComponent, DateFilterValue } from '../../components/combined-date-filter/combined-date-filter.component';
+import {
+  CombinedDateFilterComponent,
+  DateFilterValue,
+} from '../../components/combined-date-filter/combined-date-filter.component';
 
 @Component({
   standalone: true,
@@ -37,530 +40,8 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../../components/c
     MatDialogModule,
     CombinedDateFilterComponent,
   ],
-  template: `
-    <main class="explore-content">
-      <section class="filters">
-        <app-combined-date-filter
-          [value]="dateFilterValue"
-          (valueChange)="onDateFilterChange($event)"
-        ></app-combined-date-filter>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Domain (Report)</mat-label>
-          <mat-select [(ngModel)]="filters.domain" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of domains()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Disposition</mat-label>
-          <mat-select [(ngModel)]="filters.disposition" multiple (selectionChange)="onFilterChange()">
-            <mat-option value="none">none</mat-option>
-            <mat-option value="quarantine">quarantine</mat-option>
-            <mat-option value="reject">reject</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>DKIM</mat-label>
-          <mat-select [(ngModel)]="filters.dkim" multiple (selectionChange)="onFilterChange()">
-            <mat-option value="pass">pass</mat-option>
-            <mat-option value="fail">fail</mat-option>
-            <mat-option value="missing">missing</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>SPF</mat-label>
-          <mat-select [(ngModel)]="filters.spf" multiple (selectionChange)="onFilterChange()">
-            <mat-option value="pass">pass</mat-option>
-            <mat-option value="fail">fail</mat-option>
-            <mat-option value="missing">missing</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Source IP</mat-label>
-          <mat-select [(ngModel)]="filters.sourceIp" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of ips()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Header From</mat-label>
-          <mat-select [(ngModel)]="filters.headerFrom" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of headerFroms()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Envelope From</mat-label>
-          <mat-select [(ngModel)]="filters.envelopeFrom" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of envelopeFroms()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Envelope To</mat-label>
-          <mat-select [(ngModel)]="filters.envelopeTo" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of envelopeTos()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>DKIM Domain</mat-label>
-          <mat-select [(ngModel)]="filters.dkimDomain" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of dkimDomains()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>SPF Domain</mat-label>
-          <mat-select [(ngModel)]="filters.spfDomain" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of spfDomains()" [value]="v">{{ v }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Country</mat-label>
-          <mat-select [(ngModel)]="filters.country" multiple (selectionChange)="onFilterChange()">
-            <mat-option *ngFor="let v of sortedCountries()" [value]="v">{{ getCountryName(v) }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Forwarded</mat-label>
-          <mat-select [(ngModel)]="filters.isForwarded" (selectionChange)="onFilterChange()">
-            <mat-option value="">All</mat-option>
-            <mat-option value="true">Yes</mat-option>
-            <mat-option value="false">No</mat-option>
-            <mat-option value="unknown">Unknown</mat-option>
-          </mat-select>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="contains-filter">
-          <mat-label>Contains (search all columns)</mat-label>
-          <input matInput [(ngModel)]="filters.contains" (input)="onFilterChange()" placeholder="Search..." />
-          <mat-icon matSuffix>search</mat-icon>
-        </mat-form-field>
-        <div class="actions">
-          <button matButton="filled" color="primary" (click)="apply()">Apply</button>
-          <button matButton="text" (click)="clear()">Clear</button>
-        </div>
-      </section>
-
-      <section>
-        <table
-          mat-table
-          [dataSource]="rows()"
-          [multiTemplateDataRows]="true"
-          matSort
-          (matSortChange)="onSort($event)"
-          class="mat-elevation-z1"
-        >
-          <ng-container matColumnDef="expand">
-            <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let r">
-              <button mat-icon-button (click)="toggleExpand(r)">
-                <mat-icon>{{ expandedRow === r ? 'expand_less' : 'expand_more' }}</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="date">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="date">Date</th>
-            <td mat-cell *matCellDef="let r">{{ r.report?.beginDate | date: 'short' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="org">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="orgName">Reporting Org</th>
-            <td mat-cell *matCellDef="let r">{{ r.report?.orgName || 'N/A' }}</td>
-          </ng-container>
-          <ng-container matColumnDef="ip">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="ip">IP</th>
-            <td mat-cell *matCellDef="let r">{{ r.sourceIp }}</td>
-          </ng-container>
-          <ng-container matColumnDef="count">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="count">Count</th>
-            <td mat-cell *matCellDef="let r">{{ r.count }}</td>
-          </ng-container>
-          <ng-container matColumnDef="disp">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="disposition">Disposition</th>
-            <td mat-cell *matCellDef="let r">
-              <span [class]="getDispositionClass(r.disposition)">
-                {{ getDispositionIcon(r.disposition) }} {{ r.disposition }}
-              </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="dkim">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="dkim">DKIM</th>
-            <td mat-cell *matCellDef="let r">
-              <span [class]="getDkimAuthClass(r)"> {{ getDkimAuthIcon(r) }} {{ getDkimAuthLabel(r) }} </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="spf">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="spf">SPF</th>
-            <td mat-cell *matCellDef="let r">
-              <span [class]="getSpfAuthClass(r)"> {{ getSpfAuthIcon(r) }} {{ getSpfAuthLabel(r) }} </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="forwarded">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="isForwarded">Forwarded</th>
-            <td mat-cell *matCellDef="let r">
-              <span [class]="getForwardedClass(r)" [title]="r.forwardReason || ''">
-                {{ getForwardedIcon(r) }} {{ getForwardedLabel(r) }}
-              </span>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="country">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="country">Country</th>
-            <td mat-cell *matCellDef="let r">{{ getCountryName(r.geoCountry) }}</td>
-          </ng-container>
-          <ng-container matColumnDef="from">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="headerFrom">Header From</th>
-            <td mat-cell *matCellDef="let r">{{ r.headerFrom }}</td>
-          </ng-container>
-          <ng-container matColumnDef="envelopeTo">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header="envelopeTo">Envelope To</th>
-            <td mat-cell *matCellDef="let r">{{ r.envelopeTo }}</td>
-          </ng-container>
-          <ng-container matColumnDef="auth">
-            <th mat-header-cell *matHeaderCellDef>Auth Results</th>
-            <td mat-cell *matCellDef="let r">
-              <div class="auth">
-                <div class="dkim" *ngIf="r.dkimResults?.length">
-                  <strong>DKIM:</strong> <span [innerHTML]="formatDkimResultsColored(r)"></span>
-                </div>
-                <div class="spf" *ngIf="r.spfResults?.length">
-                  <strong>SPF:</strong> <span [innerHTML]="formatSpfResultsColored(r)"></span>
-                </div>
-                <div *ngIf="!r.dkimResults?.length && !r.spfResults?.length" class="auth-missing">
-                  ⚪ No auth results
-                </div>
-              </div>
-            </td>
-          </ng-container>
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Actions</th>
-            <td mat-cell *matCellDef="let r">
-              <button mat-button color="primary" (click)="viewXml(r)">XML</button>
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="detail">
-            <td mat-cell *matCellDef="let r" [attr.colspan]="displayed.length">
-              <div *ngIf="expandedRow === r" class="detail-content">
-                <div class="detail-section">
-                  <h4>Identifiers</h4>
-                  <div><strong>Envelope From:</strong> {{ r.envelopeFrom || 'N/A' }}</div>
-                  <div><strong>Envelope To:</strong> {{ r.envelopeTo || 'N/A' }}</div>
-                </div>
-
-                <div class="detail-section" *ngIf="r.reasonType || r.reasonComment">
-                  <h4>Policy Override</h4>
-                  <div *ngIf="r.reasonType"><strong>Reason Type:</strong> {{ r.reasonType }}</div>
-                  <div *ngIf="r.reasonComment"><strong>Reason Comment:</strong> {{ r.reasonComment }}</div>
-                </div>
-
-                <div class="detail-section" *ngIf="r.isForwarded !== undefined && r.isForwarded !== null">
-                  <h4>Forwarding Detection</h4>
-                  <div>
-                    <strong>Forwarded:</strong>
-                    <span [class]="getForwardedClass(r)">
-                      {{ getForwardedIcon(r) }} {{ getForwardedLabel(r) }}
-                    </span>
-                  </div>
-                  <div *ngIf="r.forwardReason">
-                    <strong>Reason:</strong> {{ r.forwardReason }}
-                  </div>
-                </div>
-
-                <div class="detail-section" *ngIf="r.report?.policy">
-                  <h4>Published Policy</h4>
-                  <div class="policy-grid">
-                    <div *ngIf="r.report.policy.p">
-                      <strong>Policy:</strong>
-                      <span [class]="getPolicyClass(r.report.policy.p)">{{ r.report.policy.p }}</span>
-                    </div>
-                    <div *ngIf="r.report.policy.sp">
-                      <strong>Subdomain Policy:</strong>
-                      <span [class]="getPolicyClass(r.report.policy.sp)">{{ r.report.policy.sp }}</span>
-                    </div>
-                    <div *ngIf="r.report.policy.adkim">
-                      <strong>DKIM Alignment:</strong> {{ r.report.policy.adkim }}
-                    </div>
-                    <div *ngIf="r.report.policy.aspf"><strong>SPF Alignment:</strong> {{ r.report.policy.aspf }}</div>
-                    <div *ngIf="r.report.policy.pct !== undefined">
-                      <strong>Percentage:</strong> {{ r.report.policy.pct }}%
-                    </div>
-                    <div *ngIf="r.report.policy.fo"><strong>Failure Options:</strong> {{ r.report.policy.fo }}</div>
-                  </div>
-                </div>
-              </div>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayed" class="element-row"></tr>
-          <tr
-            mat-row
-            *matRowDef="let row; columns: ['detail']"
-            class="detail-row"
-            [class.expanded]="expandedRow === row"
-          ></tr>
-        </table>
-
-        <mat-paginator
-          [length]="total()"
-          [pageSize]="pageSize()"
-          [pageIndex]="page() - 1"
-          [pageSizeOptions]="[10, 25, 50, 100]"
-          showFirstLastButtons
-          (page)="onPage($event)"
-        ></mat-paginator>
-      </section>
-    </main>
-  `,
-  styles: [
-    `
-      .explore-content {
-        display: block;
-      }
-    `,
-    `
-      .filters {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, max-content));
-        gap: 12px;
-        align-items: center;
-        margin-bottom: 16px;
-      }
-    `,
-    `
-      app-combined-date-filter {
-        grid-column: span 1;
-      }
-    `,
-    `
-      .actions {
-        display: flex;
-        gap: 8px;
-        white-space: nowrap;
-        grid-column: span 1;
-        justify-self: start;
-      }
-    `,
-    `
-      .contains-filter {
-        grid-column: span 2;
-        max-width: 100%;
-      }
-    `,
-    `
-      .contains-filter .mat-mdc-form-field-flex {
-        background-color: #f8f9fa;
-        border-radius: 4px;
-      }
-    `,
-    `
-      table {
-        width: 100%;
-        margin: 16px 0;
-      }
-    `,
-    `
-      td.mat-mdc-cell,
-      th.mat-mdc-header-cell {
-        padding-left: 4px !important;
-        padding-right: 4px !important;
-      }
-    `,
-    `
-      .auth {
-        font-size: 12px;
-      }
-    `,
-    `
-      .detail-row {
-        display: none;
-      }
-    `,
-    `
-      .detail-row.expanded {
-        display: table-row;
-      }
-    `,
-    `
-      .detail-content {
-        padding: 16px;
-        background-color: #f5f5f5;
-        border-top: 1px solid #ddd;
-      }
-    `,
-    `
-      .detail-section {
-        margin-bottom: 16px;
-      }
-    `,
-    `
-      .detail-section h4 {
-        margin: 0 0 8px 0;
-        color: #333;
-        font-size: 14px;
-        font-weight: 600;
-        border-bottom: 1px solid #ddd;
-        padding-bottom: 4px;
-      }
-    `,
-    `
-      .detail-section:last-child {
-        margin-bottom: 0;
-      }
-    `,
-    `
-      .policy-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 8px;
-      }
-    `,
-    `
-      .policy-reject {
-        color: #d32f2f;
-        font-weight: 600;
-        background-color: #ffebee;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .policy-quarantine {
-        color: #f57c00;
-        font-weight: 600;
-        background-color: #fff3e0;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .policy-none {
-        color: #388e3c;
-        font-weight: 500;
-        background-color: #e8f5e8;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .policy-unknown {
-        color: #757575;
-        font-weight: 400;
-        background-color: #f5f5f5;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-      }
-    `,
-
-    // Disposition styling
-    `
-      .disposition-reject {
-        color: #d32f2f;
-        font-weight: 600;
-        background-color: #ffebee;
-        padding: 2px 6px;
-        border-radius: 12px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .disposition-quarantine {
-        color: #f57c00;
-        font-weight: 600;
-        background-color: #fff3e0;
-        padding: 2px 6px;
-        border-radius: 12px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .disposition-none {
-        color: #388e3c;
-        font-weight: 500;
-        background-color: #e8f5e8;
-        padding: 2px 6px;
-        border-radius: 12px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .disposition-missing {
-        color: #757575;
-        font-weight: 400;
-        background-color: #f5f5f5;
-        padding: 2px 6px;
-        border-radius: 12px;
-        font-size: 12px;
-      }
-    `,
-
-    // Authentication styling
-    `
-      .auth-pass {
-        color: #2e7d32;
-        font-weight: 500;
-        background-color: #e8f5e8;
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .auth-fail {
-        color: #c62828;
-        font-weight: 600;
-        background-color: #ffebee;
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .auth-missing {
-        color: #9e9e9e;
-        font-weight: 400;
-        background-color: #f5f5f5;
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-style: italic;
-        border: 1px dashed #ccc;
-      }
-    `,
-
-    // Forwarded email styling
-    `
-      .forwarded-yes {
-        color: #1976d2;
-        font-weight: 500;
-        background-color: #e3f2fd;
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 12px;
-        cursor: help;
-      }
-    `,
-    `
-      .forwarded-no {
-        color: #616161;
-        font-weight: 400;
-        background-color: #fafafa;
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 12px;
-      }
-    `,
-    `
-      .forwarded-unknown {
-        color: #9e9e9e;
-        font-weight: 400;
-        background-color: #f5f5f5;
-        padding: 2px 6px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-style: italic;
-        border: 1px dashed #ccc;
-      }
-    `,
-  ],
+  templateUrl: './explore.component.html',
+  styleUrls: ['./explore.component.scss'],
 })
 export class ExploreComponent implements OnInit {
   private readonly api = inject(ApiService);
@@ -575,11 +56,25 @@ export class ExploreComponent implements OnInit {
   readonly page = signal(1);
   readonly pageSize = signal(20);
   sort: { active?: string; direction?: 'asc' | 'desc' } = { active: 'date', direction: 'desc' };
-  
+
   // Combined date filter value
   dateFilterValue: DateFilterValue = { mode: 'period', periodInput: '30d' };
 
-  displayed = ['expand', 'date', 'org', 'ip', 'country', 'count', 'disp', 'dkim', 'spf', 'forwarded', 'from', 'auth', 'actions'];
+  displayed = [
+    'expand',
+    'date',
+    'org',
+    'ip',
+    'country',
+    'count',
+    'disp',
+    'dkim',
+    'spf',
+    'forwarded',
+    'from',
+    'auth',
+    'actions',
+  ];
 
   filters: any = {
     domain: [] as string[],
@@ -610,11 +105,13 @@ export class ExploreComponent implements OnInit {
 
   // Computed signal to return countries sorted alphabetically by their display names
   readonly sortedCountries = computed(() => {
-    return this.countries().slice().sort((a, b) => {
-      const nameA = this.getCountryName(a);
-      const nameB = this.getCountryName(b);
-      return nameA.localeCompare(nameB);
-    });
+    return this.countries()
+      .slice()
+      .sort((a, b) => {
+        const nameA = this.getCountryName(a);
+        const nameB = this.getCountryName(b);
+        return nameA.localeCompare(nameB);
+      });
   });
 
   ngOnInit(): void {
@@ -760,7 +257,15 @@ export class ExploreComponent implements OnInit {
       from: this.filters.from ? new Date(this.filters.from).toISOString() : undefined,
       to: this.filters.to ? new Date(this.filters.to).toISOString() : undefined,
       contains: this.filters.contains ? this.filters.contains : undefined,
-      isForwarded: this.filters.isForwarded ? (this.filters.isForwarded === 'true' ? true : this.filters.isForwarded === 'false' ? false : this.filters.isForwarded === 'unknown' ? null : undefined) : undefined,
+      isForwarded: this.filters.isForwarded
+        ? this.filters.isForwarded === 'true'
+          ? true
+          : this.filters.isForwarded === 'false'
+            ? false
+            : this.filters.isForwarded === 'unknown'
+              ? null
+              : undefined
+        : undefined,
       sort: this.sort.active,
       order: this.sort.direction,
     };
@@ -774,14 +279,14 @@ export class ExploreComponent implements OnInit {
     // Get the report ID from the nested report object
     const reportId = (record as any).report?.id;
     if (!reportId) return;
-    
+
     this.api.getReportXml(reportId).subscribe((xml) => {
       this.dialog.open(XmlViewerDialogComponent, {
-        data: { 
-          xml, 
-          record, 
+        data: {
+          xml,
+          record,
           reportId: reportId,
-          title: `DMARC Report XML - ${record.sourceIp || 'Unknown IP'}` 
+          title: `DMARC Report XML - ${record.sourceIp || 'Unknown IP'}`,
         },
         width: '90%',
         maxWidth: '1400px',
@@ -845,7 +350,7 @@ export class ExploreComponent implements OnInit {
 
   onDateFilterChange(value: DateFilterValue) {
     this.dateFilterValue = value;
-    
+
     if (value.mode === 'period') {
       this.applyTimePeriodToFilter(value.periodInput || '30d');
     } else {
@@ -853,7 +358,7 @@ export class ExploreComponent implements OnInit {
       this.filters.from = value.fromDate || '';
       this.filters.to = value.toDate || '';
     }
-    
+
     // Refresh date-scoped distincts when dates change
     this.loadDateScopedDistincts();
     this.onFilterChange();
@@ -963,21 +468,21 @@ export class ExploreComponent implements OnInit {
       this.filters.spfDomain = Array.isArray(params['spfDomain']) ? params['spfDomain'] : [params['spfDomain']];
     if (params['country'])
       this.filters.country = Array.isArray(params['country']) ? params['country'] : [params['country']];
-    
+
     // Load date filter from URL
     if (params['period']) {
       this.dateFilterValue = { mode: 'period', periodInput: params['period'] };
       this.applyTimePeriodToFilter(params['period']);
     } else if (params['from'] || params['to']) {
-      this.dateFilterValue = { 
-        mode: 'range', 
+      this.dateFilterValue = {
+        mode: 'range',
         fromDate: params['from'] ? new Date(params['from']) : undefined,
-        toDate: params['to'] ? new Date(params['to']) : undefined
+        toDate: params['to'] ? new Date(params['to']) : undefined,
       };
       if (params['from']) this.filters.from = new Date(params['from']);
       if (params['to']) this.filters.to = new Date(params['to']);
     }
-    
+
     if (params['contains']) this.filters.contains = params['contains'];
     if (params['isForwarded']) this.filters.isForwarded = params['isForwarded'];
     if (params['page']) this.page.set(parseInt(params['page'], 10));
@@ -1185,7 +690,7 @@ export class ExploreComponent implements OnInit {
     if (this.filters.dkimDomain.length) queryParams.dkimDomain = this.filters.dkimDomain;
     if (this.filters.spfDomain.length) queryParams.spfDomain = this.filters.spfDomain;
     if (this.filters.country.length) queryParams.country = this.filters.country;
-    
+
     // Save date filter to URL
     if (this.dateFilterValue.mode === 'period' && this.dateFilterValue.periodInput) {
       queryParams.period = this.dateFilterValue.periodInput;
@@ -1193,7 +698,7 @@ export class ExploreComponent implements OnInit {
       if (this.filters.from) queryParams.from = this.formatDateForUrl(this.filters.from);
       if (this.filters.to) queryParams.to = this.formatDateForUrl(this.filters.to);
     }
-    
+
     if (this.filters.contains) queryParams.contains = this.filters.contains;
     if (this.filters.isForwarded) queryParams.isForwarded = this.filters.isForwarded;
     if (this.page() > 1) queryParams.page = this.page();

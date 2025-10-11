@@ -66,7 +66,7 @@ export class SettingsComponent implements OnInit {
   // Tab change handler
   onTabChange(index: number) {
     this.selectedTabIndex.set(index);
-    
+
     // If switching to reprocessing tab and there's a running job, start polling
     if (index === this.REPROCESSING_TAB_INDEX && this.isReprocessing()) {
       const job = this.currentJob();
@@ -125,11 +125,7 @@ export class SettingsComponent implements OnInit {
     this.api.updateThirdPartySender(sender.id, { enabled }).subscribe({
       next: () => {
         sender.enabled = enabled;
-        this.snackBar.open(
-          `Third-party sender ${enabled ? 'enabled' : 'disabled'}`,
-          'Close',
-          { duration: 3000 }
-        );
+        this.snackBar.open(`Third-party sender ${enabled ? 'enabled' : 'disabled'}`, 'Close', { duration: 3000 });
       },
       error: (err) => {
         console.error('Failed to toggle sender:', err);
@@ -162,7 +158,7 @@ export class SettingsComponent implements OnInit {
     this.api.getCurrentReprocessingJob().subscribe({
       next: (job) => {
         this.currentJob.set(job);
-        
+
         // If job is running, poll for updates
         if (job && (job.status === 'running' || job.status === 'pending')) {
           this.isReprocessing.set(true);
@@ -249,12 +245,12 @@ export class SettingsComponent implements OnInit {
         this.api.getReprocessingJob(jobId).subscribe({
           next: (job) => {
             this.currentJob.set(job);
-            
+
             // Stop polling if job is finished
             if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
               this.isReprocessing.set(false);
               this.loadReprocessingHistory();
-              
+
               if (job.status === 'completed') {
                 this.snackBar.open('Reprocessing completed successfully!', 'Close', { duration: 5000 });
               } else if (job.status === 'cancelled') {
@@ -279,23 +275,35 @@ export class SettingsComponent implements OnInit {
 
   getStatusIcon(status: string): string {
     switch (status) {
-      case 'pending': return 'schedule';
-      case 'running': return 'autorenew';
-      case 'completed': return 'check_circle';
-      case 'failed': return 'error';
-      case 'cancelled': return 'cancel';
-      default: return 'help';
+      case 'pending':
+        return 'schedule';
+      case 'running':
+        return 'autorenew';
+      case 'completed':
+        return 'check_circle';
+      case 'failed':
+        return 'error';
+      case 'cancelled':
+        return 'cancel';
+      default:
+        return 'help';
     }
   }
 
   getStatusColor(status: string): string {
     switch (status) {
-      case 'pending': return 'accent';
-      case 'running': return 'primary';
-      case 'completed': return 'green';
-      case 'failed': return 'warn';
-      case 'cancelled': return 'warn';
-      default: return '';
+      case 'pending':
+        return 'accent';
+      case 'running':
+        return 'primary';
+      case 'completed':
+        return 'green';
+      case 'failed':
+        return 'warn';
+      case 'cancelled':
+        return 'warn';
+      default:
+        return '';
     }
   }
 
@@ -307,11 +315,11 @@ export class SettingsComponent implements OnInit {
 
   formatDuration(startedAt: string | undefined, completedAt: string | undefined): string {
     if (!startedAt) return '-';
-    
+
     const start = new Date(startedAt).getTime();
     const end = completedAt ? new Date(completedAt).getTime() : Date.now();
     const seconds = Math.round((end - start) / 1000);
-    
+
     if (seconds < 60) return `${seconds}s`;
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;

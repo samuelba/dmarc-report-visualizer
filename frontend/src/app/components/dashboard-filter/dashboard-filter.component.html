@@ -1,0 +1,25 @@
+<div class="compact-filter">
+  <div class="filter-row">
+    <app-combined-date-filter
+      class="date-filter"
+      [value]="dateFilterValue"
+      (valueChange)="onDateFilterChange($event)"
+    ></app-combined-date-filter>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="domain-field">
+      <mat-label>Domain</mat-label>
+      <mat-select [formControl]="domainControl" multiple>
+        <mat-option value="">All Domains</mat-option>
+        <mat-option *ngFor="let domain of domains" [value]="domain">
+          {{ domain }}
+        </mat-option>
+      </mat-select>
+      <mat-icon matSuffix>domain</mat-icon>
+    </mat-form-field>
+
+    <div class="filter-buttons">
+      <button matButton="filled" color="primary" (click)="refreshData()">Apply</button>
+      <button matButton="text" (click)="clearFilter()">Clear</button>
+    </div>
+  </div>
+</div>

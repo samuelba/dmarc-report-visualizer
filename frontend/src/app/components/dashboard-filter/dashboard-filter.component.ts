@@ -11,83 +11,8 @@ import { CombinedDateFilterComponent, DateFilterValue } from '../combined-date-f
   selector: 'app-dashboard-filter',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule, MaterialModule, CombinedDateFilterComponent],
-  template: `
-    <div class="compact-filter">
-      <div class="filter-row">
-        <app-combined-date-filter
-          class="date-filter"
-          [value]="dateFilterValue"
-          (valueChange)="onDateFilterChange($event)"
-        ></app-combined-date-filter>
-
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="domain-field">
-          <mat-label>Domain</mat-label>
-          <mat-select [formControl]="domainControl" multiple>
-            <mat-option value="">All Domains</mat-option>
-            <mat-option *ngFor="let domain of domains" [value]="domain">
-              {{ domain }}
-            </mat-option>
-          </mat-select>
-          <mat-icon matSuffix>domain</mat-icon>
-        </mat-form-field>
-
-        <div class="filter-buttons">
-          <button matButton="filled" color="primary" (click)="refreshData()">
-            Apply
-          </button>
-          <button matButton="text" (click)="clearFilter()">
-            Clear
-          </button>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [
-    `
-      .compact-filter {
-        margin-bottom: 16px;
-      }
-
-      .filter-row {
-        display: grid;
-        align-items: center;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fill, minmax(220px, max-content));
-      }
-
-      .date-filter {
-        flex: 0;
-      }
-
-      .domain-field {
-        flex: 0;
-      }
-
-      .filter-buttons {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-
-      /* Responsive behavior */
-      @media (max-width: 768px) {
-        .filter-row {
-          flex-direction: column;
-          align-items: stretch;
-        }
-
-        .date-filter,
-        .domain-field {
-          min-width: unset;
-          width: 100%;
-        }
-
-        .filter-buttons {
-          justify-content: center;
-        }
-      }
-    `,
-  ],
+  templateUrl: './dashboard-filter.component.html',
+  styleUrls: ['./dashboard-filter.component.scss'],
 })
 export class DashboardFilterComponent implements OnInit {
   @Output() filterChange = new EventEmitter<{
@@ -100,7 +25,7 @@ export class DashboardFilterComponent implements OnInit {
 
   domainControl = new FormControl<string[]>([]);
   dateFilterValue: DateFilterValue = { mode: 'period', periodInput: '30d' };
-  
+
   // Internal tracking for from/to dates
   private fromDate?: Date;
   private toDate?: Date;
@@ -125,7 +50,7 @@ export class DashboardFilterComponent implements OnInit {
 
   onDateFilterChange(value: DateFilterValue) {
     this.dateFilterValue = value;
-    
+
     if (value.mode === 'period') {
       this.applyTimePeriodToFilter(value.periodInput || '30d');
     } else {
@@ -133,7 +58,7 @@ export class DashboardFilterComponent implements OnInit {
       this.fromDate = value.fromDate;
       this.toDate = value.toDate;
     }
-    
+
     this.loadDomainsForTimeframe();
     this.applyFilter();
   }
