@@ -24,7 +24,7 @@ export class ForwardingDetectionService {
    * 2. MUST have DKIM from headerFrom domain (pass or fail)
    * 3. MUST have additional DKIM/SPF from different domain (forwarder)
    * 4. MUST NOT match third-party sender patterns (SendGrid, Mailgun, etc.)
-   * 
+   *
    * If these conditions aren't met, it's either NOT forwarded or Unknown.
    */
   async detectForwarding(
@@ -36,7 +36,10 @@ export class ForwardingDetectionService {
   ): Promise<ForwardingDetectionResult> {
     try {
       // Priority 1: Check if explicitly marked as forwarded in policy override reasons
-      if (record.policyOverrideReasons && record.policyOverrideReasons.length > 0) {
+      if (
+        record.policyOverrideReasons &&
+        record.policyOverrideReasons.length > 0
+      ) {
         for (const reason of record.policyOverrideReasons) {
           if (reason.type === 'forwarded') {
             return {
@@ -68,9 +71,10 @@ export class ForwardingDetectionService {
       const dkimDomains = dkimResults
         .map((dkim) => dkim.domain)
         .filter((d): d is string => !!d);
-      
+
       for (const dkimDomain of dkimDomains) {
-        const { isThirdParty } = await this.thirdPartySenderService.isDkimThirdParty(dkimDomain);
+        const { isThirdParty } =
+          await this.thirdPartySenderService.isDkimThirdParty(dkimDomain);
         if (isThirdParty) {
           // This is a legitimate third-party sender, not a forwarder
           return {
@@ -83,7 +87,8 @@ export class ForwardingDetectionService {
       // Check if any SPF domains are third-party senders
       for (const spf of spfResults) {
         if (spf.domain) {
-          const { isThirdParty } = await this.thirdPartySenderService.isSpfThirdParty(spf.domain);
+          const { isThirdParty } =
+            await this.thirdPartySenderService.isSpfThirdParty(spf.domain);
           if (isThirdParty) {
             // This is a legitimate third-party sender, not a forwarder
             return {
@@ -113,19 +118,31 @@ export class ForwardingDetectionService {
       });
 
       // FORWARDING DETECTION: Must have original DKIM + forwarder DKIM/SPF
-      if (originalDkimResults.length > 0 && (forwarderDkimResults.length > 0 || forwarderSpfResults.length > 0)) {
+      if (
+        originalDkimResults.length > 0 &&
+        (forwarderDkimResults.length > 0 || forwarderSpfResults.length > 0)
+      ) {
         // We have DKIM from original domain AND additional auth from different domain
         // This is the forwarding pattern!
-        
-        const originalFailed = originalDkimResults.every((dkim) => dkim.result === 'fail');
-        const originalPassed = originalDkimResults.some((dkim) => dkim.result === 'pass');
-        const forwarderDkimPassed = forwarderDkimResults.some((dkim) => dkim.result === 'pass');
-        const forwarderSpfPassed = forwarderSpfResults.some((spf) => spf.result === 'pass');
+
+        const originalFailed = originalDkimResults.every(
+          (dkim) => dkim.result === 'fail',
+        );
+        const originalPassed = originalDkimResults.some(
+          (dkim) => dkim.result === 'pass',
+        );
+        const forwarderDkimPassed = forwarderDkimResults.some(
+          (dkim) => dkim.result === 'pass',
+        );
+        const forwarderSpfPassed = forwarderSpfResults.some(
+          (spf) => spf.result === 'pass',
+        );
 
         if (originalFailed && (forwarderDkimPassed || forwarderSpfPassed)) {
           // Original DKIM failed (email was modified), forwarder authenticated it
-          const forwarderDomain = 
-            forwarderDkimResults.find((dkim) => dkim.result === 'pass')?.domain ||
+          const forwarderDomain =
+            forwarderDkimResults.find((dkim) => dkim.result === 'pass')
+              ?.domain ||
             forwarderSpfResults.find((spf) => spf.result === 'pass')?.domain;
           return {
             isForwarded: true,
@@ -135,8 +152,9 @@ export class ForwardingDetectionService {
 
         if (originalPassed && (forwarderDkimPassed || forwarderSpfPassed)) {
           // Original DKIM passed (email NOT modified), forwarder also authenticated it
-          const forwarderDomain = 
-            forwarderDkimResults.find((dkim) => dkim.result === 'pass')?.domain ||
+          const forwarderDomain =
+            forwarderDkimResults.find((dkim) => dkim.result === 'pass')
+              ?.domain ||
             forwarderSpfResults.find((spf) => spf.result === 'pass')?.domain;
           return {
             isForwarded: true,
@@ -159,14 +177,19 @@ export class ForwardingDetectionService {
         // Still likely forwarded
         return {
           isForwarded: true,
-          reason: 'Email likely forwarded (DKIM from both original and forwarding domains detected)',
+          reason:
+            'Email likely forwarded (DKIM from both original and forwarding domains detected)',
         };
       }
 
       // NOT FORWARDING CASES:
-      
+
       // Case 1: Only DKIM from headerFrom domain (no forwarder)
-      if (originalDkimResults.length > 0 && forwarderDkimResults.length === 0 && forwarderSpfResults.length === 0) {
+      if (
+        originalDkimResults.length > 0 &&
+        forwarderDkimResults.length === 0 &&
+        forwarderSpfResults.length === 0
+      ) {
         return {
           isForwarded: false,
           reason: null,
@@ -175,7 +198,10 @@ export class ForwardingDetectionService {
 
       // Case 2: Only DKIM/SPF from non-headerFrom domains (no original DKIM)
       // This is authentication failure (spam/spoofing), NOT forwarding
-      if (originalDkimResults.length === 0 && (dkimResults.length > 0 || spfResults.length > 0)) {
+      if (
+        originalDkimResults.length === 0 &&
+        (dkimResults.length > 0 || spfResults.length > 0)
+      ) {
         return {
           isForwarded: false,
           reason: null,
@@ -230,7 +256,9 @@ export class ForwardingDetectionService {
       // Special handling for common multi-part TLDs
       if (
         parts.length >= 3 &&
-        ['co', 'com', 'org', 'net', 'ac', 'gov'].includes(parts[parts.length - 2])
+        ['co', 'com', 'org', 'net', 'ac', 'gov'].includes(
+          parts[parts.length - 2],
+        )
       ) {
         // Return last 3 parts (e.g., domain.co.uk)
         return parts.slice(-3).join('.');

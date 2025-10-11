@@ -3,11 +3,13 @@ import {
   Get,
   Post,
   Param,
+  Body,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ReprocessingService } from '../services/reprocessing.service';
 import { ReprocessingJob } from '../entities/reprocessing-job.entity';
+import { StartReprocessingDto } from '../dto/start-reprocessing.dto';
 
 /**
  * Controller for managing reprocessing jobs.
@@ -18,13 +20,29 @@ export class ReprocessingController {
   constructor(private readonly reprocessingService: ReprocessingService) {}
 
   /**
+   * Make an ISO date string inclusive by setting time to end of day
+   */
+  private makeToDateInclusive(dateStr?: string): string | undefined {
+    if (!dateStr) return undefined;
+    const date = new Date(dateStr);
+    date.setHours(23, 59, 59, 999);
+    return date.toISOString();
+  }
+
+  /**
    * POST /reprocessing/start
    * Start a new reprocessing job
    */
   @Post('start')
   @HttpCode(HttpStatus.ACCEPTED)
-  async startReprocessing(): Promise<ReprocessingJob> {
-    return this.reprocessingService.startReprocessing();
+  async startReprocessing(
+    @Body() dto: StartReprocessingDto,
+  ): Promise<ReprocessingJob> {
+    const inclusiveTo = this.makeToDateInclusive(dto.dateTo);
+    return this.reprocessingService.startReprocessing(
+      dto.dateFrom,
+      inclusiveTo,
+    );
   }
 
   /**

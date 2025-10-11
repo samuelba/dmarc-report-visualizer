@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ThirdPartySender } from '../entities/third-party-sender.entity';
@@ -39,7 +43,7 @@ export class ThirdPartySenderService {
    */
   async findAll(forceRefresh = false): Promise<ThirdPartySender[]> {
     const now = Date.now();
-    
+
     // Return cached data if valid
     if (
       !forceRefresh &&
@@ -66,7 +70,7 @@ export class ThirdPartySenderService {
    */
   async findEnabled(): Promise<ThirdPartySender[]> {
     const all = await this.findAll();
-    return all.filter(sender => sender.enabled);
+    return all.filter((sender) => sender.enabled);
   }
 
   /**
@@ -100,7 +104,7 @@ export class ThirdPartySenderService {
     });
 
     const saved = await this.thirdPartySenderRepository.save(sender);
-    
+
     // Invalidate cache
     this.invalidateCache();
 
@@ -127,7 +131,7 @@ export class ThirdPartySenderService {
     if (dto.enabled !== undefined) sender.enabled = dto.enabled;
 
     const updated = await this.thirdPartySenderRepository.save(sender);
-    
+
     // Invalidate cache
     this.invalidateCache();
 
@@ -140,7 +144,7 @@ export class ThirdPartySenderService {
   async delete(id: string): Promise<void> {
     const sender = await this.findOne(id);
     await this.thirdPartySenderRepository.remove(sender);
-    
+
     // Invalidate cache
     this.invalidateCache();
   }
@@ -148,13 +152,15 @@ export class ThirdPartySenderService {
   /**
    * Check if a DKIM domain matches any third-party sender pattern
    */
-  async isDkimThirdParty(domain: string): Promise<{ isThirdParty: boolean; sender?: ThirdPartySender }> {
+  async isDkimThirdParty(
+    domain: string,
+  ): Promise<{ isThirdParty: boolean; sender?: ThirdPartySender }> {
     if (!domain) {
       return { isThirdParty: false };
     }
 
     const senders = await this.findEnabled();
-    
+
     for (const sender of senders) {
       if (sender.matchesDkim(domain)) {
         return { isThirdParty: true, sender };
@@ -167,13 +173,15 @@ export class ThirdPartySenderService {
   /**
    * Check if an SPF domain matches any third-party sender pattern
    */
-  async isSpfThirdParty(domain: string): Promise<{ isThirdParty: boolean; sender?: ThirdPartySender }> {
+  async isSpfThirdParty(
+    domain: string,
+  ): Promise<{ isThirdParty: boolean; sender?: ThirdPartySender }> {
     if (!domain) {
       return { isThirdParty: false };
     }
 
     const senders = await this.findEnabled();
-    
+
     for (const sender of senders) {
       if (sender.matchesSpf(domain)) {
         return { isThirdParty: true, sender };
@@ -186,12 +194,17 @@ export class ThirdPartySenderService {
   /**
    * Validate regex patterns
    */
-  private validateRegexPatterns(dkimPattern?: string, spfPattern?: string): void {
+  private validateRegexPatterns(
+    dkimPattern?: string,
+    spfPattern?: string,
+  ): void {
     if (dkimPattern) {
       try {
         new RegExp(dkimPattern);
       } catch (error) {
-        throw new BadRequestException(`Invalid DKIM regex pattern: ${error.message}`);
+        throw new BadRequestException(
+          `Invalid DKIM regex pattern: ${error.message}`,
+        );
       }
     }
 
@@ -199,7 +212,9 @@ export class ThirdPartySenderService {
       try {
         new RegExp(spfPattern);
       } catch (error) {
-        throw new BadRequestException(`Invalid SPF regex pattern: ${error.message}`);
+        throw new BadRequestException(
+          `Invalid SPF regex pattern: ${error.message}`,
+        );
       }
     }
   }

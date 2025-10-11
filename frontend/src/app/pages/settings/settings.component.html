@@ -135,6 +135,23 @@
                 </div>
               </div>
 
+              <!-- Date Range Selector -->
+              <div class="date-range-selector">
+                <mat-form-field appearance="outline" class="date-range-field">
+                  <mat-label>Date Range (optional)</mat-label>
+                  <mat-date-range-input [rangePicker]="picker" [disabled]="isReprocessing()">
+                    <input matStartDate [(ngModel)]="dateFrom" placeholder="Start date" />
+                    <input matEndDate [(ngModel)]="dateTo" placeholder="End date" />
+                  </mat-date-range-input>
+                  <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+                  <mat-date-range-picker #picker></mat-date-range-picker>
+                  <mat-hint
+                    >Select a date range to reprocess only specific records. Leave empty to reprocess all
+                    records.</mat-hint
+                  >
+                </mat-form-field>
+              </div>
+
               @if (currentJob()) {
                 <div class="current-job">
                   <h3>
@@ -151,6 +168,21 @@
                         {{ currentJob()!.status | uppercase }}
                       </mat-chip>
                     </div>
+
+                    @if (currentJob()!.dateFrom || currentJob()!.dateTo) {
+                      <div class="job-stat">
+                        <span class="label">Date Range:</span>
+                        <span>
+                          @if (currentJob()!.dateFrom && currentJob()!.dateTo) {
+                            {{ formatDate(currentJob()!.dateFrom) }} to {{ formatDate(currentJob()!.dateTo) }}
+                          } @else if (currentJob()!.dateFrom) {
+                            From {{ formatDate(currentJob()!.dateFrom) }}
+                          } @else if (currentJob()!.dateTo) {
+                            Up to {{ formatDate(currentJob()!.dateTo) }}
+                          }
+                        </span>
+                      </div>
+                    }
 
                     <div class="job-stat">
                       <span class="label">Progress:</span>
@@ -237,6 +269,24 @@
                   <ng-container matColumnDef="created">
                     <th mat-header-cell *matHeaderCellDef>Started</th>
                     <td mat-cell *matCellDef="let job">{{ formatDate(job.startedAt) }}</td>
+                  </ng-container>
+
+                  <!-- Range Column -->
+                  <ng-container matColumnDef="range">
+                    <th mat-header-cell *matHeaderCellDef>Date Range</th>
+                    <td mat-cell *matCellDef="let job">
+                      @if (job.dateFrom || job.dateTo) {
+                        @if (job.dateFrom && job.dateTo) {
+                          {{ formatDate(job.dateFrom) }} – {{ formatDate(job.dateTo) }}
+                        } @else if (job.dateFrom) {
+                          From {{ formatDate(job.dateFrom) }}
+                        } @else {
+                          Up to {{ formatDate(job.dateTo!) }}
+                        }
+                      } @else {
+                        All records
+                      }
+                    </td>
                   </ng-container>
 
                   <!-- Records Column -->

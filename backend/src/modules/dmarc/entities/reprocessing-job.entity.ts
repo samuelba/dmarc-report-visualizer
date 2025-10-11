@@ -56,6 +56,12 @@ export class ReprocessingJob {
   @Column({ type: 'text', nullable: true })
   errorMessage?: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  dateFrom?: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  dateTo?: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -88,7 +94,7 @@ export class ReprocessingJob {
    */
   get elapsedSeconds(): number | null {
     if (!this.startedAt) return null;
-    
+
     const endTime = this.completedAt || new Date();
     return Math.round((endTime.getTime() - this.startedAt.getTime()) / 1000);
   }

@@ -100,7 +100,11 @@ export class DmarcReportController {
   async authBreakdown(@Query() q: StatsQueryDto) {
     const from = q.from ? new Date(q.from) : undefined;
     const to = q.to ? new Date(q.to) : undefined;
-    return this.dmarcReportService.authBreakdown({ domain: q.domain, from, to });
+    return this.dmarcReportService.authBreakdown({
+      domain: q.domain,
+      from,
+      to,
+    });
   }
 
   @Get('stats/auth-pass-rate-timeseries')
@@ -384,13 +388,14 @@ export class DmarcReportController {
   }> {
     const p = page ? parseInt(page, 10) : 1;
     const ps = pageSize ? parseInt(pageSize, 10) : 10;
-    const result = await this.dmarcReportService.getTopHeaderFromDomainsPaginated({
-      domain,
-      from: from ? new Date(from) : undefined,
-      to: this.makeToDateInclusive(to),
-      page: p,
-      pageSize: ps,
-    });
+    const result =
+      await this.dmarcReportService.getTopHeaderFromDomainsPaginated({
+        domain,
+        from: from ? new Date(from) : undefined,
+        to: this.makeToDateInclusive(to),
+        page: p,
+        pageSize: ps,
+      });
     return { ...result, page: p, pageSize: ps } as any;
   }
 
@@ -475,7 +480,7 @@ export class DmarcReportController {
   ) {
     const coerce = (v: any) =>
       v === undefined ? undefined : Array.isArray(v) ? v : [v];
-    
+
     return this.dmarcReportService.searchRecords({
       page: page ? parseInt(page, 10) : 1,
       pageSize: pageSize ? parseInt(pageSize, 10) : 20,

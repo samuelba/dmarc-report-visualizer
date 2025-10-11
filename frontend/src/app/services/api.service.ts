@@ -85,6 +85,8 @@ export interface ReprocessingJob {
   startedAt?: string;
   completedAt?: string;
   errorMessage?: string;
+  dateFrom?: string;
+  dateTo?: string;
   createdAt: string;
   updatedAt: string;
   progress?: number;
@@ -494,8 +496,8 @@ export class ApiService {
   }
 
   // Reprocessing API
-  startReprocessing() {
-    return this.http.post<ReprocessingJob>(`${this.apiBase}/reprocessing/start`, {});
+  startReprocessing(dateFrom?: string, dateTo?: string) {
+    return this.http.post<ReprocessingJob>(`${this.apiBase}/reprocessing/start`, { dateFrom, dateTo });
   }
 
   cancelReprocessing(jobId: string) {

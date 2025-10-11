@@ -15,6 +15,8 @@ export class AddCancelledStatus1739300000000 implements MigrationInterface {
     // Note: PostgreSQL doesn't support removing enum values directly
     // This would require recreating the enum type, which is complex and risky
     // For now, we'll leave the cancelled value in the enum even on rollback
-    console.log('Warning: Cannot remove enum value "cancelled" in PostgreSQL. Manual intervention required if needed.');
+    console.log(
+      'Warning: Cannot remove enum value "cancelled" in PostgreSQL. Manual intervention required if needed.',
+    );
   }
 }

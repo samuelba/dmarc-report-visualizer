@@ -21,7 +21,8 @@ export class AddThirdPartySenders1739100000000 implements MigrationInterface {
             type: 'varchar',
             length: '255',
             isNullable: false,
-            comment: 'Human-readable name for the third-party sender (e.g., "SendGrid", "Mailgun")',
+            comment:
+              'Human-readable name for the third-party sender (e.g., "SendGrid", "Mailgun")',
           },
           {
             name: 'description',
@@ -34,21 +35,24 @@ export class AddThirdPartySenders1739100000000 implements MigrationInterface {
             type: 'varchar',
             length: '500',
             isNullable: true,
-            comment: 'Regex pattern to match DKIM domains (e.g., ".*\\.sendgrid\\.net$")',
+            comment:
+              'Regex pattern to match DKIM domains (e.g., ".*\\.sendgrid\\.net$")',
           },
           {
             name: 'spfPattern',
             type: 'varchar',
             length: '500',
             isNullable: true,
-            comment: 'Regex pattern to match SPF domains (e.g., ".*\\.sendgrid\\.net$")',
+            comment:
+              'Regex pattern to match SPF domains (e.g., ".*\\.sendgrid\\.net$")',
           },
           {
             name: 'enabled',
             type: 'boolean',
             default: true,
             isNullable: false,
-            comment: 'Whether this third-party sender filter is currently active',
+            comment:
+              'Whether this third-party sender filter is currently active',
           },
           {
             name: 'createdAt',

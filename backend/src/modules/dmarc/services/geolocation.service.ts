@@ -19,7 +19,9 @@ export interface GeoLocationData {
 @Injectable()
 export class GeolocationService {
   private readonly logger = new Logger(GeolocationService.name);
-  private readonly regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  private readonly regionNames = new Intl.DisplayNames(['en'], {
+    type: 'region',
+  });
 
   constructor(
     @InjectRepository(IpLocation)

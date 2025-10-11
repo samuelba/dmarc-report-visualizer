@@ -12,7 +12,8 @@ export class AddReprocessedColumn1739200000000 implements MigrationInterface {
         type: 'boolean',
         default: true,
         isNullable: false,
-        comment: 'Whether this record has been processed by the latest forwarding detection algorithm',
+        comment:
+          'Whether this record has been processed by the latest forwarding detection algorithm',
       }),
     );
 

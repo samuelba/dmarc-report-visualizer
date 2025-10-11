@@ -6,9 +6,9 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // This migration fixes geoCountryName values that are country codes instead of full names
     // It uses a JavaScript function to convert codes to names using Intl.DisplayNames
-    
+
     const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-    
+
     // Get all records with geoCountry set
     const records = await queryRunner.query(`
       SELECT id, "geoCountry", "geoCountryName" 
@@ -23,22 +23,26 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
     for (const record of records) {
       const countryCode = record.geoCountry;
       const currentName = record.geoCountryName;
-      
+
       // Check if name is missing or is a 2-letter code (likely just the country code)
-      const needsUpdate = !currentName || (currentName.length === 2 && currentName === currentName.toUpperCase());
-      
+      const needsUpdate =
+        !currentName ||
+        (currentName.length === 2 && currentName === currentName.toUpperCase());
+
       if (needsUpdate) {
         try {
           const properName = regionNames.of(countryCode.toUpperCase());
           if (properName && properName !== countryCode) {
             await queryRunner.query(
               `UPDATE dmarc_records SET "geoCountryName" = $1 WHERE id = $2`,
-              [properName, record.id]
+              [properName, record.id],
             );
             updatedCount++;
           }
         } catch (error) {
-          console.warn(`Could not convert country code ${countryCode} for record ${record.id}`);
+          console.warn(
+            `Could not convert country code ${countryCode} for record ${record.id}`,
+          );
         }
       }
     }
@@ -58,32 +62,40 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
     for (const location of locations) {
       const countryCode = location.country;
       const currentName = location.countryName;
-      
+
       // Check if name is missing or is a 2-letter code
-      const needsUpdate = !currentName || (currentName.length === 2 && currentName === currentName.toUpperCase());
-      
+      const needsUpdate =
+        !currentName ||
+        (currentName.length === 2 && currentName === currentName.toUpperCase());
+
       if (needsUpdate) {
         try {
           const properName = regionNames.of(countryCode.toUpperCase());
           if (properName && properName !== countryCode) {
             await queryRunner.query(
               `UPDATE ip_locations SET "countryName" = $1 WHERE id = $2`,
-              [properName, location.id]
+              [properName, location.id],
             );
             locationsUpdatedCount++;
           }
         } catch (error) {
-          console.warn(`Could not convert country code ${countryCode} for location ${location.id}`);
+          console.warn(
+            `Could not convert country code ${countryCode} for location ${location.id}`,
+          );
         }
       }
     }
 
-    console.log(`Updated ${locationsUpdatedCount} IP locations with proper country names`);
+    console.log(
+      `Updated ${locationsUpdatedCount} IP locations with proper country names`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // No need to revert - the data is more correct after this migration
     // If needed, you could set geoCountryName back to geoCountry values
-    console.log('Skipping rollback - country names are more correct after migration');
+    console.log(
+      'Skipping rollback - country names are more correct after migration',
+    );
   }
 }

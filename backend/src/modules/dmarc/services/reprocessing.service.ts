@@ -1,7 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { ReprocessingJob, ReprocessingJobStatus } from '../entities/reprocessing-job.entity';
+import {
+  ReprocessingJob,
+  ReprocessingJobStatus,
+} from '../entities/reprocessing-job.entity';
 import { DmarcRecord } from '../entities/dmarc-record.entity';
 import { ForwardingDetectionService } from './forwarding-detection.service';
 import * as os from 'os';
@@ -30,12 +33,17 @@ export class ReprocessingService {
     // Calculate worker count: use half of available CPUs by default, or from env variable
     const cpuCount = os.cpus().length;
     const defaultWorkers = Math.max(1, Math.floor(cpuCount / 4));
-    this.WORKER_COUNT = parseInt(process.env.REPROCESSING_WORKERS || String(defaultWorkers), 10);
-    
-    this.logger.log(`Reprocessing service initialized with ${this.WORKER_COUNT} workers (${cpuCount} CPUs available)`);
-    
+    this.WORKER_COUNT = parseInt(
+      process.env.REPROCESSING_WORKERS || String(defaultWorkers),
+      10,
+    );
+
+    this.logger.log(
+      `Reprocessing service initialized with ${this.WORKER_COUNT} workers (${cpuCount} CPUs available)`,
+    );
+
     // Check for interrupted jobs on startup and resume them
-    this.resumeInterruptedJob().catch(error => {
+    this.resumeInterruptedJob().catch((error) => {
       this.logger.error('Failed to resume interrupted job:', error);
     });
   }
@@ -51,21 +59,25 @@ export class ReprocessingService {
 
     if (runningJob) {
       this.logger.log(`Found interrupted job ${runningJob.id}, resuming...`);
-      
+
       // Count remaining unprocessed records
       const remainingCount = await this.recordRepository.count({
         where: { reprocessed: false },
       });
 
       if (remainingCount > 0) {
-        this.logger.log(`Resuming job ${runningJob.id} with ${remainingCount} remaining records`);
+        this.logger.log(
+          `Resuming job ${runningJob.id} with ${remainingCount} remaining records`,
+        );
         // Resume processing (don't await)
-        this.processJob(runningJob.id, true).catch(error => {
+        this.processJob(runningJob.id, true).catch((error) => {
           this.logger.error(`Failed to resume job ${runningJob.id}:`, error);
         });
       } else {
         // All records were processed, mark job as completed
-        this.logger.log(`Job ${runningJob.id} was actually completed, marking as such`);
+        this.logger.log(
+          `Job ${runningJob.id} was actually completed, marking as such`,
+        );
         runningJob.status = ReprocessingJobStatus.COMPLETED;
         runningJob.completedAt = new Date();
         await this.jobRepository.save(runningJob);
@@ -75,8 +87,13 @@ export class ReprocessingService {
 
   /**
    * Start a new reprocessing job
+   * @param dateFrom Optional start date for filtering records
+   * @param dateTo Optional end date for filtering records
    */
-  async startReprocessing(): Promise<ReprocessingJob> {
+  async startReprocessing(
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<ReprocessingJob> {
     // Check if there's already a running job
     const runningJob = await this.jobRepository.findOne({
       where: { status: ReprocessingJobStatus.RUNNING },
@@ -87,12 +104,82 @@ export class ReprocessingService {
       return runningJob;
     }
 
-    // Mark ALL records as not reprocessed (reset for new run)
-    this.logger.log('Marking all records as not reprocessed...');
-    await this.recordRepository.update({}, { reprocessed: false });
+    // Parse dates if provided
+    const fromDate = dateFrom ? new Date(dateFrom) : undefined;
+    const toDate = dateTo ? new Date(dateTo) : undefined;
+
+    // Log the date range
+    if (fromDate && toDate) {
+      this.logger.log(
+        `Reprocessing records from ${fromDate.toISOString()} to ${toDate.toISOString()}`,
+      );
+    } else if (fromDate) {
+      this.logger.log(
+        `Reprocessing records from ${fromDate.toISOString()} onwards`,
+      );
+    } else if (toDate) {
+      this.logger.log(`Reprocessing records up to ${toDate.toISOString()}`);
+    } else {
+      this.logger.log('Reprocessing all records (no date filter)');
+    }
+
+    // Mark matching records as not reprocessed (reset for new run)
+    this.logger.log('Marking records as not reprocessed...');
+    if (fromDate || toDate) {
+      // Use a joined UPDATE against reports' beginDate since records do not have createdAt
+      if (fromDate && toDate) {
+        await this.recordRepository.query(
+          'UPDATE "dmarc_records" rec\n' +
+            'SET "reprocessed" = $1\n' +
+            'FROM "dmarc_reports" rep\n' +
+            'WHERE rec."reportId" = rep."id"\n' +
+            'AND rep."beginDate" >= $2 AND rep."beginDate" <= $3',
+          [false, fromDate, toDate],
+        );
+      } else if (fromDate) {
+        await this.recordRepository.query(
+          'UPDATE "dmarc_records" rec\n' +
+            'SET "reprocessed" = $1\n' +
+            'FROM "dmarc_reports" rep\n' +
+            'WHERE rec."reportId" = rep."id"\n' +
+            'AND rep."beginDate" >= $2',
+          [false, fromDate],
+        );
+      } else if (toDate) {
+        await this.recordRepository.query(
+          'UPDATE "dmarc_records" rec\n' +
+            'SET "reprocessed" = $1\n' +
+            'FROM "dmarc_reports" rep\n' +
+            'WHERE rec."reportId" = rep."id"\n' +
+            'AND rep."beginDate" <= $2',
+          [false, toDate],
+        );
+      }
+    } else {
+      await this.recordRepository.update({}, { reprocessed: false });
+    }
 
     // Count total records to process
-    const totalRecords = await this.recordRepository.count();
+    let totalRecords: number;
+    const countBuilder = this.recordRepository
+      .createQueryBuilder('record')
+      .leftJoin('record.report', 'rep');
+
+    if (fromDate || toDate) {
+      if (fromDate && toDate) {
+        countBuilder.where(
+          'rep."beginDate" >= :fromDate AND rep."beginDate" <= :toDate',
+          { fromDate, toDate },
+        );
+      } else if (fromDate) {
+        countBuilder.where('rep."beginDate" >= :fromDate', { fromDate });
+      } else if (toDate) {
+        countBuilder.where('rep."beginDate" <= :toDate', { toDate });
+      }
+      totalRecords = await countBuilder.getCount();
+    } else {
+      totalRecords = await this.recordRepository.count();
+    }
 
     // Create new job
     const job = this.jobRepository.create({
@@ -102,12 +189,14 @@ export class ReprocessingService {
       forwardedCount: 0,
       notForwardedCount: 0,
       unknownCount: 0,
+      dateFrom: fromDate,
+      dateTo: toDate,
     });
 
     const savedJob = await this.jobRepository.save(job);
 
     // Start processing in background (don't await)
-    this.processJob(savedJob.id, false).catch(error => {
+    this.processJob(savedJob.id, false).catch((error) => {
       this.logger.error(`Reprocessing job ${savedJob.id} failed:`, error);
     });
 
@@ -153,12 +242,15 @@ export class ReprocessingService {
    */
   async cancelReprocessing(jobId: string): Promise<ReprocessingJob> {
     const job = await this.jobRepository.findOne({ where: { id: jobId } });
-    
+
     if (!job) {
       throw new NotFoundException(`Reprocessing job ${jobId} not found`);
     }
 
-    if (job.status !== ReprocessingJobStatus.RUNNING && job.status !== ReprocessingJobStatus.PENDING) {
+    if (
+      job.status !== ReprocessingJobStatus.RUNNING &&
+      job.status !== ReprocessingJobStatus.PENDING
+    ) {
       throw new Error(`Cannot cancel job in ${job.status} status`);
     }
 
@@ -166,7 +258,7 @@ export class ReprocessingService {
     if (this.currentJobId === jobId && this.isProcessing) {
       this.logger.log(`Cancellation requested for job ${jobId}`);
       this.cancelRequested = true;
-      
+
       // The actual cancellation will happen in the processing loop
       // Just return the job - status will be updated by the worker
       return job;
@@ -175,7 +267,7 @@ export class ReprocessingService {
       job.status = ReprocessingJobStatus.CANCELLED;
       job.completedAt = new Date();
       await this.jobRepository.save(job);
-      
+
       this.logger.log(`Job ${jobId} cancelled (was not actively processing)`);
       return job;
     }
@@ -186,7 +278,10 @@ export class ReprocessingService {
    * @param jobId The job ID to process
    * @param isResume Whether this is resuming an interrupted job (don't reset records)
    */
-  private async processJob(jobId: string, isResume: boolean = false): Promise<void> {
+  private async processJob(
+    jobId: string,
+    isResume: boolean = false,
+  ): Promise<void> {
     if (this.isProcessing) {
       this.logger.warn('Another job is already being processed');
       return;
@@ -212,19 +307,50 @@ export class ReprocessingService {
       await this.jobRepository.save(job);
 
       const resumeMsg = isResume ? ' (resuming interrupted job)' : '';
+      let dateRangeMsg = ' for all records';
+      if (job.dateFrom && job.dateTo) {
+        dateRangeMsg = ` for records from ${job.dateFrom.toISOString()} to ${job.dateTo.toISOString()}`;
+      } else if (job.dateFrom) {
+        dateRangeMsg = ` for records from ${job.dateFrom.toISOString()} onwards`;
+      } else if (job.dateTo) {
+        dateRangeMsg = ` for records up to ${job.dateTo.toISOString()}`;
+      }
+
       this.logger.log(
-        `Starting reprocessing job ${jobId}${resumeMsg} with ${this.WORKER_COUNT} parallel workers`
+        `Starting reprocessing job ${jobId}${resumeMsg} with ${this.WORKER_COUNT} parallel workers${dateRangeMsg}`,
       );
 
       // Get all UNPROCESSED record IDs (where reprocessed = false)
-      const allIds = await this.recordRepository
+      // Apply date filter if set
+      const queryBuilder = this.recordRepository
         .createQueryBuilder('record')
+        .leftJoin('record.report', 'rep')
         .select('record.id')
-        .where('record.reprocessed = :reprocessed', { reprocessed: false })
-        .orderBy('record.id', 'ASC')
-        .getMany();
+        .where('record.reprocessed = :reprocessed', { reprocessed: false });
 
-      const recordIds = allIds.map(r => r.id);
+      if (job.dateFrom || job.dateTo) {
+        if (job.dateFrom && job.dateTo) {
+          queryBuilder.andWhere(
+            'rep."beginDate" >= :fromDate AND rep."beginDate" <= :toDate',
+            {
+              fromDate: job.dateFrom,
+              toDate: job.dateTo,
+            },
+          );
+        } else if (job.dateFrom) {
+          queryBuilder.andWhere('rep."beginDate" >= :fromDate', {
+            fromDate: job.dateFrom,
+          });
+        } else if (job.dateTo) {
+          queryBuilder.andWhere('rep."beginDate" <= :toDate', {
+            toDate: job.dateTo,
+          });
+        }
+      }
+
+      const allIds = await queryBuilder.orderBy('record.id', 'ASC').getMany();
+
+      const recordIds = allIds.map((r) => r.id);
       const totalRecords = recordIds.length;
 
       if (totalRecords === 0) {
@@ -239,24 +365,24 @@ export class ReprocessingService {
 
       // Calculate how many records were already processed (if resuming)
       const originalTotal = job.totalRecords || 0;
-      const alreadyProcessed = isResume ? (originalTotal - totalRecords) : 0;
-      
+      const alreadyProcessed = isResume ? originalTotal - totalRecords : 0;
+
       if (isResume && alreadyProcessed > 0) {
         this.logger.log(
-          `Already processed: ${alreadyProcessed} records (${((alreadyProcessed / originalTotal) * 100).toFixed(1)}%)`
+          `Already processed: ${alreadyProcessed} records (${((alreadyProcessed / originalTotal) * 100).toFixed(1)}%)`,
         );
       }
 
       // Split IDs into chunks for parallel processing
       const chunkSize = Math.ceil(totalRecords / this.WORKER_COUNT);
       const workerChunks: string[][] = [];
-      
+
       for (let i = 0; i < totalRecords; i += chunkSize) {
         workerChunks.push(recordIds.slice(i, i + chunkSize));
       }
 
       this.logger.log(
-        `Split ${totalRecords} records into ${workerChunks.length} chunks of ~${chunkSize} records each`
+        `Split ${totalRecords} records into ${workerChunks.length} chunks of ~${chunkSize} records each`,
       );
 
       // Shared counters (will be updated from worker results)
@@ -283,7 +409,8 @@ export class ReprocessingService {
 
           // Update job progress (throttled to avoid too many DB writes)
           const now = Date.now();
-          if (now - lastProgressUpdate > 2000) { // Update every 2 seconds
+          if (now - lastProgressUpdate > 2000) {
+            // Update every 2 seconds
             lastProgressUpdate = now;
             job.processedRecords = totalProcessed;
             job.forwardedCount = forwardedCount;
@@ -292,10 +419,12 @@ export class ReprocessingService {
             await this.jobRepository.save(job);
 
             // Use original total for progress calculation
-            const progress = ((totalProcessed / originalTotal) * 100).toFixed(1);
+            const progress = ((totalProcessed / originalTotal) * 100).toFixed(
+              1,
+            );
             this.logger.log(
               `Reprocessing progress: ${progress}% (${totalProcessed}/${originalTotal}) - ` +
-              `Forwarded: ${forwardedCount}, Not Forwarded: ${notForwardedCount}, Unknown: ${unknownCount}`
+                `Forwarded: ${forwardedCount}, Not Forwarded: ${notForwardedCount}, Unknown: ${unknownCount}`,
             );
           }
         });
@@ -314,16 +443,20 @@ export class ReprocessingService {
       await this.jobRepository.save(job);
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      const recordsPerSecond = (totalProcessed / ((Date.now() - startTime) / 1000)).toFixed(1);
+      const recordsPerSecond = (
+        totalProcessed /
+        ((Date.now() - startTime) / 1000)
+      ).toFixed(1);
       this.logger.log(
         `Reprocessing job ${jobId} completed in ${elapsed}s (${recordsPerSecond} records/sec). ` +
-        `Forwarded: ${forwardedCount}, Not Forwarded: ${notForwardedCount}, Unknown: ${unknownCount}`
+          `Forwarded: ${forwardedCount}, Not Forwarded: ${notForwardedCount}, Unknown: ${unknownCount}`,
       );
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const isCancelled = this.cancelRequested || errorMessage.includes('cancelled by user');
-      
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const isCancelled =
+        this.cancelRequested || errorMessage.includes('cancelled by user');
+
       if (isCancelled) {
         this.logger.log(`Reprocessing job ${jobId} was cancelled by user`);
       } else {
@@ -350,15 +483,17 @@ export class ReprocessingService {
       // Keep cancelRequested=true for a bit longer to let running workers detect it
       // Workers check this flag before processing each record
       const wasCancelled = this.cancelRequested;
-      
+
       this.isProcessing = false;
       this.currentJobId = null;
-      
+
       // Only reset cancel flag after a delay if it was a cancellation
       if (wasCancelled) {
         setTimeout(() => {
           this.cancelRequested = false;
-          this.logger.log('Cancellation flag reset after worker shutdown period');
+          this.logger.log(
+            'Cancellation flag reset after worker shutdown period',
+          );
         }, 5000); // Give workers 5 seconds to detect and stop
       } else {
         this.cancelRequested = false;
@@ -372,7 +507,12 @@ export class ReprocessingService {
   private async processChunk(
     recordIds: string[],
     workerIndex: number,
-    onProgress: (stats: { processed: number; forwarded: number; notForwarded: number; unknown: number }) => Promise<void>
+    onProgress: (stats: {
+      processed: number;
+      forwarded: number;
+      notForwarded: number;
+      unknown: number;
+    }) => Promise<void>,
   ): Promise<void> {
     let forwarded = 0;
     let notForwarded = 0;
@@ -381,7 +521,7 @@ export class ReprocessingService {
 
     // Process in smaller batches to avoid loading too much into memory
     const batchSize = this.BATCH_SIZE;
-    
+
     for (let i = 0; i < recordIds.length; i += batchSize) {
       // Check for cancellation before processing each batch
       if (this.cancelRequested) {
@@ -389,7 +529,7 @@ export class ReprocessingService {
       }
 
       const batchIds = recordIds.slice(i, i + batchSize);
-      
+
       // Fetch records with relations
       const records = await this.recordRepository.find({
         where: { id: In(batchIds) },
@@ -405,13 +545,14 @@ export class ReprocessingService {
         }
 
         try {
-          const result = await this.forwardingDetectionService.detectForwarding(record);
-          
+          const result =
+            await this.forwardingDetectionService.detectForwarding(record);
+
           // Update record with new forwarding detection results
           record.isForwarded = result.isForwarded;
           record.forwardReason = result.reason;
           record.reprocessed = true; // Mark as reprocessed
-          
+
           // Save synchronously (one at a time)
           await this.recordRepository.save(record);
 
@@ -423,10 +564,13 @@ export class ReprocessingService {
           } else {
             unknown++;
           }
-          
+
           processed++;
         } catch (error) {
-          this.logger.error(`Worker ${workerIndex}: Failed to process record ${record.id}:`, error);
+          this.logger.error(
+            `Worker ${workerIndex}: Failed to process record ${record.id}:`,
+            error,
+          );
           // Still mark as processed to avoid infinite retries
           record.reprocessed = true;
           await this.recordRepository.save(record);
@@ -436,7 +580,7 @@ export class ReprocessingService {
 
       // Report progress
       await onProgress({ processed, forwarded, notForwarded, unknown });
-      
+
       // Reset counters (they've been added to shared counters)
       forwarded = 0;
       notForwarded = 0;

@@ -12,6 +12,10 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatInputModule } from '@angular/material/input';
+import { MatNativeDateModule } from '@angular/material/core';
 import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/api.service';
 import { ThirdPartySenderDialogComponent } from './third-party-sender-dialog.component';
 import { interval, timer, takeWhile } from 'rxjs';
@@ -33,6 +37,10 @@ import { interval, timer, takeWhile } from 'rxjs';
     MatChipsModule,
     MatTooltipModule,
     MatSlideToggleModule,
+    MatFormFieldModule,
+    MatDatepickerModule,
+    MatInputModule,
+    MatNativeDateModule,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
@@ -51,11 +59,15 @@ export class SettingsComponent implements OnInit {
   currentJob = signal<ReprocessingJob | null>(null);
   reprocessingHistory = signal<ReprocessingJob[]>([]);
   isReprocessing = signal(false);
-  jobDisplayedColumns = ['status', 'created', 'records', 'results', 'duration'];
+  jobDisplayedColumns = ['status', 'created', 'range', 'records', 'results', 'duration'];
 
   // Tab tracking
   selectedTabIndex = signal(0);
   private readonly REPROCESSING_TAB_INDEX = 1;
+
+  // Date range for reprocessing
+  dateFrom = signal<Date | null>(null);
+  dateTo = signal<Date | null>(null);
 
   ngOnInit() {
     this.loadThirdPartySenders();
@@ -190,11 +202,26 @@ export class SettingsComponent implements OnInit {
       return;
     }
 
-    if (!confirm('This will reprocess all DMARC records and may take several minutes/hours. Continue?')) {
+    const from = this.dateFrom();
+    const to = this.dateTo();
+
+    let rangeText = 'all DMARC records';
+    if (from && to) {
+      rangeText = `records from ${from.toLocaleDateString()} to ${to.toLocaleDateString()}`;
+    } else if (from) {
+      rangeText = `records from ${from.toLocaleDateString()} onwards`;
+    } else if (to) {
+      rangeText = `records up to ${to.toLocaleDateString()}`;
+    }
+
+    if (!confirm(`This will reprocess ${rangeText} and may take several minutes/hours. Continue?`)) {
       return;
     }
 
-    this.api.startReprocessing().subscribe({
+    const fromStr = from ? from.toISOString() : undefined;
+    const toStr = to ? to.toISOString() : undefined;
+
+    this.api.startReprocessing(fromStr, toStr).subscribe({
       next: (job) => {
         this.currentJob.set(job);
         this.isReprocessing.set(true);

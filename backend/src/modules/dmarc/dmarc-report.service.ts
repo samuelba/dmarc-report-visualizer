@@ -438,7 +438,7 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    
+
     if (domain)
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
     if (from) qb.andWhere('rep.beginDate >= :from', { from });
@@ -540,8 +540,10 @@ export class DmarcReportService {
         totalCount: total,
         dkimPassCount: dkimPass,
         spfPassCount: spfPass,
-        dkimPassRate: total > 0 ? Math.round((dkimPass / total) * 10000) / 100 : 0,
-        spfPassRate: total > 0 ? Math.round((spfPass / total) * 10000) / 100 : 0,
+        dkimPassRate:
+          total > 0 ? Math.round((dkimPass / total) * 10000) / 100 : 0,
+        spfPassRate:
+          total > 0 ? Math.round((spfPass / total) * 10000) / 100 : 0,
       };
     });
   }
