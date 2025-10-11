@@ -751,6 +751,7 @@ export class DmarcReportService {
     page?: number;
     pageSize?: number;
     domain?: string | string[];
+    orgName?: string | string[];
     from?: Date;
     to?: Date;
     disposition?:
@@ -774,6 +775,7 @@ export class DmarcReportService {
       page = 1,
       pageSize = 20,
       domain,
+      orgName,
       from,
       to,
       disposition,
@@ -799,6 +801,12 @@ export class DmarcReportService {
       const arr = Array.isArray(domain) ? domain : [domain];
       qb.andWhere('rep.domain ILIKE ANY(:domains)', {
         domains: arr.map((d) => `%${d}%`),
+      });
+    }
+    if (orgName) {
+      const arr = Array.isArray(orgName) ? orgName : [orgName];
+      qb.andWhere('rep.orgName ILIKE ANY(:orgNames)', {
+        orgNames: arr.map((o) => `%${o}%`),
       });
     }
     if (from) qb.andWhere('rep.beginDate >= :from', { from });
@@ -1009,6 +1017,7 @@ export class DmarcReportService {
   async getDistinctValues(
     field:
       | 'domain'
+      | 'orgName'
       | 'sourceIp'
       | 'envelopeTo'
       | 'envelopeFrom'
@@ -1024,6 +1033,16 @@ export class DmarcReportService {
         .createQueryBuilder('rep')
         .select('DISTINCT rep.domain', 'v')
         .where('rep.domain IS NOT NULL');
+      if (from) qb.andWhere('rep.beginDate >= :from', { from });
+      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      const rows = await qb.orderBy('v', 'ASC').getRawMany();
+      return rows.map((r) => r.v).filter(Boolean);
+    }
+    if (field === 'orgName') {
+      const qb = this.dmarcReportRepository
+        .createQueryBuilder('rep')
+        .select('DISTINCT rep.orgName', 'v')
+        .where('rep.orgName IS NOT NULL');
       if (from) qb.andWhere('rep.beginDate >= :from', { from });
       if (to) qb.andWhere('rep.beginDate <= :to', { to });
       const rows = await qb.orderBy('v', 'ASC').getRawMany();

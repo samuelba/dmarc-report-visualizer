@@ -12,6 +12,12 @@
         </mat-select>
       </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Reporting Org</mat-label>
+        <mat-select [(ngModel)]="filters.orgName" multiple (selectionChange)="onFilterChange()">
+          <mat-option *ngFor="let v of orgNames()" [value]="v">{{ v }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Disposition</mat-label>
         <mat-select [(ngModel)]="filters.disposition" multiple (selectionChange)="onFilterChange()">
           <mat-option value="none">none</mat-option>
@@ -116,7 +122,7 @@
         </ng-container>
         <ng-container matColumnDef="date">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="date">Date</th>
-          <td mat-cell *matCellDef="let r">{{ r.report?.beginDate | date: 'short' }}</td>
+          <td mat-cell *matCellDef="let r">{{ r.report?.beginDate | date: 'yyyy-MM-dd' }}</td>
         </ng-container>
         <ng-container matColumnDef="org">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="orgName">Reporting Org</th>

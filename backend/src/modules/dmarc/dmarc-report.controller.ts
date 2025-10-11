@@ -404,6 +404,7 @@ export class DmarcReportController {
     @Query('field')
     field:
       | 'domain'
+      | 'orgName'
       | 'sourceIp'
       | 'envelopeTo'
       | 'envelopeFrom'
@@ -461,6 +462,7 @@ export class DmarcReportController {
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
     @Query('domain') domain?: string | string[],
+    @Query('orgName') orgName?: string | string[],
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('disposition') disposition?: string | string[],
@@ -485,6 +487,7 @@ export class DmarcReportController {
       page: page ? parseInt(page, 10) : 1,
       pageSize: pageSize ? parseInt(pageSize, 10) : 20,
       domain,
+      orgName: coerce(orgName),
       from: from ? new Date(from) : undefined,
       to: this.makeToDateInclusive(to),
       disposition: coerce(disposition) as any,

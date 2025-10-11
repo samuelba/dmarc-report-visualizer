@@ -78,6 +78,7 @@ export class ExploreComponent implements OnInit {
 
   filters: any = {
     domain: [] as string[],
+    orgName: [] as string[],
     disposition: [] as string[],
     dkim: [] as string[],
     spf: [] as string[],
@@ -95,6 +96,7 @@ export class ExploreComponent implements OnInit {
   };
 
   readonly domains = signal<string[]>([]);
+  readonly orgNames = signal<string[]>([]);
   readonly ips = signal<string[]>([]);
   readonly envelopeTos = signal<string[]>([]);
   readonly envelopeFroms = signal<string[]>([]);
@@ -185,6 +187,7 @@ export class ExploreComponent implements OnInit {
   private loadDateScopedDistincts() {
     const { from, to } = this.getFromToIso();
     this.api.getRecordDistinct('domain', { from, to }).subscribe((v) => this.domains.set(v));
+    this.api.getRecordDistinct('orgName', { from, to }).subscribe((v) => this.orgNames.set(v));
     this.api.getRecordDistinct('headerFrom', { from, to }).subscribe((v) => this.headerFroms.set(v));
     this.api.getRecordDistinct('sourceIp', { from, to }).subscribe((v) => this.ips.set(v));
     this.api.getRecordDistinct('envelopeFrom', { from, to }).subscribe((v) => this.envelopeFroms.set(v));
@@ -215,6 +218,7 @@ export class ExploreComponent implements OnInit {
   clear() {
     this.filters = {
       domain: [],
+      orgName: [],
       disposition: [],
       dkim: [],
       spf: [],
@@ -244,6 +248,7 @@ export class ExploreComponent implements OnInit {
       page: this.page(),
       pageSize: this.pageSize(),
       domain: this.filters.domain.length ? this.filters.domain : undefined,
+      orgName: this.filters.orgName.length ? this.filters.orgName : undefined,
       disposition: this.filters.disposition.length ? this.filters.disposition : undefined,
       dkim: this.filters.dkim.length ? this.filters.dkim : undefined,
       spf: this.filters.spf.length ? this.filters.spf : undefined,
@@ -448,6 +453,7 @@ export class ExploreComponent implements OnInit {
     const params = this.route.snapshot.queryParams;
 
     if (params['domain']) this.filters.domain = Array.isArray(params['domain']) ? params['domain'] : [params['domain']];
+    if (params['orgName']) this.filters.orgName = Array.isArray(params['orgName']) ? params['orgName'] : [params['orgName']];
     if (params['disposition'])
       this.filters.disposition = Array.isArray(params['disposition']) ? params['disposition'] : [params['disposition']];
     if (params['dkim']) this.filters.dkim = Array.isArray(params['dkim']) ? params['dkim'] : [params['dkim']];
@@ -680,6 +686,7 @@ export class ExploreComponent implements OnInit {
     const queryParams: any = {};
 
     if (this.filters.domain.length) queryParams.domain = this.filters.domain;
+    if (this.filters.orgName.length) queryParams.orgName = this.filters.orgName;
     if (this.filters.disposition.length) queryParams.disposition = this.filters.disposition;
     if (this.filters.dkim.length) queryParams.dkim = this.filters.dkim;
     if (this.filters.spf.length) queryParams.spf = this.filters.spf;
