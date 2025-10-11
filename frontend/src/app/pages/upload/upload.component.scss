@@ -1,5 +1,11 @@
+.upload-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .upload-content {
-  display: block;
+  flex: 1;
 }
 
 .upload-card {

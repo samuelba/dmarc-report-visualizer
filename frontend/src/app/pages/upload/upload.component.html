@@ -1,86 +1,92 @@
-<main class="upload-content">
-  <mat-card class="upload-card">
-    <mat-card-header>
-      <mat-card-title>
-        <mat-icon>cloud_upload</mat-icon>
-        Upload DMARC Reports
-      </mat-card-title>
-      <mat-card-subtitle> Upload XML, ZIP, or GZ files containing DMARC reports </mat-card-subtitle>
-    </mat-card-header>
+<div class="upload-container">
+  <div class="upload-content">
+    <mat-card class="upload-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>cloud_upload</mat-icon>
+          Upload DMARC Reports
+        </mat-card-title>
+        <mat-card-subtitle> Upload XML, ZIP, or GZ files containing DMARC reports </mat-card-subtitle>
+      </mat-card-header>
 
-    <mat-card-content>
-      <div
-        class="upload-area"
-        [class.dragover]="isDragOver"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-        (click)="fileInput.click()"
-      >
-        <mat-icon class="upload-icon">cloud_upload</mat-icon>
-        <h3>Drag & Drop Files Here</h3>
-        <p>or click to browse</p>
-        <p class="file-types">Supported: .xml, .zip, .gz</p>
-      </div>
-
-      <input
-        #fileInput
-        type="file"
-        (change)="onFileSelect($event)"
-        accept=".xml,.zip,.gz"
-        multiple
-        style="display: none"
-      />
-
-      <div *ngIf="selectedFiles().length > 0" class="selected-files">
-        <h4>Selected Files ({{ selectedFiles().length }})</h4>
-        <div class="file-chips">
-          <mat-chip-set>
-            <mat-chip *ngFor="let file of selectedFiles(); let i = index" [removable]="true" (removed)="removeFile(i)">
-              <mat-icon matChipAvatar>description</mat-icon>
-              {{ file.name }}
-              <span class="file-size">({{ formatFileSize(file.size) }})</span>
-              <mat-icon matChipRemove>cancel</mat-icon>
-            </mat-chip>
-          </mat-chip-set>
-        </div>
-      </div>
-
-      <div class="upload-actions">
-        <button
-          mat-raised-button
-          color="primary"
-          (click)="uploadFiles()"
-          [disabled]="selectedFiles().length === 0 || isUploading()"
-        >
-          <mat-icon>upload</mat-icon>
-          {{ isUploading() ? 'Uploading...' : 'Upload ' + selectedFiles().length + ' File(s)' }}
-        </button>
-
-        <button mat-button (click)="clearFiles()" [disabled]="selectedFiles().length === 0 || isUploading()">
-          <mat-icon>clear</mat-icon>
-          Clear All
-        </button>
-      </div>
-
-      <div *ngIf="isUploading()" class="upload-progress">
-        <mat-progress-bar mode="determinate" [value]="uploadProgress()"></mat-progress-bar>
-        <p>{{ uploadStatus() }}</p>
-      </div>
-
-      <div *ngIf="uploadResults().length > 0" class="upload-results">
-        <h4>Upload Results</h4>
+      <mat-card-content>
         <div
-          *ngFor="let result of uploadResults()"
-          class="result-item"
-          [class.success]="result.success"
-          [class.error]="!result.success"
+          class="upload-area"
+          [class.dragover]="isDragOver"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="fileInput.click()"
         >
-          <mat-icon>{{ result.success ? 'check_circle' : 'error' }}</mat-icon>
-          <span class="filename">{{ result.filename }}</span>
-          <span class="message">{{ result.message }}</span>
+          <mat-icon class="upload-icon">cloud_upload</mat-icon>
+          <h3>Drag & Drop Files Here</h3>
+          <p>or click to browse</p>
+          <p class="file-types">Supported: .xml, .zip, .gz</p>
         </div>
-      </div>
-    </mat-card-content>
-  </mat-card>
-</main>
+
+        <input
+          #fileInput
+          type="file"
+          (change)="onFileSelect($event)"
+          accept=".xml,.zip,.gz"
+          multiple
+          style="display: none"
+        />
+
+        <div *ngIf="selectedFiles().length > 0" class="selected-files">
+          <h4>Selected Files ({{ selectedFiles().length }})</h4>
+          <div class="file-chips">
+            <mat-chip-set>
+              <mat-chip
+                *ngFor="let file of selectedFiles(); let i = index"
+                [removable]="true"
+                (removed)="removeFile(i)"
+              >
+                <mat-icon matChipAvatar>description</mat-icon>
+                {{ file.name }}
+                <span class="file-size">({{ formatFileSize(file.size) }})</span>
+                <mat-icon matChipRemove>cancel</mat-icon>
+              </mat-chip>
+            </mat-chip-set>
+          </div>
+        </div>
+
+        <div class="upload-actions">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="uploadFiles()"
+            [disabled]="selectedFiles().length === 0 || isUploading()"
+          >
+            <mat-icon>upload</mat-icon>
+            {{ isUploading() ? 'Uploading...' : 'Upload ' + selectedFiles().length + ' File(s)' }}
+          </button>
+
+          <button mat-button (click)="clearFiles()" [disabled]="selectedFiles().length === 0 || isUploading()">
+            <mat-icon>clear</mat-icon>
+            Clear All
+          </button>
+        </div>
+
+        <div *ngIf="isUploading()" class="upload-progress">
+          <mat-progress-bar mode="determinate" [value]="uploadProgress()"></mat-progress-bar>
+          <p>{{ uploadStatus() }}</p>
+        </div>
+
+        <div *ngIf="uploadResults().length > 0" class="upload-results">
+          <h4>Upload Results</h4>
+          <div
+            *ngFor="let result of uploadResults()"
+            class="result-item"
+            [class.success]="result.success"
+            [class.error]="!result.success"
+          >
+            <mat-icon>{{ result.success ? 'check_circle' : 'error' }}</mat-icon>
+            <span class="filename">{{ result.filename }}</span>
+            <span class="message">{{ result.message }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

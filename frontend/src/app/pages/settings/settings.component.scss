@@ -1,3 +1,9 @@
+.settings-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .settings-content {
   padding: 2rem;
   max-width: 1400px;

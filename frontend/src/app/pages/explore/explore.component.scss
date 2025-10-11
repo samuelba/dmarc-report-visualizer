@@ -1,5 +1,11 @@
+.explore-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .explore-content {
-  display: block;
+  flex: 1;
 }
 
 .filters {

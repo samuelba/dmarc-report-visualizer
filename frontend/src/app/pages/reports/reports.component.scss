@@ -1,5 +1,11 @@
-main {
-  display: block;
+.reports-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.reports-content {
+  flex: 1;
 }
 
 table {
