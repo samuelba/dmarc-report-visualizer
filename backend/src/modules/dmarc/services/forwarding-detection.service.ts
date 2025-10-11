@@ -56,18 +56,9 @@ export class ForwardingDetectionService {
       const dkimResults = record.dkimResults || [];
       const spfResults = record.spfResults || [];
 
-      // Priority 2: Check if we have enough data to make a determination
-      if (!headerFrom) {
-        return {
-          isForwarded: null,
-          reason: null,
-        };
-      }
-
-      const headerFromBase = this.extractBaseDomain(headerFrom);
-
-      // Priority 3: Check third-party senders FIRST (before other analysis)
-      // If ANY DKIM/SPF domain matches third-party patterns, it's NOT a forwarder
+      // Priority 2: Check third-party senders FIRST (even before headerFrom validation)
+      // This handles cases where headerFrom might be missing but we can still identify
+      // legitimate third-party senders by their DKIM/SPF signatures
       const dkimDomains = dkimResults
         .map((dkim) => dkim.domain)
         .filter((d): d is string => !!d);
@@ -98,6 +89,17 @@ export class ForwardingDetectionService {
           }
         }
       }
+
+      // Priority 3: Check if we have enough data to make a determination
+      // If headerFrom is missing and it's not a third-party sender, we cannot determine forwarding status
+      if (!headerFrom) {
+        return {
+          isForwarded: null,
+          reason: null,
+        };
+      }
+
+      const headerFromBase = this.extractBaseDomain(headerFrom);
 
       // Priority 4: Check for forwarding pattern
       // REQUIRED: DKIM result from headerFrom domain (original sender)

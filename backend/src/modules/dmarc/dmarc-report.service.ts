@@ -911,8 +911,8 @@ export class DmarcReportService {
       // This way we don't filter out other DKIM results from the same record
       qb.andWhere(
         `EXISTS (
-        SELECT 1 FROM dkim_results dk_filter 
-        WHERE dk_filter."recordId" = rec.id 
+        SELECT 1 FROM dkim_results dk_filter
+        WHERE dk_filter."recordId" = rec.id
         AND dk_filter.domain ILIKE ANY(:dkdoms)
       )`,
         {
@@ -926,8 +926,8 @@ export class DmarcReportService {
       // This way we don't filter out other SPF results from the same record
       qb.andWhere(
         `EXISTS (
-        SELECT 1 FROM spf_results sf_filter 
-        WHERE sf_filter."recordId" = rec.id 
+        SELECT 1 FROM spf_results sf_filter
+        WHERE sf_filter."recordId" = rec.id
         AND sf_filter.domain ILIKE ANY(:sfdoms)
       )`,
         {
@@ -1137,7 +1137,8 @@ export class DmarcReportService {
       if (!recordData || typeof recordData !== 'object') continue;
 
       const row = recordData.row || {};
-      const identifiers = recordData.identifiers || {};
+      // Support both 'identifiers' and 'identities' (both are valid per DMARC spec)
+      const identifiers = recordData.identifiers || recordData.identities || {};
       const authResults = recordData.auth_results || {};
       const policyEvaluated = row.policy_evaluated || {};
 
