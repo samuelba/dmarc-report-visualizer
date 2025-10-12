@@ -63,13 +63,18 @@ main {
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-left: 6px;
-  padding-right: 6px;
+  padding-left: 4px;
+  padding-right: 4px;
   border: 0;
   border-radius: 0;
 
+  mat-icon {
+    margin-left: 11px;
+    margin-right: 8px;
+  }
+
   &.collapsed {
-    width: 72px;
+    width: 54px;
 
     .label {
       display: none;
@@ -80,7 +85,7 @@ main {
     a[mat-list-item] {
       margin: 0 0px;
       padding-right: 0px;
-      padding-left: 2px;
+      padding-left: 0px;
     }
   }
 
@@ -116,7 +121,10 @@ main {
     border-radius: 8px;
     margin: 0 0px;
     overflow: hidden;
-    padding-left: 2px;
+  }
+
+  .mdc-list-item.mdc-list-item--with-one-line {
+    height: 46px !important;
   }
 
   .active-link {
@@ -130,4 +138,8 @@ main {
 
 .app-content {
   overflow: visible !important;
+}
+
+.mat-toolbar-single-row {
+  padding-left: 8px;
 }
