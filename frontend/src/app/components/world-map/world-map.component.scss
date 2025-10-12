@@ -15,7 +15,7 @@
   align-items: center;
   margin-bottom: 16px;
   padding: 12px;
-  background-color: #f5f5f5;
+  background-color: var(--custom-list-item-background);
   border-radius: 8px;
 }
 
@@ -75,4 +75,71 @@ mat-card-title {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+// Map controls
+// .map-controls {
+//   background-color: #3a3a3a !important;
+//   border: 1px solid #4a4a4a !important;
+//   color: #e0e0e0;
+// }
+
+// Map loading overlay
+// .loading-overlay {
+//   background: rgba(18, 18, 18, 0.8) !important;
+//   color: #e0e0e0;
+// }
+
+// Custom utility classes
+.full-width {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+// Custom popup styles for Leaflet
+.popup-content {
+  font-family: 'Roboto', sans-serif;
+}
+
+.light .popup-content {
+  h4 {
+    margin: 0 0 8px;
+    color: var(--md-sys-color-on-surface);
+    font-size: 14px;
+  }
+
+  p {
+    margin: 4px 0;
+    font-size: 12px;
+    color: #666;
+  }
+}
+
+.dark .popup-content {
+  h4 {
+    margin: 0 0 8px;
+    color: #e0e0e0;
+    font-size: 14px;
+  }
+
+  p {
+    margin: 4px 0;
+    font-size: 12px;
+    color: #b0b0b0;
+  }
+}
+
+// Dark mode support for Leaflet map tiles
+.leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
 }

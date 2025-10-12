@@ -53,11 +53,11 @@ export class ThemeService {
     const body = document.body;
 
     if (isDark) {
-      body.classList.add('dark-theme');
-      body.classList.remove('light-theme');
+      body.classList.add('dark');
+      body.classList.remove('light');
     } else {
-      body.classList.add('light-theme');
-      body.classList.remove('dark-theme');
+      body.classList.add('light');
+      body.classList.remove('dark');
     }
   }
 

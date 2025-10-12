@@ -11,4 +11,8 @@
 table {
   width: 100%;
   margin: 16px 0;
+
+  th {
+    background-color: var(--custom-table-header-background);
+  }
 }

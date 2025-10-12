@@ -38,19 +38,19 @@
 }
 
 .metric-value.success {
-  color: #4caf50;
+  color: var(--custom-success-color);
 }
 
 .metric-value.warning {
-  color: #ff9800;
+  color: var(--custom-warning-color);
 }
 
 .metric-value.danger {
-  color: #f44336;
+  color: var(--custom-error-color);
 }
 
 .metric-label {
-  color: #666;
+  color: var(--custom-metric-label-color);
   font-size: 14px;
 }
 
@@ -59,7 +59,7 @@
   justify-content: center;
   gap: 16px;
   margin-top: 4px;
-  color: #555;
+  color: var(--custom-metric-label-color);
 }
 
 /* Pie chart cards */
@@ -84,160 +84,6 @@
 
 .countries-card {
   margin-bottom: 0;
-}
-
-.dns-issues-card {
-  margin-bottom: 20px;
-}
-
-.no-issues {
-  text-align: center;
-  padding: 40px;
-  color: #4caf50;
-}
-
-.success-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
-  color: #4caf50;
-}
-
-.dns-issues-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.dns-issue-item {
-  padding: 16px;
-  border-radius: 8px;
-  border-left: 4px solid #ff9800;
-}
-
-.dns-issue-item.severity-critical {
-  background-color: #ffebee;
-  border-left-color: #f44336;
-}
-
-.dns-issue-item.severity-warning {
-  background-color: #fff3e0;
-  border-left-color: #ff9800;
-}
-
-.dns-issue-item.severity-good {
-  background-color: #e8f5e8;
-  border-left-color: #4caf50;
-}
-
-.issue-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.domain-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-}
-
-.severity-badge {
-  font-size: 10px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 10px;
-  color: white;
-}
-
-.severity-badge.severity-critical {
-  background-color: #f44336;
-}
-
-.severity-badge.severity-warning {
-  background-color: #ff9800;
-}
-
-.severity-badge.severity-good {
-  background-color: #4caf50;
-}
-
-.issue-summary {
-  font-size: 14px;
-  color: #555;
-  margin-bottom: 12px;
-  font-style: italic;
-}
-
-.dns-status {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.dns-record {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.record-label {
-  font-weight: bold;
-  font-size: 12px;
-  color: #333;
-}
-
-.record-exists {
-  color: #4caf50;
-  font-size: 12px;
-}
-
-.record-missing {
-  color: #f44336;
-  font-size: 12px;
-}
-
-.record-issues {
-  margin-left: 16px;
-  color: #666;
-}
-
-.record-issues small {
-  display: block;
-  font-size: 10px;
-  margin: 2px 0;
-}
-
-.recommendations {
-  font-size: 12px;
-  color: #555;
-  background-color: rgba(255, 255, 255, 0.7);
-  padding: 8px;
-  border-radius: 4px;
-}
-
-.recommendations ul {
-  margin: 4px 0 0 16px;
-  padding: 0;
-}
-
-.recommendations li {
-  margin: 2px 0;
-}
-
-.critical-severity {
-  color: #f44336;
-}
-
-.warning-severity {
-  color: #ff9800;
-}
-
-.good-severity {
-  color: #4caf50;
 }
 
 .charts-grid {
@@ -272,14 +118,14 @@
   align-items: center;
   gap: 16px;
   padding: 12px;
-  background-color: #f9f9f9;
+  background-color: var(--custom-list-item-background);
   border-radius: 8px;
 }
 
 .country-rank {
   font-size: 18px;
   font-weight: bold;
-  color: #666;
+  color: var(--custom-metric-label-color);
   min-width: 30px;
 }
 
@@ -302,19 +148,19 @@
 }
 
 .total-count {
-  color: #666;
+  color: var(--custom-metric-label-color);
 }
 
 .pass-rate.success {
-  color: #4caf50;
+  color: var(--custom-success-color);
 }
 
 .pass-rate.warning {
-  color: #ff9800;
+  color: var(--custom-warning-color);
 }
 
 .pass-rate.danger {
-  color: #f44336;
+  color: var(--custom-error-color);
 }
 
 .country-progress {
@@ -334,14 +180,14 @@
   align-items: center;
   gap: 16px;
   padding: 12px;
-  background-color: #f9f9f9;
+  background-color: var(--custom-list-item-background);
   border-radius: 8px;
 }
 
 .hf-rank {
   font-size: 18px;
   font-weight: bold;
-  color: #666;
+  color: var(--custom-metric-label-color);
   min-width: 30px;
 }
 
@@ -383,9 +229,9 @@
   display: flex;
   gap: 16px;
   padding: 16px;
-  background-color: #f9f9f9;
+  background-color: var(--custom-list-item-background);
   border-radius: 8px;
-  border-left: 4px solid #2196f3;
+  border-left: 4px solid var(--custom-info-color);
 }
 
 .insight-item mat-icon {
@@ -395,34 +241,31 @@
 }
 
 .insight-item mat-icon.info {
-  color: #2196f3;
+  color: var(--custom-info-color);
 }
 
 .insight-item mat-icon.warning {
-  color: #ff9800;
+  color: var(--custom-warning-color);
 }
 
 .insight-item mat-icon.error {
-  color: #f44336;
+  color: var(--custom-error-color);
 }
 
 .insight-item mat-icon.success {
-  color: #4caf50;
+  color: var(--custom-success-color);
 }
 
 .insight-content h4 {
   margin: 0 0 8px;
-  color: #333;
 }
 
 .insight-content p {
   margin: 0 0 8px;
-  color: #666;
 }
 
 .insight-action {
   font-size: 14px;
-  color: #333;
 }
 
 mat-card-header {

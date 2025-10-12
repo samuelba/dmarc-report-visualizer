@@ -10,7 +10,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--xml-dialog-header-border-color);
 }
 
 h2[mat-dialog-title] {
@@ -37,15 +37,13 @@ mat-dialog-content {
 
 .xml-container {
   padding: 16px;
-  background-color: #f5f5f5;
   min-height: 100%;
 }
 
 pre {
   margin: 0;
   padding: 0;
-  background-color: #ffffff;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--xml-dialog-header-border-color);
   border-radius: 4px;
   overflow-x: auto;
   font-family: 'Courier New', Consolas, Monaco, monospace;
@@ -60,25 +58,19 @@ code {
   padding: 0;
 }
 
-/* Line numbers styling */
-:host ::ng-deep .line-numbers-rows {
-  border-right: 1px solid #e0e0e0;
-}
-
-/* Line highlight styling */
+// /* Line highlight styling */
 :host ::ng-deep .line-highlight {
-  background: linear-gradient(to right, rgba(255, 193, 7, 0.2) 70%, rgba(255, 193, 7, 0));
   margin-top: 0;
 }
 
-:host ::ng-deep .line-highlight:before,
-:host ::ng-deep .line-highlight[data-end]:after {
-  background-color: #ffc107;
-  color: #fff;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
+// :host ::ng-deep .line-highlight:before,
+// :host ::ng-deep .line-highlight[data-end]:after {
+//   background-color: #ffc107;
+//   color: #fff;
+//   font-weight: bold;
+//   padding: 2px 6px;
+//   border-radius: 3px;
+// }
 
 /* Smooth scroll */
 .xml-container {

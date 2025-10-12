@@ -351,7 +351,7 @@ export class ApiService {
       | 'dkimDomain'
       | 'spfDomain'
       | 'country',
-    opts?: { from?: string; to?: string },
+    opts?: { from?: string; to?: string }
   ) {
     let hp = new HttpParams().set('field', field);
     if (opts?.from) hp = hp.set('from', opts.from);

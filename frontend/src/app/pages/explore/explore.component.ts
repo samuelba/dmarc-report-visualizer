@@ -453,7 +453,8 @@ export class ExploreComponent implements OnInit {
     const params = this.route.snapshot.queryParams;
 
     if (params['domain']) this.filters.domain = Array.isArray(params['domain']) ? params['domain'] : [params['domain']];
-    if (params['orgName']) this.filters.orgName = Array.isArray(params['orgName']) ? params['orgName'] : [params['orgName']];
+    if (params['orgName'])
+      this.filters.orgName = Array.isArray(params['orgName']) ? params['orgName'] : [params['orgName']];
     if (params['disposition'])
       this.filters.disposition = Array.isArray(params['disposition']) ? params['disposition'] : [params['disposition']];
     if (params['dkim']) this.filters.dkim = Array.isArray(params['dkim']) ? params['dkim'] : [params['dkim']];

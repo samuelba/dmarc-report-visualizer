@@ -24,13 +24,12 @@ h2 {
 
   .toggle-hint {
     font-size: 0.85rem;
-    color: var(--mdc-theme-text-secondary-on-background, #666);
     margin-left: 0.5rem;
   }
 }
 
 .help-section {
-  background-color: rgba(0, 0, 0, 0.04);
+  background-color: var(--mat-sys-surface-container-low);
   padding: 1rem;
   border-radius: 4px;
 
@@ -46,21 +45,10 @@ h2 {
   }
 
   code {
-    background-color: rgba(0, 0, 0, 0.06);
+    background-color: var(--custom-code-pattern-bg-color);
     padding: 0.1rem 0.3rem;
     border-radius: 2px;
     font-family: 'Courier New', monospace;
-  }
-}
-
-// Dark theme support
-@media (prefers-color-scheme: dark) {
-  .help-section {
-    background-color: rgba(255, 255, 255, 0.05);
-
-    code {
-      background-color: rgba(255, 255, 255, 0.08);
-    }
   }
 }
 

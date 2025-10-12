@@ -78,7 +78,6 @@ export class DashboardComponent implements OnInit {
   // Loading states
   loadingHeatmap = false;
   loadingCountries = false;
-  loadingDnsIssues = false;
   loadingHeaderFrom = false;
   loadingAuthBreakdown = false;
 
@@ -99,27 +98,6 @@ export class DashboardComponent implements OnInit {
   emailVolumeChartOptions: any;
   dkimPieChartOptions: any;
   spfPieChartOptions: any;
-
-  // DNS validation issues
-  domainsWithDnsIssues: Array<{
-    domain: string;
-    severity: 'good' | 'warning' | 'critical';
-    summary: string;
-    recommendations: string[];
-    dmarc: {
-      exists: boolean;
-      policy?: string;
-      issues: string[];
-    };
-    spf: {
-      exists: boolean;
-      issues: string[];
-    };
-    dkim: {
-      foundSelectors: number;
-      issues: string[];
-    };
-  }> = [];
 
   // DMARC insights
   dmarcInsights = [
@@ -189,7 +167,6 @@ export class DashboardComponent implements OnInit {
     this.loadHeaderFromData();
     this.loadCharts();
     this.loadAuthSummary();
-    // this.loadDnsIssues(); // Hidden for now
   }
 
   // Format date for API without timezone issues
@@ -540,51 +517,5 @@ export class DashboardComponent implements OnInit {
     if (passRate >= 80) return 'primary';
     if (passRate >= 50) return 'accent';
     return 'warn';
-  }
-
-  private loadDnsIssues() {
-    this.loadingDnsIssues = true;
-
-    const params = {
-      domain: this.currentFilter.domains.length === 1 ? this.currentFilter.domains[0] : undefined,
-      limit: 10,
-    };
-
-    this.apiService.getDomainsWithDnsIssues(params).subscribe({
-      next: (data) => {
-        this.domainsWithDnsIssues = data;
-        this.loadingDnsIssues = false;
-      },
-      error: (error) => {
-        console.error('Failed to load DNS validation issues:', error);
-        this.loadingDnsIssues = false;
-      },
-    });
-  }
-
-  getDnsSeverityIcon(severity: string): string {
-    switch (severity) {
-      case 'critical':
-        return 'critical-severity';
-      case 'warning':
-        return 'warning-severity';
-      case 'good':
-        return 'good-severity';
-      default:
-        return 'warning-severity';
-    }
-  }
-
-  getDnsSeverityIconName(severity: string): string {
-    switch (severity) {
-      case 'critical':
-        return 'error';
-      case 'warning':
-        return 'warning';
-      case 'good':
-        return 'check_circle';
-      default:
-        return 'help';
-    }
   }
 }
