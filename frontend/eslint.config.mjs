@@ -12,8 +12,18 @@ export default [
     languageOptions: {
       parser: tsparser,
       parserOptions: {
-        project: ['./tsconfig.json'],
+        project: ['./tsconfig.app.json', './tsconfig.spec.json'],
         createDefaultProgram: true,
+      },
+      globals: {
+        console: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        navigator: 'readonly',
+        setTimeout: 'readonly',
+        queueMicrotask: 'readonly',
+        confirm: 'readonly',
       },
     },
     plugins: {
@@ -23,6 +33,7 @@ export default [
     rules: {
       ...eslint.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
+      'curly': ['error', 'all'],
       '@angular-eslint/directive-selector': [
         'error',
         {
@@ -45,6 +56,44 @@ export default [
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/*.spec.ts'],
+    languageOptions: {
+      parser: tsparser,
+      parserOptions: {
+        project: ['./tsconfig.spec.json'],
+        createDefaultProgram: true,
+      },
+      globals: {
+        describe: 'readonly',
+        beforeEach: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        jasmine: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+      '@angular-eslint': angular,
+    },
+    rules: {
+      ...eslint.configs.recommended.rules,
+      ...tseslint.configs.recommended.rules,
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
         },
       ],
     },

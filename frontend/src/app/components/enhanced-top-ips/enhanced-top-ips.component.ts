@@ -101,8 +101,12 @@ export class EnhancedTopIpsComponent implements OnInit, OnChanges {
 
   getProgressBarColor(passCount: number, total: number): 'primary' | 'accent' | 'warn' {
     const percentage = this.getPercentage(passCount, total);
-    if (percentage >= 80) return 'primary';
-    if (percentage >= 50) return 'accent';
+    if (percentage >= 80) {
+      return 'primary';
+    }
+    if (percentage >= 50) {
+      return 'accent';
+    }
     return 'warn';
   }
 }

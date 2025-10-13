@@ -2,7 +2,7 @@ import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChang
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { NgxEchartsDirective, provideEchartsCore } from 'ngx-echarts';
+import { provideEchartsCore } from 'ngx-echarts';
 import * as echarts from 'echarts/core';
 import { LineChart, BarChart, PieChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';

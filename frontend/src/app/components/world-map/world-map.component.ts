@@ -97,7 +97,9 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
   }
 
   private updateHeatmap() {
-    if (!this.map) return;
+    if (!this.map) {
+      return;
+    }
 
     // Clear existing markers
     this.markers.forEach((marker) => this.map!.removeLayer(marker));

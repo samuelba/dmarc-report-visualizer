@@ -17,6 +17,11 @@
           (dragleave)="onDragLeave($event)"
           (drop)="onDrop($event)"
           (click)="fileInput.click()"
+          (keydown.enter)="fileInput.click()"
+          (keydown.space)="fileInput.click()"
+          role="button"
+          tabindex="0"
+          [attr.aria-label]="'Upload DMARC report files'"
         >
           <mat-icon class="upload-icon">cloud_upload</mat-icon>
           <h3>Drag & Drop Files Here</h3>

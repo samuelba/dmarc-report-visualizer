@@ -171,7 +171,9 @@ export class DashboardComponent implements OnInit {
 
   // Format date for API without timezone issues
   private formatDateForApi(date?: Date): string | undefined {
-    if (!date) return undefined;
+    if (!date) {
+      return undefined;
+    }
     const d = new Date(date);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -495,8 +497,12 @@ export class DashboardComponent implements OnInit {
 
   getProgressColor(country: CountryData): 'primary' | 'accent' | 'warn' {
     const passRate = this.getPassRate(country);
-    if (passRate >= 80) return 'primary';
-    if (passRate >= 50) return 'accent';
+    if (passRate >= 80) {
+      return 'primary';
+    }
+    if (passRate >= 50) {
+      return 'accent';
+    }
     return 'warn';
   }
 
@@ -514,8 +520,12 @@ export class DashboardComponent implements OnInit {
 
   getHeaderFromProgressColor(row: HeaderFromRow): 'primary' | 'accent' | 'warn' {
     const passRate = this.getHeaderFromDmarcPassRate(row);
-    if (passRate >= 80) return 'primary';
-    if (passRate >= 50) return 'accent';
+    if (passRate >= 80) {
+      return 'primary';
+    }
+    if (passRate >= 50) {
+      return 'accent';
+    }
     return 'warn';
   }
 }

@@ -163,14 +163,14 @@ export class ExploreComponent implements OnInit {
               height: '85vh',
             });
           },
-          error: (err) => {
+          error: (_err) => {
             this.snackBar.open('Failed to load XML report', 'Close', {
               duration: 5000,
             });
           },
         });
       },
-      error: (err) => {
+      error: (_err) => {
         this.snackBar.open('Failed to load record details', 'Close', {
           duration: 5000,
         });
@@ -283,7 +283,9 @@ export class ExploreComponent implements OnInit {
   viewXml(record: DmarcRecord) {
     // Get the report ID from the nested report object
     const reportId = (record as any).report?.id;
-    if (!reportId) return;
+    if (!reportId) {
+      return;
+    }
 
     this.api.getReportXml(reportId).subscribe((xml) => {
       this.dialog.open(XmlViewerDialogComponent, {
@@ -430,10 +432,12 @@ export class ExploreComponent implements OnInit {
 
   // Get country name from code
   getCountryName(code: string | undefined): string {
-    if (!code) return '';
+    if (!code) {
+      return '';
+    }
     try {
       return this.regionNames.of(code.toUpperCase()) || code;
-    } catch (error) {
+    } catch (_error) {
       // If the country code is invalid, just return it as-is
       return code;
     }
@@ -452,29 +456,44 @@ export class ExploreComponent implements OnInit {
   private loadFiltersFromUrl() {
     const params = this.route.snapshot.queryParams;
 
-    if (params['domain']) this.filters.domain = Array.isArray(params['domain']) ? params['domain'] : [params['domain']];
-    if (params['orgName'])
+    if (params['domain']) {
+      this.filters.domain = Array.isArray(params['domain']) ? params['domain'] : [params['domain']];
+    }
+    if (params['orgName']) {
       this.filters.orgName = Array.isArray(params['orgName']) ? params['orgName'] : [params['orgName']];
-    if (params['disposition'])
+    }
+    if (params['disposition']) {
       this.filters.disposition = Array.isArray(params['disposition']) ? params['disposition'] : [params['disposition']];
-    if (params['dkim']) this.filters.dkim = Array.isArray(params['dkim']) ? params['dkim'] : [params['dkim']];
-    if (params['spf']) this.filters.spf = Array.isArray(params['spf']) ? params['spf'] : [params['spf']];
-    if (params['sourceIp'])
+    }
+    if (params['dkim']) {
+      this.filters.dkim = Array.isArray(params['dkim']) ? params['dkim'] : [params['dkim']];
+    }
+    if (params['spf']) {
+      this.filters.spf = Array.isArray(params['spf']) ? params['spf'] : [params['spf']];
+    }
+    if (params['sourceIp']) {
       this.filters.sourceIp = Array.isArray(params['sourceIp']) ? params['sourceIp'] : [params['sourceIp']];
-    if (params['envelopeTo'])
+    }
+    if (params['envelopeTo']) {
       this.filters.envelopeTo = Array.isArray(params['envelopeTo']) ? params['envelopeTo'] : [params['envelopeTo']];
-    if (params['envelopeFrom'])
+    }
+    if (params['envelopeFrom']) {
       this.filters.envelopeFrom = Array.isArray(params['envelopeFrom'])
         ? params['envelopeFrom']
         : [params['envelopeFrom']];
-    if (params['headerFrom'])
+    }
+    if (params['headerFrom']) {
       this.filters.headerFrom = Array.isArray(params['headerFrom']) ? params['headerFrom'] : [params['headerFrom']];
-    if (params['dkimDomain'])
+    }
+    if (params['dkimDomain']) {
       this.filters.dkimDomain = Array.isArray(params['dkimDomain']) ? params['dkimDomain'] : [params['dkimDomain']];
-    if (params['spfDomain'])
+    }
+    if (params['spfDomain']) {
       this.filters.spfDomain = Array.isArray(params['spfDomain']) ? params['spfDomain'] : [params['spfDomain']];
-    if (params['country'])
+    }
+    if (params['country']) {
       this.filters.country = Array.isArray(params['country']) ? params['country'] : [params['country']];
+    }
 
     // Load date filter from URL
     if (params['period']) {
@@ -486,14 +505,26 @@ export class ExploreComponent implements OnInit {
         fromDate: params['from'] ? new Date(params['from']) : undefined,
         toDate: params['to'] ? new Date(params['to']) : undefined,
       };
-      if (params['from']) this.filters.from = new Date(params['from']);
-      if (params['to']) this.filters.to = new Date(params['to']);
+      if (params['from']) {
+        this.filters.from = new Date(params['from']);
+      }
+      if (params['to']) {
+        this.filters.to = new Date(params['to']);
+      }
     }
 
-    if (params['contains']) this.filters.contains = params['contains'];
-    if (params['isForwarded']) this.filters.isForwarded = params['isForwarded'];
-    if (params['page']) this.page.set(parseInt(params['page'], 10));
-    if (params['pageSize']) this.pageSize.set(parseInt(params['pageSize'], 10));
+    if (params['contains']) {
+      this.filters.contains = params['contains'];
+    }
+    if (params['isForwarded']) {
+      this.filters.isForwarded = params['isForwarded'];
+    }
+    if (params['page']) {
+      this.page.set(parseInt(params['page'], 10));
+    }
+    if (params['pageSize']) {
+      this.pageSize.set(parseInt(params['pageSize'], 10));
+    }
   }
 
   // Visual styling methods for table cells
@@ -686,31 +717,67 @@ export class ExploreComponent implements OnInit {
   private updateUrl() {
     const queryParams: any = {};
 
-    if (this.filters.domain.length) queryParams.domain = this.filters.domain;
-    if (this.filters.orgName.length) queryParams.orgName = this.filters.orgName;
-    if (this.filters.disposition.length) queryParams.disposition = this.filters.disposition;
-    if (this.filters.dkim.length) queryParams.dkim = this.filters.dkim;
-    if (this.filters.spf.length) queryParams.spf = this.filters.spf;
-    if (this.filters.sourceIp.length) queryParams.sourceIp = this.filters.sourceIp;
-    if (this.filters.envelopeTo.length) queryParams.envelopeTo = this.filters.envelopeTo;
-    if (this.filters.envelopeFrom.length) queryParams.envelopeFrom = this.filters.envelopeFrom;
-    if (this.filters.headerFrom.length) queryParams.headerFrom = this.filters.headerFrom;
-    if (this.filters.dkimDomain.length) queryParams.dkimDomain = this.filters.dkimDomain;
-    if (this.filters.spfDomain.length) queryParams.spfDomain = this.filters.spfDomain;
-    if (this.filters.country.length) queryParams.country = this.filters.country;
+    if (this.filters.domain.length) {
+      queryParams.domain = this.filters.domain;
+    }
+    if (this.filters.orgName.length) {
+      queryParams.orgName = this.filters.orgName;
+    }
+    if (this.filters.disposition.length) {
+      queryParams.disposition = this.filters.disposition;
+    }
+    if (this.filters.dkim.length) {
+      queryParams.dkim = this.filters.dkim;
+    }
+    if (this.filters.spf.length) {
+      queryParams.spf = this.filters.spf;
+    }
+    if (this.filters.sourceIp.length) {
+      queryParams.sourceIp = this.filters.sourceIp;
+    }
+    if (this.filters.envelopeTo.length) {
+      queryParams.envelopeTo = this.filters.envelopeTo;
+    }
+    if (this.filters.envelopeFrom.length) {
+      queryParams.envelopeFrom = this.filters.envelopeFrom;
+    }
+    if (this.filters.headerFrom.length) {
+      queryParams.headerFrom = this.filters.headerFrom;
+    }
+    if (this.filters.dkimDomain.length) {
+      queryParams.dkimDomain = this.filters.dkimDomain;
+    }
+    if (this.filters.spfDomain.length) {
+      queryParams.spfDomain = this.filters.spfDomain;
+    }
+    if (this.filters.country.length) {
+      queryParams.country = this.filters.country;
+    }
 
     // Save date filter to URL
     if (this.dateFilterValue.mode === 'period' && this.dateFilterValue.periodInput) {
       queryParams.period = this.dateFilterValue.periodInput;
     } else if (this.dateFilterValue.mode === 'range') {
-      if (this.filters.from) queryParams.from = this.formatDateForUrl(this.filters.from);
-      if (this.filters.to) queryParams.to = this.formatDateForUrl(this.filters.to);
+      if (this.filters.from) {
+        queryParams.from = this.formatDateForUrl(this.filters.from);
+      }
+      if (this.filters.to) {
+        queryParams.to = this.formatDateForUrl(this.filters.to);
+      }
     }
 
-    if (this.filters.contains) queryParams.contains = this.filters.contains;
-    if (this.filters.isForwarded) queryParams.isForwarded = this.filters.isForwarded;
-    if (this.page() > 1) queryParams.page = this.page();
-    if (this.pageSize() !== 20) queryParams.pageSize = this.pageSize();
+    if (this.filters.contains) {
+      queryParams.contains = this.filters.contains;
+    }
+    if (this.filters.isForwarded) {
+      queryParams.isForwarded = this.filters.isForwarded;
+    }
+    if (this.page() > 1) {
+      queryParams.page = this.page();
+    }
+    if (this.pageSize() !== 20) {
+      queryParams.pageSize = this.pageSize();
+    }
 
     this.router.navigate([], {
       relativeTo: this.route,
