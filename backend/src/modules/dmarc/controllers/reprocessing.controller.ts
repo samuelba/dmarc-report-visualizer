@@ -23,7 +23,9 @@ export class ReprocessingController {
    * Make an ISO date string inclusive by setting time to end of day
    */
   private makeToDateInclusive(dateStr?: string): string | undefined {
-    if (!dateStr) return undefined;
+    if (!dateStr) {
+      return undefined;
+    }
     const date = new Date(dateStr);
     date.setHours(23, 59, 59, 999);
     return date.toISOString();

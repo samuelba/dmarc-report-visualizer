@@ -93,7 +93,9 @@ export class ReprocessingJob {
    * Get elapsed time in seconds
    */
   get elapsedSeconds(): number | null {
-    if (!this.startedAt) return null;
+    if (!this.startedAt) {
+      return null;
+    }
 
     const endTime = this.completedAt || new Date();
     return Math.round((endTime.getTime() - this.startedAt.getTime()) / 1000);

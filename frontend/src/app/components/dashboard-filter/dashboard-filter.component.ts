@@ -4,7 +4,6 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { MaterialModule } from '../../shared/material.module';
 import { ApiService } from '../../services/api.service';
-import { Observable, startWith, map } from 'rxjs';
 import { CombinedDateFilterComponent, DateFilterValue } from '../combined-date-filter/combined-date-filter.component';
 
 @Component({

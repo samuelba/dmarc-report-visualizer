@@ -254,14 +254,17 @@ export class DmarcReportService {
   }> {
     const { domain, from, to } = params;
     const where: FindOptionsWhere<DmarcReport> = {};
-    if (domain) where.domain = ILike(`%${domain}%`);
-    if (from || to)
+    if (domain) {
+      where.domain = ILike(`%${domain}%`);
+    }
+    if (from || to) {
       where.beginDate = Between(
         from ?? new Date(0),
         to ?? new Date('2999-12-31'),
       );
+    }
 
-    const [rows, totalReports, uniqueDomains, uniqueReportIds] =
+    const [_rows, totalReports, uniqueDomains, uniqueReportIds] =
       await Promise.all([
         this.dmarcReportRepository.find({ where }),
         this.dmarcReportRepository.count({ where }),
@@ -310,8 +313,12 @@ export class DmarcReportService {
           domain: `%${domain}%`,
         });
 
-      if (from) qb.andWhere('rep.beginDate >= :from', { from });
-      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      if (from) {
+        qb.andWhere('rep.beginDate >= :from', { from });
+      }
+      if (to) {
+        qb.andWhere('rep.beginDate <= :to', { to });
+      }
 
       const rows = await qb
         .select(`DATE_TRUNC('${dateTrunc}', rep.beginDate)`, 'bucket')
@@ -324,8 +331,12 @@ export class DmarcReportService {
     } else {
       // When not filtering, just count all reports
       const qb = this.dmarcReportRepository.createQueryBuilder('rep');
-      if (from) qb.andWhere('rep.beginDate >= :from', { from });
-      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      if (from) {
+        qb.andWhere('rep.beginDate >= :from', { from });
+      }
+      if (to) {
+        qb.andWhere('rep.beginDate <= :to', { to });
+      }
 
       const rows = await qb
         .select(`DATE_TRUNC('${dateTrunc}', rep.beginDate)`, 'bucket')
@@ -347,10 +358,15 @@ export class DmarcReportService {
     const { domain, from, to, limit } = params;
 
     const qb = this.dmarcReportRepository.createQueryBuilder('r');
-    if (domain)
+    if (domain) {
       qb.andWhere('r.domain ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('r.beginDate >= :from', { from });
-    if (to) qb.andWhere('r.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('r.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('r.beginDate <= :to', { to });
+    }
 
     const rows = await qb
       .select('r.domain', 'source')
@@ -378,10 +394,15 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const row = await qb
       .select('COALESCE(SUM(rec.count),0)', 'total')
@@ -439,10 +460,15 @@ export class DmarcReportService {
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
 
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const row = await qb
       .select(
@@ -506,10 +532,15 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const rows = await qb
       .select(`DATE_TRUNC('${dateTrunc}', rep.beginDate)`, 'bucket')
@@ -567,10 +598,15 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const rows = await qb
       .select(`DATE_TRUNC('${dateTrunc}', rep.beginDate)`, 'bucket')
@@ -620,10 +656,15 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const row = await qb
       .select(
@@ -670,10 +711,15 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const rows = await qb
       .select('rec.sourceIp', 'ip')
@@ -725,10 +771,15 @@ export class DmarcReportService {
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep');
-    if (domain)
+    if (domain) {
       qb.andWhere('rec.headerFrom ILIKE :domain', { domain: `%${domain}%` });
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    }
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
 
     const rows = await qb
       .select('rec.sourceIp', 'ip')
@@ -809,8 +860,12 @@ export class DmarcReportService {
         orgNames: arr.map((o) => `%${o}%`),
       });
     }
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
     if (disposition) {
       const arr = Array.isArray(disposition) ? disposition : [disposition];
       qb.andWhere('rec.disposition IN (:...disps)', { disps: arr });
@@ -1033,8 +1088,12 @@ export class DmarcReportService {
         .createQueryBuilder('rep')
         .select('DISTINCT rep.domain', 'v')
         .where('rep.domain IS NOT NULL');
-      if (from) qb.andWhere('rep.beginDate >= :from', { from });
-      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      if (from) {
+        qb.andWhere('rep.beginDate >= :from', { from });
+      }
+      if (to) {
+        qb.andWhere('rep.beginDate <= :to', { to });
+      }
       const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
@@ -1043,8 +1102,12 @@ export class DmarcReportService {
         .createQueryBuilder('rep')
         .select('DISTINCT rep.orgName', 'v')
         .where('rep.orgName IS NOT NULL');
-      if (from) qb.andWhere('rep.beginDate >= :from', { from });
-      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      if (from) {
+        qb.andWhere('rep.beginDate >= :from', { from });
+      }
+      if (to) {
+        qb.andWhere('rep.beginDate <= :to', { to });
+      }
       const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
@@ -1056,8 +1119,12 @@ export class DmarcReportService {
         .innerJoin('rec.report', 'rep')
         .select('DISTINCT dk.domain', 'v')
         .where('dk.domain IS NOT NULL');
-      if (from) qb.andWhere('rep.beginDate >= :from', { from });
-      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      if (from) {
+        qb.andWhere('rep.beginDate >= :from', { from });
+      }
+      if (to) {
+        qb.andWhere('rep.beginDate <= :to', { to });
+      }
       const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
@@ -1069,8 +1136,12 @@ export class DmarcReportService {
         .innerJoin('rec.report', 'rep')
         .select('DISTINCT sf.domain', 'v')
         .where('sf.domain IS NOT NULL');
-      if (from) qb.andWhere('rep.beginDate >= :from', { from });
-      if (to) qb.andWhere('rep.beginDate <= :to', { to });
+      if (from) {
+        qb.andWhere('rep.beginDate >= :from', { from });
+      }
+      if (to) {
+        qb.andWhere('rep.beginDate <= :to', { to });
+      }
       const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
@@ -1087,14 +1158,20 @@ export class DmarcReportService {
       .leftJoin('rec.report', 'rep')
       .select(`DISTINCT ${col}`, 'v')
       .where(`${col} IS NOT NULL`);
-    if (from) qb.andWhere('rep.beginDate >= :from', { from });
-    if (to) qb.andWhere('rep.beginDate <= :to', { to });
+    if (from) {
+      qb.andWhere('rep.beginDate >= :from', { from });
+    }
+    if (to) {
+      qb.andWhere('rep.beginDate <= :to', { to });
+    }
     const rows = await qb.orderBy('v', 'ASC').getRawMany();
     return rows.map((r: any) => r.v).filter(Boolean);
   }
 
   private coerceToArray<T>(maybeArray: T | T[] | undefined): T[] {
-    if (!maybeArray) return [];
+    if (!maybeArray) {
+      return [];
+    }
     return Array.isArray(maybeArray) ? maybeArray : [maybeArray];
   }
 
@@ -1113,9 +1190,9 @@ export class DmarcReportService {
       parseAttributeValue: true,
       isArray: (
         tagName: string,
-        jPath: string,
-        isLeafNode: boolean,
-        isAttribute: boolean,
+        _jPath: string,
+        _isLeafNode: boolean,
+        _isAttribute: boolean,
       ): boolean => {
         return (
           tagName === 'record' ||
@@ -1129,7 +1206,7 @@ export class DmarcReportService {
     let parsed: any;
     try {
       parsed = parser.parse(xmlContent);
-    } catch (err) {
+    } catch (_err) {
       throw new BadRequestException('Failed to parse XML content');
     }
 
@@ -1153,7 +1230,9 @@ export class DmarcReportService {
     const parsedRecords: Partial<DmarcRecord>[] = [];
 
     for (const recordData of recordsArray) {
-      if (!recordData || typeof recordData !== 'object') continue;
+      if (!recordData || typeof recordData !== 'object') {
+        continue;
+      }
 
       const row = recordData.row || {};
       // Support both 'identifiers' and 'identities' (both are valid per DMARC spec)
@@ -1164,20 +1243,29 @@ export class DmarcReportService {
       const normalizePassFail = (v: any): 'pass' | 'fail' | undefined => {
         // Handle both string and array formats (some XML parsers return arrays)
         const value = Array.isArray(v) ? v[0] : v;
-        if (typeof value !== 'string') return undefined;
+        if (typeof value !== 'string') {
+          return undefined;
+        }
         const val = value.toLowerCase();
-        if (val === 'pass') return 'pass';
-        if (val === 'fail') return 'fail';
+        if (val === 'pass') {
+          return 'pass';
+        }
+        if (val === 'fail') {
+          return 'fail';
+        }
         return undefined;
       };
 
       const normalizeDisposition = (
         v: any,
       ): 'none' | 'quarantine' | 'reject' | undefined => {
-        if (typeof v !== 'string') return undefined;
+        if (typeof v !== 'string') {
+          return undefined;
+        }
         const val = v.toLowerCase();
-        if (val === 'none' || val === 'quarantine' || val === 'reject')
+        if (val === 'none' || val === 'quarantine' || val === 'reject') {
           return val as any;
+        }
         return undefined;
       };
 
@@ -1346,7 +1434,7 @@ export class DmarcReportService {
     if (typeIsGzip) {
       try {
         return this.decompressGzipToString(fileBuffer);
-      } catch (e) {
+      } catch (_e) {
         throw new BadRequestException('Failed to decompress gzip file');
       }
     }
@@ -1499,7 +1587,7 @@ export class DmarcReportService {
     if (looksLikeGzip) {
       try {
         return this.decompressGzipToString(fileBuffer);
-      } catch (e) {
+      } catch (_e) {
         throw new BadRequestException('Failed to decompress gzip file');
       }
     }
@@ -1518,7 +1606,7 @@ export class DmarcReportService {
           files.find((f) => f.path.toLowerCase().endsWith('.xml')) || files[0];
         const xmlBuf = await xmlFile.buffer();
         return xmlBuf.toString('utf8');
-      } catch (e) {
+      } catch (_e) {
         throw new BadRequestException('Failed to read ZIP archive');
       }
     }
@@ -1527,13 +1615,17 @@ export class DmarcReportService {
   }
 
   private isZipBuffer(buffer: Buffer): boolean {
-    if (buffer.length < 4) return false;
+    if (buffer.length < 4) {
+      return false;
+    }
     const a = buffer[0] === 0x50 && buffer[1] === 0x4b; // 'PK'
     return a;
   }
 
   private isGzipBuffer(buffer: Buffer): boolean {
-    if (buffer.length < 2) return false;
+    if (buffer.length < 2) {
+      return false;
+    }
     return buffer[0] === 0x1f && buffer[1] === 0x8b;
   }
 
@@ -1541,7 +1633,7 @@ export class DmarcReportService {
     try {
       const decompressed = zlib.gunzipSync(buffer);
       return decompressed.toString('utf8');
-    } catch (err) {
+    } catch (_err) {
       const inflated = zlib.inflateSync(buffer);
       return inflated.toString('utf8');
     }

@@ -59,7 +59,9 @@ export class FixMissingHeaderFrom1739500000000 implements MigrationInterface {
     for (const [reportId, records] of recordsByReport.entries()) {
       try {
         const xmlContent = records[0].originalXml;
-        if (!xmlContent) continue;
+        if (!xmlContent) {
+          continue;
+        }
 
         const parsed = parser.parse(xmlContent);
         const feedback = parsed.feedback || {};
@@ -71,7 +73,9 @@ export class FixMissingHeaderFrom1739500000000 implements MigrationInterface {
         // Build a map of sourceIp -> headerFrom from parsed XML
         const headerFromMap = new Map<string, string>();
         for (const recordData of recordsArray) {
-          if (!recordData || typeof recordData !== 'object') continue;
+          if (!recordData || typeof recordData !== 'object') {
+            continue;
+          }
 
           const row = recordData.row || {};
           const sourceIp = row.source_ip;
@@ -134,7 +138,7 @@ Migration complete:
     }
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // This migration cannot be easily reversed since we don't store the previous state
     // The headerFrom fields were NULL/empty before, so reverting would lose data
     console.log(

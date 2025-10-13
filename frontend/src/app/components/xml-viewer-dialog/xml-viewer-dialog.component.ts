@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markup';
 
@@ -96,7 +96,7 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
       }
 
       return this.serializeXml(xmlDoc.documentElement, 0);
-    } catch (e) {
+    } catch (_e) {
       return xml; // Return original on error
     }
   }
@@ -179,7 +179,9 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     if (record.sourceIp) {
       checkCount++;
       const ipMatch = recordXml.includes(`<source_ip>${record.sourceIp}</source_ip>`);
-      if (!ipMatch) return false;
+      if (!ipMatch) {
+        return false;
+      }
       matchCount++;
     }
 
@@ -187,7 +189,9 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     if (record.count !== undefined && record.count !== null) {
       checkCount++;
       const countMatch = recordXml.includes(`<count>${record.count}</count>`);
-      if (!countMatch) return false;
+      if (!countMatch) {
+        return false;
+      }
       matchCount++;
     }
 
@@ -195,42 +199,54 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     if (record.disposition) {
       checkCount++;
       const dispositionMatch = recordXml.includes(`<disposition>${record.disposition}</disposition>`);
-      if (dispositionMatch) matchCount++;
+      if (dispositionMatch) {
+        matchCount++;
+      }
     }
 
     // Match based on DKIM policy evaluated (in policy_evaluated section)
     if (record.dmarcDkim) {
       checkCount++;
       const dkimMatch = recordXml.includes(`<dkim>${record.dmarcDkim}</dkim>`);
-      if (dkimMatch) matchCount++;
+      if (dkimMatch) {
+        matchCount++;
+      }
     }
 
     // Match based on SPF policy evaluated (in policy_evaluated section)
     if (record.dmarcSpf) {
       checkCount++;
       const spfMatch = recordXml.includes(`<spf>${record.dmarcSpf}</spf>`);
-      if (spfMatch) matchCount++;
+      if (spfMatch) {
+        matchCount++;
+      }
     }
 
     // Match based on header_from (identifiers section)
     if (record.headerFrom) {
       checkCount++;
       const headerFromMatch = recordXml.includes(`<header_from>${record.headerFrom}</header_from>`);
-      if (headerFromMatch) matchCount++;
+      if (headerFromMatch) {
+        matchCount++;
+      }
     }
 
     // Match based on envelope_to (identifiers section)
     if (record.envelopeTo) {
       checkCount++;
       const envelopeToMatch = recordXml.includes(`<envelope_to>${record.envelopeTo}</envelope_to>`);
-      if (envelopeToMatch) matchCount++;
+      if (envelopeToMatch) {
+        matchCount++;
+      }
     }
 
     // Match based on envelope_from (identifiers section)
     if (record.envelopeFrom) {
       checkCount++;
       const envelopeFromMatch = recordXml.includes(`<envelope_from>${record.envelopeFrom}</envelope_from>`);
-      if (envelopeFromMatch) matchCount++;
+      if (envelopeFromMatch) {
+        matchCount++;
+      }
     }
 
     // We need at least source_ip and count to match, plus at least 2 more fields
@@ -241,10 +257,14 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
   }
 
   scrollToHighlight() {
-    if (!this.highlightedLines) return;
+    if (!this.highlightedLines) {
+      return;
+    }
 
     const container = this.xmlContent?.nativeElement?.closest('mat-dialog-content');
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     // Find the highlighted line element
     const highlightedElement = document.querySelector('.line-highlight');
@@ -268,7 +288,7 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
           verticalPosition: 'bottom',
         });
       },
-      (err) => {
+      (_err) => {
         this.snackBar.open('Failed to copy XML', 'Close', {
           duration: 3000,
           horizontalPosition: 'center',
@@ -326,7 +346,7 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
           verticalPosition: 'bottom',
         });
       },
-      (err) => {
+      (_err) => {
         this.snackBar.open('Failed to copy share link', 'Close', {
           duration: 3000,
           horizontalPosition: 'center',

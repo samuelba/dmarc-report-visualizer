@@ -2,7 +2,9 @@ import { registerAs } from '@nestjs/config';
 import * as path from 'path';
 
 function toBool(val: string | undefined, fallback: boolean): boolean {
-  if (val === undefined) return fallback;
+  if (val === undefined) {
+    return fallback;
+  }
   const s = val.toLowerCase();
   return s === 'true' || s === '1' || s === 'yes';
 }

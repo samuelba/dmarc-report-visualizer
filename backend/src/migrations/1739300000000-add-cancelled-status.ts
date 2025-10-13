@@ -11,7 +11,7 @@ export class AddCancelledStatus1739300000000 implements MigrationInterface {
     `);
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // Note: PostgreSQL doesn't support removing enum values directly
     // This would require recreating the enum type, which is complex and risky
     // For now, we'll leave the cancelled value in the enum even on rollback

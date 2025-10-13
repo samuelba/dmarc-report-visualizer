@@ -78,19 +78,28 @@ export class ThirdPartySenderDialogComponent implements OnInit {
     const pattern = type === 'dkim' ? this.formData.dkimPattern : this.formData.spfPattern;
 
     if (!pattern || pattern.trim() === '') {
-      if (type === 'dkim') this.dkimError.set(null);
-      else this.spfError.set(null);
+      if (type === 'dkim') {
+        this.dkimError.set(null);
+      } else {
+        this.spfError.set(null);
+      }
       return;
     }
 
     try {
       new RegExp(pattern);
-      if (type === 'dkim') this.dkimError.set(null);
-      else this.spfError.set(null);
-    } catch (error) {
+      if (type === 'dkim') {
+        this.dkimError.set(null);
+      } else {
+        this.spfError.set(null);
+      }
+    } catch (_error) {
       const errorMsg = 'Invalid regex pattern';
-      if (type === 'dkim') this.dkimError.set(errorMsg);
-      else this.spfError.set(errorMsg);
+      if (type === 'dkim') {
+        this.dkimError.set(errorMsg);
+      } else {
+        this.spfError.set(errorMsg);
+      }
     }
   }
 
@@ -103,7 +112,9 @@ export class ThirdPartySenderDialogComponent implements OnInit {
   }
 
   save() {
-    if (!this.isValid()) return;
+    if (!this.isValid()) {
+      return;
+    }
 
     // Validate regex patterns one more time
     this.validateRegex('dkim');

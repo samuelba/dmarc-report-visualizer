@@ -18,7 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/api.service';
 import { ThirdPartySenderDialogComponent } from './third-party-sender-dialog.component';
-import { interval, timer, takeWhile } from 'rxjs';
+import { timer, takeWhile } from 'rxjs';
 
 @Component({
   selector: 'app-settings',
@@ -296,7 +296,9 @@ export class SettingsComponent implements OnInit {
   }
 
   getProgress(job: ReprocessingJob): number {
-    if (!job.totalRecords || job.totalRecords === 0) return 0;
+    if (!job.totalRecords || job.totalRecords === 0) {
+      return 0;
+    }
     return Math.round((job.processedRecords / job.totalRecords) * 100);
   }
 
@@ -335,19 +337,25 @@ export class SettingsComponent implements OnInit {
   }
 
   formatDate(dateString: string | undefined): string {
-    if (!dateString) return '-';
+    if (!dateString) {
+      return '-';
+    }
     const date = new Date(dateString);
     return date.toLocaleString();
   }
 
   formatDuration(startedAt: string | undefined, completedAt: string | undefined): string {
-    if (!startedAt) return '-';
+    if (!startedAt) {
+      return '-';
+    }
 
     const start = new Date(startedAt).getTime();
     const end = completedAt ? new Date(completedAt).getTime() : Date.now();
     const seconds = Math.round((end - start) / 1000);
 
-    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 60) {
+      return `${seconds}s`;
+    }
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;

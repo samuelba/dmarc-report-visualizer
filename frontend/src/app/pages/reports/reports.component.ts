@@ -80,14 +80,14 @@ export class ReportsComponent implements OnInit {
               height: '85vh',
             });
           },
-          error: (err) => {
+          error: (_err) => {
             this.snackBar.open('Failed to load XML report', 'Close', {
               duration: 5000,
             });
           },
         });
       },
-      error: (err) => {
+      error: (_err) => {
         this.snackBar.open('Failed to load report details', 'Close', {
           duration: 5000,
         });
@@ -110,9 +110,15 @@ export class ReportsComponent implements OnInit {
 
   private updateUrl() {
     const queryParams: any = {};
-    if (this.domainFilter) queryParams.domain = this.domainFilter;
-    if (this.page() > 1) queryParams.page = this.page();
-    if (this.pageSize() !== 20) queryParams.pageSize = this.pageSize();
+    if (this.domainFilter) {
+      queryParams.domain = this.domainFilter;
+    }
+    if (this.page() > 1) {
+      queryParams.page = this.page();
+    }
+    if (this.pageSize() !== 20) {
+      queryParams.pageSize = this.pageSize();
+    }
 
     this.router.navigate([], {
       relativeTo: this.route,

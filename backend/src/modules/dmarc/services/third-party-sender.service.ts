@@ -124,11 +124,21 @@ export class ThirdPartySenderService {
     this.validateRegexPatterns(dto.dkimPattern, dto.spfPattern);
 
     // Update fields
-    if (dto.name !== undefined) sender.name = dto.name;
-    if (dto.description !== undefined) sender.description = dto.description;
-    if (dto.dkimPattern !== undefined) sender.dkimPattern = dto.dkimPattern;
-    if (dto.spfPattern !== undefined) sender.spfPattern = dto.spfPattern;
-    if (dto.enabled !== undefined) sender.enabled = dto.enabled;
+    if (dto.name !== undefined) {
+      sender.name = dto.name;
+    }
+    if (dto.description !== undefined) {
+      sender.description = dto.description;
+    }
+    if (dto.dkimPattern !== undefined) {
+      sender.dkimPattern = dto.dkimPattern;
+    }
+    if (dto.spfPattern !== undefined) {
+      sender.spfPattern = dto.spfPattern;
+    }
+    if (dto.enabled !== undefined) {
+      sender.enabled = dto.enabled;
+    }
 
     const updated = await this.thirdPartySenderRepository.save(sender);
 

@@ -6,7 +6,6 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
-import { forkJoin } from 'rxjs';
 
 @Component({
   standalone: true,
@@ -82,7 +81,9 @@ export class UploadComponent {
   }
 
   public formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) {
+      return '0 Bytes';
+    }
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -91,14 +92,13 @@ export class UploadComponent {
 
   public uploadFiles() {
     const files = this.selectedFiles();
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      return;
+    }
 
     this.isUploading.set(true);
     this.uploadProgress.set(0);
     this.uploadResults.set([]);
-
-    const uploads = files.map((file) => this.api.upload(file));
-    let completedUploads = 0;
 
     // Upload files sequentially to avoid overwhelming the server
     this.uploadFilesSequentially(files, 0);

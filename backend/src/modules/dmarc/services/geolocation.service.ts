@@ -119,7 +119,7 @@ export class GeolocationService {
   private getCountryName(countryCode: string): string {
     try {
       return this.regionNames.of(countryCode) || countryCode;
-    } catch (error) {
+    } catch (_error) {
       // If the country code is invalid, just return it as-is
       return countryCode;
     }
@@ -139,14 +139,19 @@ export class GeolocationService {
       failCount: number;
     }>
   > {
-    const { domain, from, to, limit = 10 } = params;
+    const {
+      domain: _domain,
+      from: _from,
+      to: _to,
+      limit: _limit = 10,
+    } = params;
 
     // This would be implemented with a proper query builder
     // For now, return a placeholder
     return [];
   }
 
-  async getGeoHeatmapData(params: {
+  async getGeoHeatmapData(_params: {
     domain?: string;
     from?: Date;
     to?: Date;

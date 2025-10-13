@@ -321,7 +321,9 @@ export class ApiService {
   }) {
     let hp = new HttpParams();
     Object.entries(params).forEach(([k, v]) => {
-      if (v === undefined || v === '') return;
+      if (v === undefined || v === '') {
+        return;
+      }
       // Special handling for null values (e.g., isForwarded: null means "unknown")
       if (v === null) {
         hp = hp.set(k, 'null');
@@ -354,8 +356,12 @@ export class ApiService {
     opts?: { from?: string; to?: string }
   ) {
     let hp = new HttpParams().set('field', field);
-    if (opts?.from) hp = hp.set('from', opts.from);
-    if (opts?.to) hp = hp.set('to', opts.to);
+    if (opts?.from) {
+      hp = hp.set('from', opts.from);
+    }
+    if (opts?.to) {
+      hp = hp.set('to', opts.to);
+    }
     return this.http.get<string[]>(`${this.apiBase}/dmarc-reports/records/distinct`, {
       params: hp,
     });

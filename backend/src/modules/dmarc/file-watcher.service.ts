@@ -64,7 +64,7 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
       binaryInterval: 1000,
       followSymlinks: true,
       // Ignore common temporary files
-      ignored: (p: string) => /(^|\/)\.[^\/]+$/.test(p),
+      ignored: (p: string) => /(^|[/])\.[^/]+$/.test(p),
     });
 
     if (this.isVerbose) {
@@ -138,18 +138,25 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
 
   private getFileTypeFromPath(filePath: string): string {
     const lower = filePath.toLowerCase();
-    if (lower.endsWith('.xml')) return 'xml';
-    if (lower.endsWith('.xml.gz') || lower.endsWith('.gz')) return 'gz';
-    if (lower.endsWith('.zip')) return 'zip';
+    if (lower.endsWith('.xml')) {
+      return 'xml';
+    }
+    if (lower.endsWith('.xml.gz') || lower.endsWith('.gz')) {
+      return 'gz';
+    }
+    if (lower.endsWith('.zip')) {
+      return 'zip';
+    }
     return path.extname(lower).replace('.', '');
   }
 
   private async handleFileAdd(filePath: string): Promise<void> {
     if (this.processingPaths.has(filePath)) {
-      if (this.isVerbose)
+      if (this.isVerbose) {
         this.logger.log(
           `[${this.instanceId}] Already processing ${filePath}, skipping duplicate event`,
         );
+      }
       return;
     }
     this.processingPaths.add(filePath);
@@ -215,8 +222,9 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
       );
     } finally {
       this.processingPaths.delete(filePath);
-      if (this.isVerbose)
+      if (this.isVerbose) {
         this.logger.log(`[${this.instanceId}] Finished processing ${filePath}`);
+      }
     }
   }
 }

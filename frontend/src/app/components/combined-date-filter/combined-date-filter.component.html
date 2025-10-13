@@ -12,7 +12,13 @@
   </mat-form-field>
 
   <mat-menu #filterMenu="matMenu" [class]="'combined-date-filter-menu'">
-    <div class="menu-content" (click)="$event.stopPropagation()">
+    <div
+      class="menu-content"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+      role="menu"
+      tabindex="0"
+    >
       <div class="mode-selector">
         <mat-radio-group [(ngModel)]="tempMode" (change)="onModeChange()">
           <mat-radio-button value="period">Time Period</mat-radio-button>
