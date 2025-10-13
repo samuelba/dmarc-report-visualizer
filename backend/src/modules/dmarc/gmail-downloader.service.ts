@@ -116,14 +116,18 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
   private getPollIntervalMs(): number {
     const raw = this.config.get<string>('GMAIL_POLL_INTERVAL_MS');
     const num = raw ? Number(raw) : Number.NaN;
-    if (!Number.isNaN(num) && num > 0) return num;
+    if (!Number.isNaN(num) && num > 0) {
+      return num;
+    }
     return 5 * 60 * 1000; // default 5 minutes
   }
 
   private getListPageSize(): number {
     const raw = this.config.get<string>('GMAIL_LIST_PAGE_SIZE');
     const n = raw ? Number(raw) : Number.NaN;
-    if (Number.isFinite(n) && n >= 1 && n <= 500) return Math.floor(n);
+    if (Number.isFinite(n) && n >= 1 && n <= 500) {
+      return Math.floor(n);
+    }
     return 100; // Gmail max is 500
   }
 
@@ -139,7 +143,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
 
   private getQueryString(): string {
     const fromEnv = this.config.get<string>('GMAIL_QUERY');
-    if (fromEnv && fromEnv.trim().length > 0) return fromEnv.trim();
+    if (fromEnv && fromEnv.trim().length > 0) {
+      return fromEnv.trim();
+    }
     // Default: messages with attachments from last 10 days. Label filtering is done via labelIds.
     // Exclude processed label by name in query as a safety net (if it exists).
     const processedName = this.getProcessedLabelName();
@@ -237,8 +243,12 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
 
   private async ensureLabel(name: string): Promise<string | null> {
     const existing = await this.resolveLabelId(name);
-    if (existing) return existing;
-    if (!this.gmailClient) return null;
+    if (existing) {
+      return existing;
+    }
+    if (!this.gmailClient) {
+      return null;
+    }
     try {
       const res = await this.gmailClient.users.labels.create({
         userId: 'me',
@@ -254,7 +264,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async resolveLabelId(name: string): Promise<string | null> {
-    if (!this.gmailClient) return null;
+    if (!this.gmailClient) {
+      return null;
+    }
     try {
       const res = await this.gmailClient.users.labels.list({ userId: 'me' });
       const labels = res.data.labels || [];
@@ -275,7 +287,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       );
       return;
     }
-    if (!this.gmailClient) return;
+    if (!this.gmailClient) {
+      return;
+    }
     this.isRunning = true;
     const downloadDir = this.getDownloadDir();
     try {
@@ -300,7 +314,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
         const messages = listRes.data.messages || [];
         pageToken = listRes.data.nextPageToken || undefined;
         for (const msg of messages) {
-          if (msg.id) idsToProcess.push(msg.id);
+          if (msg.id) {
+            idsToProcess.push(msg.id);
+          }
         }
       } while (pageToken);
 
@@ -330,14 +346,18 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     messageId: string,
     downloadDir: string,
   ): Promise<number> {
-    if (!this.gmailClient) return 0;
+    if (!this.gmailClient) {
+      return 0;
+    }
     try {
       const msgRes = await this.gmailClient.users.messages.get({
         userId: 'me',
         id: messageId,
       });
       const payload = msgRes.data.payload;
-      if (!payload) return 0;
+      if (!payload) {
+        return 0;
+      }
       const parts: gmail_v1.Schema$MessagePart[] = this.flattenParts(payload);
       const attachments = parts.filter(
         (p) => (p.filename || '').length > 0 && p.body && p.body.attachmentId,
@@ -352,7 +372,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
           id: attachmentId,
         });
         const data = attRes.data.data || '';
-        if (!data) continue;
+        if (!data) {
+          continue;
+        }
         const buffer = this.decodeBase64Url(data);
 
         const processInline = this.getProcessInline();
@@ -439,9 +461,15 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
 
   private detectFileTypeByName(filename: string): string {
     const lower = filename.toLowerCase();
-    if (lower.endsWith('.xml')) return 'xml';
-    if (lower.endsWith('.xml.gz') || lower.endsWith('.gz')) return 'gz';
-    if (lower.endsWith('.zip')) return 'zip';
+    if (lower.endsWith('.xml')) {
+      return 'xml';
+    }
+    if (lower.endsWith('.xml.gz') || lower.endsWith('.gz')) {
+      return 'gz';
+    }
+    if (lower.endsWith('.zip')) {
+      return 'zip';
+    }
     return path.extname(lower).replace('.', '') || 'xml';
   }
 
@@ -511,7 +539,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       const current = stack.pop()!;
       out.push(current);
       const children = current.parts || [];
-      for (const child of children) stack.push(child);
+      for (const child of children) {
+        stack.push(child);
+      }
     }
     return out;
   }
@@ -557,15 +587,22 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async markMessageProcessed(messageId: string): Promise<void> {
-    if (!this.gmailClient) return;
+    if (!this.gmailClient) {
+      return;
+    }
     const addLabelIds: string[] = [];
     const removeLabelIds: string[] = [];
-    if (this.processedLabelId) addLabelIds.push(this.processedLabelId);
+    if (this.processedLabelId) {
+      addLabelIds.push(this.processedLabelId);
+    }
     const raw = this.config.get<string>('GMAIL_REMOVE_SOURCE_LABEL');
     const shouldRemoveSource = raw ? raw.toLowerCase() === 'true' : true; // default true
-    if (shouldRemoveSource && this.sourceLabelId)
+    if (shouldRemoveSource && this.sourceLabelId) {
       removeLabelIds.push(this.sourceLabelId);
-    if (addLabelIds.length === 0 && removeLabelIds.length === 0) return;
+    }
+    if (addLabelIds.length === 0 && removeLabelIds.length === 0) {
+      return;
+    }
     try {
       await this.gmailClient.users.messages.modify({
         userId: 'me',

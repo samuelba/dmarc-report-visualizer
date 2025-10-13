@@ -15,9 +15,10 @@ import databaseConfig from './config/database.config';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        ...configService.get('database'),
-      }),
+      useFactory: (configService: ConfigService) => {
+        const dbConfig = configService.get('database');
+        return { ...dbConfig };
+      },
     }),
     DmarcModule,
   ],

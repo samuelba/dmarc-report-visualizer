@@ -104,18 +104,24 @@ export class ForwardingDetectionService {
       // Priority 4: Check for forwarding pattern
       // REQUIRED: DKIM result from headerFrom domain (original sender)
       const originalDkimResults = dkimResults.filter((dkim) => {
-        if (!dkim.domain) return false;
+        if (!dkim.domain) {
+          return false;
+        }
         return this.extractBaseDomain(dkim.domain) === headerFromBase;
       });
 
       // Check for DKIM/SPF from different domains (potential forwarders)
       const forwarderDkimResults = dkimResults.filter((dkim) => {
-        if (!dkim.domain) return false;
+        if (!dkim.domain) {
+          return false;
+        }
         return this.extractBaseDomain(dkim.domain) !== headerFromBase;
       });
 
       const forwarderSpfResults = spfResults.filter((spf) => {
-        if (!spf.domain) return false;
+        if (!spf.domain) {
+          return false;
+        }
         return this.extractBaseDomain(spf.domain) !== headerFromBase;
       });
 
@@ -243,7 +249,9 @@ export class ForwardingDetectionService {
    * - OxfordSciences.onmicrosoft.com -> onmicrosoft.com
    */
   private extractBaseDomain(domain: string): string {
-    if (!domain) return '';
+    if (!domain) {
+      return '';
+    }
 
     // Remove any whitespace and convert to lowercase
     const cleanDomain = domain.trim().toLowerCase();
@@ -276,7 +284,9 @@ export class ForwardingDetectionService {
    * Checks if a domain is from a known email forwarding service
    */
   private isKnownForwarder(domain: string): boolean {
-    if (!domain) return false;
+    if (!domain) {
+      return false;
+    }
 
     const lowerDomain = domain.toLowerCase();
 

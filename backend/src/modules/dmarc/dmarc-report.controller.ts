@@ -32,7 +32,9 @@ export class DmarcReportController {
    * Helper to make 'to' date inclusive by setting it to end of day
    */
   private makeToDateInclusive(dateStr?: string): Date | undefined {
-    if (!dateStr) return undefined;
+    if (!dateStr) {
+      return undefined;
+    }
     const date = new Date(dateStr);
     date.setHours(23, 59, 59, 999);
     return date;

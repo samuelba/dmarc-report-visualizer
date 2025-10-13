@@ -39,7 +39,7 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
             );
             updatedCount++;
           }
-        } catch (error) {
+        } catch (_error) {
           console.warn(
             `Could not convert country code ${countryCode} for record ${record.id}`,
           );
@@ -78,7 +78,7 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
             );
             locationsUpdatedCount++;
           }
-        } catch (error) {
+        } catch (_error) {
           console.warn(
             `Could not convert country code ${countryCode} for location ${location.id}`,
           );
@@ -91,7 +91,7 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
     );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // No need to revert - the data is more correct after this migration
     // If needed, you could set geoCountryName back to geoCountry values
     console.log(

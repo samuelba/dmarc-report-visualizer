@@ -246,7 +246,7 @@ export class DnsValidationService {
             }
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // Selector not found is normal, don't log as error
       }
     });
