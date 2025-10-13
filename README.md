@@ -1,5 +1,9 @@
 # DMARC Report Visualizer
 
+<p align="center">
+  <img src="docs/screenshots/dmarc-logo.svg" width="150" height="150" alt="DMARC Report Visualizer Logo">
+</p>
+
 A web application to visualize DMARC reports, built with NestJS (backend) and Angular (frontend).
 
 | Dashboard | Dashboard Map |
