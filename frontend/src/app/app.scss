@@ -130,6 +130,18 @@ main {
   .active-link {
     background-color: var(--custom-active-link-background);
   }
+
+  .sidenav-bottom-link {
+    margin-top: auto;
+    padding-bottom: 12px;
+    display: flex;
+    justify-content: center;
+  }
+  .sidenav-bottom-link a[mat-list-item] {
+    width: 100%;
+    justify-content: flex-start;
+    cursor: pointer;
+  }
 }
 
 .menu-toggle {
