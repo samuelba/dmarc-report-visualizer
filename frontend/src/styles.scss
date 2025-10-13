@@ -28,6 +28,16 @@ body {
   color: var(--mat-sys-on-surface);
 }
 
+:root {
+  color-scheme: light dark;
+}
+.light {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
 .combined-date-filter-menu.mat-mdc-menu-panel {
   max-width: none !important;
   min-width: 300px !important;

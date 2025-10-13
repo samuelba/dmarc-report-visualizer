@@ -87,8 +87,8 @@
 
   // XML Viewer (Solarized Light theme)
   --xml-code-color: #657b83;
-  --xml-code-background: #ffffff;
-  --xml-code-text-shadow: 0 1px white;
+  --xml-code-background: rgba(0, 0, 0, 0.02);
+  --xml-code-text-shadow: none;
   --xml-selection-background: #073642;
   --xml-inline-border: #c5c8c6;
   --xml-token-comment: #93a1a1;
@@ -102,7 +102,7 @@
   --xml-token-variable: #cb4b16;
   --xml-line-numbers-color: #93a1a1;
   --xml-line-numbers-border: #e0e0e0;
-  --xml-line-highlight-bg: rgba(255, 193, 7, 0.2);
+  --xml-line-highlight-bg: rgba(135, 205, 255, 0.15);
   --xml-line-highlight-marker-bg: #ffc107;
   --xml-line-highlight-marker-color: #000;
   // XML Viewer Custom
@@ -180,7 +180,7 @@
 
   // XML Viewer (VS Code Dark theme)
   --xml-code-color: #e0e0e0;
-  --xml-code-background: #2d2d2d;
+  --xml-code-background: #1e252a;
   --xml-code-text-shadow: none;
   --xml-selection-background: rgba(255, 255, 255, 0.15);
   --xml-inline-border: #404040;
@@ -196,7 +196,7 @@
   --xml-token-variable: #9cdcfe;
   --xml-line-numbers-color: #858585;
   --xml-line-numbers-border: #404040;
-  --xml-line-highlight-bg: rgba(255, 193, 7, 0.15);
+  --xml-line-highlight-bg: rgba(135, 205, 255, 0.20);
   --xml-line-highlight-marker-bg: #ffc107;
   --xml-line-highlight-marker-color: #000;
   // XML Viewer Custom
