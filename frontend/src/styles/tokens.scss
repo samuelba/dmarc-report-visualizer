@@ -57,7 +57,7 @@
       table-background-color: rgb(246 250 254),
     )
   );
-  --mat-paginator-container-background-color: rgb(0, 0, 0, 0),
+  --mat-paginator-container-background-color: rgb(0, 0, 0, 0);
   --mat-table-background-color: rgb(240, 244, 248);
   --mat-toolbar-container-background-color: rgb(216, 220, 224);
   --mat-sidenav-container-background-color: rgb(216, 220, 224);
@@ -82,7 +82,7 @@
   --custom-warning-bg-color: #fff3e0;
   --custom-error-bg-color: #ffebee;
   --custom-unknown-bg-color: #f5f5f5;
-  
+
   --custom-metric-label-color: #666;
 
   // XML Viewer (Solarized Light theme)
@@ -196,7 +196,7 @@
   --xml-token-variable: #9cdcfe;
   --xml-line-numbers-color: #858585;
   --xml-line-numbers-border: #404040;
-  --xml-line-highlight-bg: rgba(135, 205, 255, 0.20);
+  --xml-line-highlight-bg: rgba(135, 205, 255, 0.2);
   --xml-line-highlight-marker-bg: #ffc107;
   --xml-line-highlight-marker-color: #000;
   // XML Viewer Custom
