@@ -18,10 +18,10 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 
 1) Copy the `.env.example` file to `.env` and adjust as needed
 
-2) Build the docker images
+2) Download the docker images
 
     ```bash
-    docker compose build
+    docker compose pull
     ```
 
 3) Start the services
