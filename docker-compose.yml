@@ -19,7 +19,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: production
-    image: ghcr.io/samuelba/dmarc-report-visualizer/dmarc-backend:v0.1.0
+    image: ghcr.io/samuelba/dmarc-report-visualizer/dmarc-backend:latest
     container_name: dmarc-backend
     environment:
       # Application Configuration
@@ -90,7 +90,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
-    image: ghcr.io/samuelba/dmarc-report-visualizer/dmarc-frontend:v0.1.0
+    image: ghcr.io/samuelba/dmarc-report-visualizer/dmarc-frontend:latest
     container_name: dmarc-frontend
     ports:
       - "${FRONTEND_PORT:-80}:80"
