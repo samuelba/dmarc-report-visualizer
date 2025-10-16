@@ -850,14 +850,14 @@ export class DmarcReportService {
 
     if (domain) {
       const arr = Array.isArray(domain) ? domain : [domain];
-      qb.andWhere('rep.domain ILIKE ANY(:domains)', {
-        domains: arr.map((d) => `%${d}%`),
+      qb.andWhere('rep.domain = ANY(:domains)', {
+        domains: arr,
       });
     }
     if (orgName) {
       const arr = Array.isArray(orgName) ? orgName : [orgName];
-      qb.andWhere('rep.orgName ILIKE ANY(:orgNames)', {
-        orgNames: arr.map((o) => `%${o}%`),
+      qb.andWhere('rep.orgName = ANY(:orgNames)', {
+        orgNames: arr,
       });
     }
     if (from) {
@@ -952,20 +952,20 @@ export class DmarcReportService {
     }
     if (envelopeTo) {
       const arr = Array.isArray(envelopeTo) ? envelopeTo : [envelopeTo];
-      qb.andWhere('rec.envelopeTo ILIKE ANY(:etos)', {
-        etos: arr.map((v) => `%${v}%`),
+      qb.andWhere('rec.envelopeTo = ANY(:etos)', {
+        etos: arr,
       });
     }
     if (headerFrom) {
       const arr = Array.isArray(headerFrom) ? headerFrom : [headerFrom];
-      qb.andWhere('rec.headerFrom ILIKE ANY(:hfs)', {
-        hfs: arr.map((v) => `%${v}%`),
+      qb.andWhere('rec.headerFrom = ANY(:hfs)', {
+        hfs: arr,
       });
     }
     if (envelopeFrom) {
       const arr = Array.isArray(envelopeFrom) ? envelopeFrom : [envelopeFrom];
-      qb.andWhere('rec.envelopeFrom ILIKE ANY(:efs)', {
-        efs: arr.map((v) => `%${v}%`),
+      qb.andWhere('rec.envelopeFrom = ANY(:efs)', {
+        efs: arr,
       });
     }
     if (dkimDomain) {
@@ -976,10 +976,10 @@ export class DmarcReportService {
         `EXISTS (
         SELECT 1 FROM dkim_results dk_filter
         WHERE dk_filter."recordId" = rec.id
-        AND dk_filter.domain ILIKE ANY(:dkdoms)
+        AND dk_filter.domain = ANY(:dkdoms)
       )`,
         {
-          dkdoms: arr.map((v) => `%${v}%`),
+          dkdoms: arr,
         },
       );
     }
@@ -991,17 +991,17 @@ export class DmarcReportService {
         `EXISTS (
         SELECT 1 FROM spf_results sf_filter
         WHERE sf_filter."recordId" = rec.id
-        AND sf_filter.domain ILIKE ANY(:sfdoms)
+        AND sf_filter.domain = ANY(:sfdoms)
       )`,
         {
-          sfdoms: arr.map((v) => `%${v}%`),
+          sfdoms: arr,
         },
       );
     }
     if (country) {
       const arr = Array.isArray(country) ? country : [country];
-      qb.andWhere('rec.geoCountry ILIKE ANY(:ctys)', {
-        ctys: arr.map((v) => `%${v}%`),
+      qb.andWhere('rec.geoCountry = ANY(:ctys)', {
+        ctys: arr,
       });
     }
 
