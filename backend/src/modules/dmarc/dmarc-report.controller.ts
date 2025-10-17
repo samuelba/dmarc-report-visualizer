@@ -429,17 +429,6 @@ export class DmarcReportController {
     return this.dmarcReportService.getRecordById(id);
   }
 
-  @Get('domains-with-dns-issues')
-  async getDomainsWithDnsIssues(
-    @Query('domain') domain?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.dmarcReportService.getDomainsWithDnsIssues({
-      domain,
-      limit: limit ? parseInt(limit, 10) : 10,
-    });
-  }
-
   // Parameterized routes must come last to avoid conflicts
   @Get('report/:id')
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<DmarcReport | null> {

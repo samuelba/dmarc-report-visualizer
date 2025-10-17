@@ -431,36 +431,6 @@ export class ApiService {
     }>(`${this.apiBase}/dmarc-reports/top-ips-enhanced`, { params: hp });
   }
 
-  getDomainsWithDnsIssues(params: { domain?: string; limit?: number }) {
-    let hp = new HttpParams();
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') {
-        hp = hp.set(k, String(v));
-      }
-    });
-    return this.http.get<
-      Array<{
-        domain: string;
-        severity: 'good' | 'warning' | 'critical';
-        summary: string;
-        recommendations: string[];
-        dmarc: {
-          exists: boolean;
-          policy?: string;
-          issues: string[];
-        };
-        spf: {
-          exists: boolean;
-          issues: string[];
-        };
-        dkim: {
-          foundSelectors: number;
-          issues: string[];
-        };
-      }>
-    >(`${this.apiBase}/dmarc-reports/domains-with-dns-issues`, { params: hp });
-  }
-
   getTopHeaderFrom(params: { domain?: string; from?: string; to?: string; page?: number; pageSize?: number }) {
     let hp = new HttpParams();
     Object.entries(params).forEach(([k, v]) => {
