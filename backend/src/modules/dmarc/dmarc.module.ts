@@ -18,6 +18,10 @@ import { GeolocationService } from './services/geolocation.service';
 import { ForwardingDetectionService } from './services/forwarding-detection.service';
 import { ThirdPartySenderService } from './services/third-party-sender.service';
 import { ReprocessingService } from './services/reprocessing.service';
+import { DmarcParserService } from './services/dmarc-parser.service';
+import { DmarcAnalyticsService } from './services/dmarc-analytics.service';
+import { DmarcGeoAnalyticsService } from './services/dmarc-geo-analytics.service';
+import { DmarcSearchService } from './services/dmarc-search.service';
 
 @Module({
   imports: [
@@ -45,7 +49,11 @@ import { ReprocessingService } from './services/reprocessing.service';
     ForwardingDetectionService,
     ThirdPartySenderService,
     ReprocessingService,
+    DmarcParserService,
+    DmarcAnalyticsService,
+    DmarcGeoAnalyticsService,
+    DmarcSearchService,
   ],
-  exports: [DmarcReportService, GeolocationService],
+  exports: [DmarcReportService, GeolocationService, DmarcParserService],
 })
 export class DmarcModule {}

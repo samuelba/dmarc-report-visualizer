@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ThirdPartySenderService } from './third-party-sender.service';
 import { ThirdPartySender } from '../entities/third-party-sender.entity';
 
@@ -58,9 +57,6 @@ describe('ThirdPartySenderService', () => {
     }).compile();
 
     service = module.get<ThirdPartySenderService>(ThirdPartySenderService);
-    module.get<Repository<ThirdPartySender>>(
-      getRepositoryToken(ThirdPartySender),
-    );
 
     jest.clearAllMocks();
     service.invalidateCache();

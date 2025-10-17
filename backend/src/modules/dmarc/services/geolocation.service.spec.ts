@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { GeolocationService } from './geolocation.service';
 import { IpLocation } from '../entities/ip-location.entity';
 import * as geoip from 'geoip-lite';
@@ -30,7 +29,6 @@ describe('GeolocationService', () => {
     }).compile();
 
     service = module.get<GeolocationService>(GeolocationService);
-    module.get<Repository<IpLocation>>(getRepositoryToken(IpLocation));
 
     // Clear all mocks
     jest.clearAllMocks();

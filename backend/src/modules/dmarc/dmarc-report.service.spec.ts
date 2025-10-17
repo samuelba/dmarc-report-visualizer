@@ -1,24 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
 import { DkimResult } from './entities/dkim-result.entity';
 import { SpfResult } from './entities/spf-result.entity';
 import { PolicyOverrideReason } from './entities/policy-override-reason.entity';
-import { GeolocationService } from './services/geolocation.service';
-import { ForwardingDetectionService } from './services/forwarding-detection.service';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as zlib from 'zlib';
-import * as unzipper from 'unzipper';
+import { DmarcParserService } from './services/dmarc-parser.service';
+import { DmarcAnalyticsService } from './services/dmarc-analytics.service';
+import { DmarcGeoAnalyticsService } from './services/dmarc-geo-analytics.service';
+import { DmarcSearchService } from './services/dmarc-search.service';
 
-describe('DmarcReportService - XML Parsing', () => {
+describe('DmarcReportService', () => {
   let service: DmarcReportService;
-  let geolocationService: GeolocationService;
-  let forwardingDetectionService: ForwardingDetectionService;
 
   // Mock repositories
   const mockDmarcReportRepository = {
@@ -51,18 +45,59 @@ describe('DmarcReportService - XML Parsing', () => {
   };
 
   // Mock services
-  const mockGeolocationService = {
-    getLocationForIp: jest.fn(),
+  const mockDmarcParserService = {
+    parseXmlReport: jest.fn(),
+    unzipReport: jest.fn(),
   };
 
-  const mockForwardingDetectionService = {
-    detectForwarding: jest.fn(),
+  const mockDmarcAnalyticsService = {
+    summaryStats: jest.fn(),
+    timeSeries: jest.fn(),
+    topSources: jest.fn(),
+    authSummary: jest.fn(),
+    authBreakdown: jest.fn(),
+    authPassRateTimeseries: jest.fn(),
+    dispositionTimeseries: jest.fn(),
+    authMatrix: jest.fn(),
+    topIps: jest.fn(),
+    newIps: jest.fn(),
+  };
+
+  const mockDmarcGeoAnalyticsService = {
+    getTopCountries: jest.fn(),
+    getTopCountriesPaginated: jest.fn(),
+    getGeoHeatmapData: jest.fn(),
+    getTopIpsEnhanced: jest.fn(),
+    getTopHeaderFromDomainsPaginated: jest.fn(),
+  };
+
+  const mockDmarcSearchService = {
+    searchRecords: jest.fn(),
+    getDistinctValues: jest.fn(),
+    getDomains: jest.fn(),
+    getReportDomains: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DmarcReportService,
+        {
+          provide: DmarcParserService,
+          useValue: mockDmarcParserService,
+        },
+        {
+          provide: DmarcAnalyticsService,
+          useValue: mockDmarcAnalyticsService,
+        },
+        {
+          provide: DmarcGeoAnalyticsService,
+          useValue: mockDmarcGeoAnalyticsService,
+        },
+        {
+          provide: DmarcSearchService,
+          useValue: mockDmarcSearchService,
+        },
         {
           provide: getRepositoryToken(DmarcReport),
           useValue: mockDmarcReportRepository,
@@ -83,507 +118,14 @@ describe('DmarcReportService - XML Parsing', () => {
           provide: getRepositoryToken(PolicyOverrideReason),
           useValue: mockGenericRepository,
         },
-        {
-          provide: GeolocationService,
-          useValue: mockGeolocationService,
-        },
-        {
-          provide: ForwardingDetectionService,
-          useValue: mockForwardingDetectionService,
-        },
       ],
     }).compile();
 
     service = module.get<DmarcReportService>(DmarcReportService);
-    geolocationService = module.get<GeolocationService>(GeolocationService);
-    forwardingDetectionService = module.get<ForwardingDetectionService>(
-      ForwardingDetectionService,
-    );
-
-    // Setup default mock responses
-    mockGeolocationService.getLocationForIp.mockResolvedValue({
-      country: 'US',
-      countryName: 'United States',
-      city: 'Mountain View',
-      latitude: 37.4192,
-      longitude: -122.0574,
-    });
-
-    mockForwardingDetectionService.detectForwarding.mockResolvedValue({
-      isForwarded: false,
-      reason: null,
-    });
   });
 
   afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('parseXmlReport', () => {
-    const testReportsPath = path.join(__dirname, '../../../test/reports');
-    const testFileName = 'google.com!example.com!1701129600!1701215999.xml';
-
-    it('should throw BadRequestException for invalid XML content', async () => {
-      await expect(service.parseXmlReport('')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.parseXmlReport(null as any)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.parseXmlReport(undefined as any)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should parse incomplete XML without throwing', async () => {
-      // XML parser is forgiving and can parse incomplete tags
-      const incompleteXml = '<feedback><report_metadata>';
-      const result = await service.parseXmlReport(incompleteXml);
-
-      // Should return empty/undefined fields but not throw
-      expect(result).toBeDefined();
-      expect(result.records).toEqual([]);
-    });
-
-    it('should parse XML report from raw XML file', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-
-      // Verify report metadata
-      expect(result.reportId).toBe('example.com:1701129600');
-      expect(result.orgName).toBe('Google');
-      expect(result.email).toBe('noreply-dmarc@google.com');
-      expect(result.domain).toBe('example.com');
-
-      // Verify dates
-      expect(result.beginDate).toEqual(new Date(1701129600 * 1000));
-      expect(result.endDate).toEqual(new Date(1701215999 * 1000));
-
-      // Verify policy published
-      expect(result.policy).toEqual({
-        domain: 'example.com',
-        adkim: 'r',
-        aspf: 'r',
-        p: 'reject',
-        sp: 'none',
-        pct: 100,
-      });
-
-      // Verify records count
-      expect(result.records).toBeDefined();
-      expect(Array.isArray(result.records)).toBe(true);
-      expect(result.records?.length).toBe(8);
-
-      // Verify original XML is stored
-      expect(result.originalXml).toBe(xmlContent);
-    });
-
-    it('should parse XML report from GZIP file', async () => {
-      const gzPath = path.join(testReportsPath, `${testFileName}.gz`);
-      const gzContent = fs.readFileSync(gzPath);
-      const xmlContent = zlib.gunzipSync(gzContent).toString('utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-
-      // Verify basic metadata
-      expect(result.reportId).toBe('example.com:1701129600');
-      expect(result.orgName).toBe('Google');
-      expect(result.domain).toBe('example.com');
-      expect(result.records?.length).toBe(8);
-    });
-
-    it('should parse XML report from ZIP file', async () => {
-      const zipPath = path.join(testReportsPath, `${testFileName}.zip`);
-
-      // Extract XML from ZIP
-      const directory = await unzipper.Open.file(zipPath);
-      const file = directory.files[0];
-      const xmlContent = (await file.buffer()).toString('utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-
-      // Verify basic metadata
-      expect(result.reportId).toBe('example.com:1701129600');
-      expect(result.orgName).toBe('Google');
-      expect(result.domain).toBe('example.com');
-      expect(result.records?.length).toBe(8);
-    });
-
-    it('should produce identical results from XML, GZ, and ZIP files', async () => {
-      // Parse raw XML
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-      const xmlResult = await service.parseXmlReport(xmlContent);
-
-      // Parse GZ
-      const gzPath = path.join(testReportsPath, `${testFileName}.gz`);
-      const gzContent = fs.readFileSync(gzPath);
-      const gzXmlContent = zlib.gunzipSync(gzContent).toString('utf-8');
-      const gzResult = await service.parseXmlReport(gzXmlContent);
-
-      // Parse ZIP
-      const zipPath = path.join(testReportsPath, `${testFileName}.zip`);
-      const directory = await unzipper.Open.file(zipPath);
-      const file = directory.files[0];
-      const zipXmlContent = (await file.buffer()).toString('utf-8');
-      const zipResult = await service.parseXmlReport(zipXmlContent);
-
-      // Compare all three results (excluding originalXml which might have whitespace differences)
-      const { originalXml: _xmlOrig, ...xmlData } = xmlResult;
-      const { originalXml: _gzOrig, ...gzData } = gzResult;
-      const { originalXml: _zipOrig, ...zipData } = zipResult;
-
-      expect(gzData).toEqual(xmlData);
-      expect(zipData).toEqual(xmlData);
-    });
-
-    it('should correctly parse all record details', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-      const records = result.records!;
-
-      // Test first record - pass/pass with policy override
-      expect(records[0]).toMatchObject({
-        sourceIp: '1.2.3.4',
-        count: 1,
-        disposition: 'none',
-        dmarcDkim: 'pass',
-        dmarcSpf: 'pass',
-        headerFrom: 'example.com',
-        reasonType: 'local_policy',
-        reasonComment: 'arc=fail',
-      });
-
-      // Verify DKIM results for first record
-      expect((records[0] as any).dkimResults).toHaveLength(1);
-      expect((records[0] as any).dkimResults[0]).toMatchObject({
-        domain: 'example.com',
-        selector: 'google',
-        result: 'pass',
-      });
-
-      // Verify SPF results for first record
-      expect((records[0] as any).spfResults).toHaveLength(1);
-      expect((records[0] as any).spfResults[0]).toMatchObject({
-        domain: 'example.com',
-        result: 'pass',
-      });
-
-      // Verify policy override reasons
-      expect((records[0] as any).policyOverrideReasons).toHaveLength(1);
-      expect((records[0] as any).policyOverrideReasons[0]).toMatchObject({
-        type: 'local_policy',
-        comment: 'arc=fail',
-      });
-
-      // Test second record - fail DKIM, pass SPF
-      expect(records[1]).toMatchObject({
-        sourceIp: '1.2.3.5',
-        count: 2,
-        disposition: 'none',
-        dmarcDkim: 'fail',
-        dmarcSpf: 'pass',
-        headerFrom: 'example.com',
-      });
-
-      // Test third record - pass DKIM, fail SPF
-      expect(records[2]).toMatchObject({
-        sourceIp: '1.2.3.6',
-        count: 3,
-        disposition: 'none',
-        dmarcDkim: 'pass',
-        dmarcSpf: 'fail',
-        headerFrom: 'example.com',
-      });
-
-      // Test fourth record - reject disposition, both fail
-      expect(records[3]).toMatchObject({
-        sourceIp: '1.2.3.7',
-        count: 1,
-        disposition: 'reject',
-        dmarcDkim: 'fail',
-        dmarcSpf: 'fail',
-        headerFrom: 'example.com',
-      });
-
-      // Test fifth record - missing DKIM results
-      expect(records[4]).toMatchObject({
-        sourceIp: '1.2.3.8',
-        count: 1,
-        disposition: 'reject',
-        dmarcDkim: 'fail',
-        dmarcSpf: 'fail',
-      });
-      expect((records[4] as any).spfResults).toHaveLength(1);
-      expect((records[4] as any).dkimResults).toHaveLength(0);
-      expect((records[4] as any).dkimMissing).toBe(true);
-
-      // Test sixth record - missing SPF results
-      expect(records[5]).toMatchObject({
-        sourceIp: '1.2.3.9',
-        count: 1,
-        disposition: 'reject',
-        dmarcDkim: 'fail',
-        dmarcSpf: 'fail',
-      });
-      expect((records[5] as any).spfResults).toHaveLength(0);
-      expect((records[5] as any).dkimResults).toHaveLength(1);
-
-      // Test seventh record - no auth results at all
-      expect(records[6]).toMatchObject({
-        sourceIp: '1.2.3.10',
-        count: 1,
-        disposition: 'reject',
-        dmarcDkim: 'fail',
-        dmarcSpf: 'fail',
-      });
-      expect((records[6] as any).spfResults).toHaveLength(0);
-      expect((records[6] as any).dkimResults).toHaveLength(0);
-      expect((records[6] as any).dkimMissing).toBe(true);
-
-      // Test eighth record - multiple DKIM results
-      expect(records[7]).toMatchObject({
-        sourceIp: '1.2.3.11',
-        count: 1,
-        disposition: 'none',
-        dmarcDkim: 'pass',
-        dmarcSpf: 'pass',
-      });
-      expect((records[7] as any).dkimResults).toHaveLength(2);
-      expect((records[7] as any).dkimResults[0]).toMatchObject({
-        domain: 'example.com',
-        selector: 'google',
-        result: 'pass',
-      });
-      expect((records[7] as any).dkimResults[1]).toMatchObject({
-        domain: 'google.com',
-        selector: 'google',
-        result: 'pass',
-      });
-    });
-
-    it('should call geolocation service for each record', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      await service.parseXmlReport(xmlContent);
-
-      // Should be called for each of the 8 records
-      expect(mockGeolocationService.getLocationForIp).toHaveBeenCalledTimes(8);
-      expect(mockGeolocationService.getLocationForIp).toHaveBeenCalledWith(
-        '1.2.3.4',
-      );
-      expect(mockGeolocationService.getLocationForIp).toHaveBeenCalledWith(
-        '1.2.3.11',
-      );
-    });
-
-    it('should add geolocation data to records', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      mockGeolocationService.getLocationForIp.mockResolvedValue({
-        country: 'DE',
-        countryName: 'Germany',
-        city: 'Berlin',
-        latitude: 52.52,
-        longitude: 13.405,
-      });
-
-      const result = await service.parseXmlReport(xmlContent);
-      const firstRecord = result.records![0];
-
-      expect(firstRecord.geoCountry).toBe('DE');
-      expect(firstRecord.geoCountryName).toBe('Germany');
-      expect(firstRecord.geoCity).toBe('Berlin');
-      expect(firstRecord.geoLatitude).toBe(52.52);
-      expect(firstRecord.geoLongitude).toBe(13.405);
-    });
-
-    it('should handle geolocation service errors gracefully', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      mockGeolocationService.getLocationForIp.mockRejectedValue(
-        new Error('Geolocation failed'),
-      );
-
-      // Should not throw, just log warning
-      const result = await service.parseXmlReport(xmlContent);
-
-      expect(result.records).toHaveLength(8);
-      expect(result.records![0].geoCountry).toBeUndefined();
-    });
-
-    it('should call forwarding detection service for each record', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      await service.parseXmlReport(xmlContent);
-
-      // Should be called for each of the 8 records
-      expect(
-        mockForwardingDetectionService.detectForwarding,
-      ).toHaveBeenCalledTimes(8);
-    });
-
-    it('should add forwarding detection results to records', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      mockForwardingDetectionService.detectForwarding.mockResolvedValue({
-        isForwarded: true,
-        reason: 'spf_fail_dkim_pass',
-      });
-
-      const result = await service.parseXmlReport(xmlContent);
-      const firstRecord = result.records![0] as any;
-
-      expect(firstRecord.isForwarded).toBe(true);
-      expect(firstRecord.forwardReason).toBe('spf_fail_dkim_pass');
-      expect(firstRecord.reprocessed).toBe(true);
-    });
-
-    it('should handle forwarding detection errors gracefully', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      mockForwardingDetectionService.detectForwarding.mockRejectedValue(
-        new Error('Detection failed'),
-      );
-
-      // Should not throw, just log warning
-      const result = await service.parseXmlReport(xmlContent);
-
-      expect(result.records).toHaveLength(8);
-      expect((result.records![0] as any).isForwarded).toBeNull();
-      expect((result.records![0] as any).forwardReason).toBeNull();
-      expect((result.records![0] as any).reprocessed).toBe(false);
-    });
-
-    it('should correctly parse policy published fields', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-
-      expect(result.policy).toEqual({
-        domain: 'example.com',
-        adkim: 'r',
-        aspf: 'r',
-        p: 'reject',
-        sp: 'none',
-        pct: 100,
-      });
-    });
-
-    it('should correctly parse dates from epoch timestamps', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-
-      // 1701129600 = Mon Nov 27 2023 16:00:00 GMT
-      expect(result.beginDate?.getTime()).toBe(1701129600 * 1000);
-      // 1701215999 = Tue Nov 28 2023 15:59:59 GMT
-      expect(result.endDate?.getTime()).toBe(1701215999 * 1000);
-    });
-
-    it('should handle records with missing optional fields', async () => {
-      const minimalXml = `<?xml version="1.0" encoding="UTF-8" ?>
-<feedback>
-    <report_metadata>
-        <org_name>TestOrg</org_name>
-        <report_id>test123</report_id>
-        <date_range>
-            <begin>1701129600</begin>
-            <end>1701215999</end>
-        </date_range>
-    </report_metadata>
-    <policy_published>
-        <domain>test.com</domain>
-    </policy_published>
-    <record>
-        <row>
-            <source_ip>1.2.3.4</source_ip>
-            <count>1</count>
-            <policy_evaluated>
-                <disposition>none</disposition>
-                <dkim>pass</dkim>
-                <spf>pass</spf>
-            </policy_evaluated>
-        </row>
-        <identifiers>
-            <header_from>test.com</header_from>
-        </identifiers>
-        <auth_results>
-        </auth_results>
-    </record>
-</feedback>`;
-
-      const result = await service.parseXmlReport(minimalXml);
-
-      expect(result.reportId).toBe('test123');
-      expect(result.orgName).toBe('TestOrg');
-      expect(result.email).toBeUndefined();
-      expect(result.records).toHaveLength(1);
-    });
-
-    it('should normalize disposition values to lowercase', async () => {
-      const xmlWithUppercase = `<?xml version="1.0" encoding="UTF-8" ?>
-<feedback>
-    <report_metadata>
-        <org_name>TestOrg</org_name>
-        <report_id>test123</report_id>
-        <date_range>
-            <begin>1701129600</begin>
-            <end>1701215999</end>
-        </date_range>
-    </report_metadata>
-    <policy_published>
-        <domain>test.com</domain>
-    </policy_published>
-    <record>
-        <row>
-            <source_ip>1.2.3.4</source_ip>
-            <count>1</count>
-            <policy_evaluated>
-                <disposition>REJECT</disposition>
-                <dkim>PASS</dkim>
-                <spf>FAIL</spf>
-            </policy_evaluated>
-        </row>
-        <identifiers>
-            <header_from>test.com</header_from>
-        </identifiers>
-        <auth_results>
-        </auth_results>
-    </record>
-</feedback>`;
-
-      const result = await service.parseXmlReport(xmlWithUppercase);
-
-      expect(result.records![0].disposition).toBe('reject');
-      expect(result.records![0].dmarcDkim).toBe('pass');
-      expect(result.records![0].dmarcSpf).toBe('fail');
-    });
-
-    it('should handle count as string and convert to number', async () => {
-      const xmlPath = path.join(testReportsPath, testFileName);
-      const xmlContent = fs.readFileSync(xmlPath, 'utf-8');
-
-      const result = await service.parseXmlReport(xmlContent);
-
-      // Count should be converted to number
-      expect(typeof result.records![0].count).toBe('number');
-      expect(result.records![0].count).toBe(1);
-      expect(result.records![1].count).toBe(2);
-      expect(result.records![2].count).toBe(3);
-    });
   });
 
   describe('CRUD Operations', () => {
@@ -1034,1251 +576,409 @@ describe('DmarcReportService - XML Parsing', () => {
     });
   });
 
-  describe('Statistics and Analytics', () => {
-    describe('summaryStats', () => {
-      it('should return summary statistics without filters', async () => {
-        mockDmarcReportRepository.find.mockResolvedValue([]);
-        mockDmarcReportRepository.count.mockResolvedValue(100);
+  describe('Delegation to Parser Service', () => {
+    it('should delegate parseXmlReport to DmarcParserService', async () => {
+      const xmlContent = '<xml>test</xml>';
+      const parsedResult = { reportId: 'test', domain: 'example.com' };
 
-        const mockQueryBuilder = {
-          select: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn(),
-        };
+      mockDmarcParserService.parseXmlReport.mockResolvedValue(parsedResult);
 
-        mockDmarcReportRepository.createQueryBuilder
-          .mockReturnValueOnce(mockQueryBuilder)
-          .mockReturnValueOnce(mockQueryBuilder);
+      const result = await service.parseXmlReport(xmlContent);
 
-        mockQueryBuilder.getRawOne
-          .mockResolvedValueOnce({ count: '10' })
-          .mockResolvedValueOnce({ count: '50' });
-
-        const result = await service.summaryStats({});
-
-        expect(result).toEqual({
-          totalReports: 100,
-          uniqueDomains: 10,
-          uniqueReportIds: 50,
-        });
-        expect(mockDmarcReportRepository.count).toHaveBeenCalled();
-        expect(
-          mockDmarcReportRepository.createQueryBuilder,
-        ).toHaveBeenCalledTimes(2);
-      });
-
-      it('should filter summary statistics by domain', async () => {
-        mockDmarcReportRepository.find.mockResolvedValue([]);
-        mockDmarcReportRepository.count.mockResolvedValue(25);
-
-        const mockQueryBuilder = {
-          select: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn(),
-        };
-
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        mockQueryBuilder.getRawOne
-          .mockResolvedValueOnce({ count: '5' })
-          .mockResolvedValueOnce({ count: '20' });
-
-        const result = await service.summaryStats({ domain: 'example.com' });
-
-        expect(result).toEqual({
-          totalReports: 25,
-          uniqueDomains: 5,
-          uniqueReportIds: 20,
-        });
-        expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-          'r.domain ILIKE :domain',
-          { domain: '%example.com%' },
-        );
-      });
-
-      it('should filter summary statistics by date range', async () => {
-        const from = new Date('2024-01-01');
-        const to = new Date('2024-12-31');
-
-        mockDmarcReportRepository.find.mockResolvedValue([]);
-        mockDmarcReportRepository.count.mockResolvedValue(50);
-
-        const mockQueryBuilder = {
-          select: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn(),
-        };
-
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        mockQueryBuilder.getRawOne
-          .mockResolvedValueOnce({ count: '8' })
-          .mockResolvedValueOnce({ count: '40' });
-
-        const result = await service.summaryStats({ from, to });
-
-        expect(result.totalReports).toBe(50);
-        expect(mockDmarcReportRepository.find).toHaveBeenCalled();
-      });
+      expect(result).toEqual(parsedResult);
+      expect(mockDmarcParserService.parseXmlReport).toHaveBeenCalledWith(
+        xmlContent,
+      );
     });
 
-    describe('timeSeries', () => {
-      it('should return time series data by day', async () => {
-        const mockQueryBuilder = {
-          innerJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([
-            { bucket: '2024-01-01', count: '10' },
-            { bucket: '2024-01-02', count: '15' },
-          ]),
-        };
+    it('should delegate unzipReport to DmarcParserService', async () => {
+      const buffer = Buffer.from('test');
+      const unzippedContent = '<xml>unzipped</xml>';
 
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcParserService.unzipReport.mockResolvedValue(unzippedContent);
 
-        const result = await service.timeSeries({
-          interval: 'day',
-        });
+      const result = await service.unzipReport(buffer, 'gz');
 
-        expect(result).toEqual([
-          { date: '2024-01-01', count: 10 },
-          { date: '2024-01-02', count: 15 },
-        ]);
-        expect(mockQueryBuilder.select).toHaveBeenCalledWith(
-          "DATE_TRUNC('day', rep.beginDate)",
-          'bucket',
-        );
-      });
+      expect(result).toEqual(unzippedContent);
+      expect(mockDmarcParserService.unzipReport).toHaveBeenCalledWith(
+        buffer,
+        'gz',
+      );
+    });
+  });
 
-      it('should return time series data by week', async () => {
-        const mockQueryBuilder = {
-          innerJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest
-            .fn()
-            .mockResolvedValue([{ bucket: '2024-01-01', count: '50' }]),
-        };
+  describe('Delegation to Analytics Service', () => {
+    it('should delegate summaryStats to DmarcAnalyticsService', async () => {
+      const params = { domain: 'example.com' };
+      const stats = {
+        totalReports: 100,
+        uniqueDomains: 10,
+        uniqueReportIds: 50,
+      };
 
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.summaryStats.mockResolvedValue(stats);
 
-        const result = await service.timeSeries({
-          interval: 'week',
-        });
+      const result = await service.summaryStats(params);
 
-        expect(result).toEqual([{ date: '2024-01-01', count: 50 }]);
-        expect(mockQueryBuilder.select).toHaveBeenCalledWith(
-          "DATE_TRUNC('week', rep.beginDate)",
-          'bucket',
-        );
-      });
-
-      it('should filter time series by domain', async () => {
-        const mockQueryBuilder = {
-          innerJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([]),
-        };
-
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        await service.timeSeries({
-          domain: 'example.com',
-          interval: 'day',
-        });
-
-        expect(mockQueryBuilder.innerJoin).toHaveBeenCalledWith(
-          'rep.records',
-          'rec',
-          'rec.headerFrom ILIKE :domain',
-          { domain: '%example.com%' },
-        );
-      });
-
-      it('should filter time series by date range', async () => {
-        const from = new Date('2024-01-01');
-        const to = new Date('2024-12-31');
-
-        const mockQueryBuilder = {
-          innerJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([]),
-        };
-
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        await service.timeSeries({
-          from,
-          to,
-          interval: 'day',
-        });
-
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rep.beginDate >= :from',
-          {
-            from,
-          },
-        );
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rep.beginDate <= :to',
-          { to },
-        );
-      });
+      expect(result).toEqual(stats);
+      expect(mockDmarcAnalyticsService.summaryStats).toHaveBeenCalledWith(
+        params,
+      );
     });
 
-    describe('topSources', () => {
-      it('should return top sources', async () => {
-        const mockQueryBuilder = {
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([
-            { source: 'example.com', count: '100' },
-            { source: 'test.com', count: '50' },
-          ]),
-        };
+    it('should delegate timeSeries to DmarcAnalyticsService', async () => {
+      const params = { interval: 'day' as const };
+      const timeSeries = [{ date: '2024-01-01', count: 10 }];
 
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.timeSeries.mockResolvedValue(timeSeries);
 
-        const result = await service.topSources({ limit: 10 });
+      const result = await service.timeSeries(params);
 
-        expect(result).toEqual([
-          { source: 'example.com', count: 100 },
-          { source: 'test.com', count: 50 },
-        ]);
-        expect(mockQueryBuilder.limit).toHaveBeenCalledWith(10);
-        expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('count', 'DESC');
-      });
-
-      it('should filter top sources by domain', async () => {
-        const mockQueryBuilder = {
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([]),
-        };
-
-        mockDmarcReportRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        await service.topSources({ domain: 'example.com', limit: 5 });
-
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'r.domain ILIKE :domain',
-          {
-            domain: '%example.com%',
-          },
-        );
-        expect(mockQueryBuilder.limit).toHaveBeenCalledWith(5);
-      });
+      expect(result).toEqual(timeSeries);
+      expect(mockDmarcAnalyticsService.timeSeries).toHaveBeenCalledWith(params);
     });
 
-    describe('authSummary', () => {
-      it('should return authentication summary', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue({
-            total: '1000',
-            dkimPass: '800',
-            spfPass: '750',
-            dmarcPass: '850',
-            enforcement: '100',
-          }),
-        };
+    it('should delegate topSources to DmarcAnalyticsService', async () => {
+      const params = { limit: 10 };
+      const sources = [{ source: 'example.com', count: 100 }];
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.topSources.mockResolvedValue(sources);
 
-        const result = await service.authSummary({});
+      const result = await service.topSources(params);
 
-        expect(result).toEqual({
-          total: 1000,
-          dkimPass: 800,
-          spfPass: 750,
-          dmarcPass: 850,
-          enforcement: 100,
-        });
-        expect(
-          mockDmarcRecordRepository.createQueryBuilder,
-        ).toHaveBeenCalledWith('rec');
-        expect(mockQueryBuilder.leftJoin).toHaveBeenCalledWith(
-          'rec.report',
-          'rep',
-        );
-      });
-
-      it('should filter authentication summary by domain', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue({
-            total: '500',
-            dkimPass: '400',
-            spfPass: '350',
-            dmarcPass: '425',
-            enforcement: '50',
-          }),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        const result = await service.authSummary({ domain: 'example.com' });
-
-        expect(result.total).toBe(500);
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rec.headerFrom ILIKE :domain',
-          {
-            domain: '%example.com%',
-          },
-        );
-      });
-
-      it('should handle null values in authentication summary', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue(null),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        const result = await service.authSummary({});
-
-        expect(result).toEqual({
-          total: 0,
-          dkimPass: 0,
-          spfPass: 0,
-          dmarcPass: 0,
-          enforcement: 0,
-        });
-      });
+      expect(result).toEqual(sources);
+      expect(mockDmarcAnalyticsService.topSources).toHaveBeenCalledWith(params);
     });
 
-    describe('authBreakdown', () => {
-      it('should return authentication breakdown', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue({
-            dkimPass: '800',
-            dkimFail: '150',
-            dkimMissing: '50',
-            spfPass: '750',
-            spfFail: '250',
-          }),
-        };
+    it('should delegate authSummary to DmarcAnalyticsService', async () => {
+      const params = { domain: 'example.com' };
+      const summary = {
+        total: 1000,
+        dkimPass: 800,
+        spfPass: 750,
+        dmarcPass: 850,
+        enforcement: 100,
+      };
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.authSummary.mockResolvedValue(summary);
 
-        const result = await service.authBreakdown({});
+      const result = await service.authSummary(params);
 
-        expect(result).toEqual({
-          dkim: {
-            pass: 800,
-            fail: 150,
-            missing: 50,
-          },
-          spf: {
-            pass: 750,
-            fail: 250,
-          },
-        });
-        expect(
-          mockDmarcRecordRepository.createQueryBuilder,
-        ).toHaveBeenCalledWith('rec');
-      });
-
-      it('should filter authentication breakdown by domain', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue({
-            dkimPass: '400',
-            dkimFail: '80',
-            dkimMissing: '20',
-            spfPass: '350',
-            spfFail: '150',
-          }),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        const result = await service.authBreakdown({ domain: 'example.com' });
-
-        expect(result.dkim.pass).toBe(400);
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rec.headerFrom ILIKE :domain',
-          {
-            domain: '%example.com%',
-          },
-        );
-      });
-
-      it('should handle null values in authentication breakdown', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue(null),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        const result = await service.authBreakdown({});
-
-        expect(result).toEqual({
-          dkim: {
-            pass: 0,
-            fail: 0,
-            missing: 0,
-          },
-          spf: {
-            pass: 0,
-            fail: 0,
-          },
-        });
-      });
+      expect(result).toEqual(summary);
+      expect(mockDmarcAnalyticsService.authSummary).toHaveBeenCalledWith(
+        params,
+      );
     });
 
-    describe('authPassRateTimeseries', () => {
-      it('should return authentication pass rate time series', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([
-            {
-              bucket: '2024-01-01',
-              total: '1000',
-              dkimPass: '800',
-              spfPass: '750',
-            },
-            {
-              bucket: '2024-01-02',
-              total: '1200',
-              dkimPass: '960',
-              spfPass: '900',
-            },
-          ]),
-        };
+    it('should delegate authBreakdown to DmarcAnalyticsService', async () => {
+      const params = { domain: 'example.com' };
+      const breakdown = {
+        dkim: { pass: 800, fail: 150, missing: 50 },
+        spf: { pass: 750, fail: 250 },
+      };
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.authBreakdown.mockResolvedValue(breakdown);
 
-        const result = await service.authPassRateTimeseries({
-          interval: 'day',
-        });
+      const result = await service.authBreakdown(params);
 
-        expect(result).toEqual([
-          {
-            date: '2024-01-01',
-            totalCount: 1000,
-            dkimPassCount: 800,
-            spfPassCount: 750,
-            dkimPassRate: 80,
-            spfPassRate: 75,
-          },
-          {
-            date: '2024-01-02',
-            totalCount: 1200,
-            dkimPassCount: 960,
-            spfPassCount: 900,
-            dkimPassRate: 80,
-            spfPassRate: 75,
-          },
-        ]);
-      });
+      expect(result).toEqual(breakdown);
+      expect(mockDmarcAnalyticsService.authBreakdown).toHaveBeenCalledWith(
+        params,
+      );
+    });
 
-      it('should handle zero total count in pass rate calculation', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest
-            .fn()
-            .mockResolvedValue([
-              { bucket: '2024-01-01', total: '0', dkimPass: '0', spfPass: '0' },
-            ]),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        const result = await service.authPassRateTimeseries({
-          interval: 'day',
-        });
-
-        expect(result[0]).toEqual({
+    it('should delegate authPassRateTimeseries to DmarcAnalyticsService', async () => {
+      const params = { interval: 'day' as const };
+      const timeseries = [
+        {
           date: '2024-01-01',
-          totalCount: 0,
-          dkimPassCount: 0,
-          spfPassCount: 0,
-          dkimPassRate: 0,
-          spfPassRate: 0,
-        });
-      });
+          dkimPassRate: 80,
+          spfPassRate: 75,
+          totalCount: 1000,
+          dkimPassCount: 800,
+          spfPassCount: 750,
+        },
+      ];
+
+      mockDmarcAnalyticsService.authPassRateTimeseries.mockResolvedValue(
+        timeseries,
+      );
+
+      const result = await service.authPassRateTimeseries(params);
+
+      expect(result).toEqual(timeseries);
+      expect(
+        mockDmarcAnalyticsService.authPassRateTimeseries,
+      ).toHaveBeenCalledWith(params);
     });
 
-    describe('dispositionTimeseries', () => {
-      it('should return disposition time series', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([
-            {
-              bucket: '2024-01-01',
-              none: '800',
-              quarantine: '150',
-              reject: '50',
-              total: '1000',
-            },
-            {
-              bucket: '2024-01-02',
-              none: '900',
-              quarantine: '200',
-              reject: '100',
-              total: '1200',
-            },
-          ]),
-        };
+    it('should delegate dispositionTimeseries to DmarcAnalyticsService', async () => {
+      const params = { interval: 'day' as const };
+      const timeseries = [
+        {
+          date: '2024-01-01',
+          none: 800,
+          quarantine: 150,
+          reject: 50,
+          total: 1000,
+        },
+      ];
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.dispositionTimeseries.mockResolvedValue(
+        timeseries,
+      );
 
-        const result = await service.dispositionTimeseries({ interval: 'day' });
+      const result = await service.dispositionTimeseries(params);
 
-        expect(result).toEqual([
-          {
-            date: '2024-01-01',
-            none: 800,
-            quarantine: 150,
-            reject: 50,
-            total: 1000,
-          },
-          {
-            date: '2024-01-02',
-            none: 900,
-            quarantine: 200,
-            reject: 100,
-            total: 1200,
-          },
-        ]);
-      });
-
-      it('should filter disposition timeseries by domain', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([]),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        await service.dispositionTimeseries({
-          domain: 'example.com',
-          interval: 'week',
-        });
-
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rec.headerFrom ILIKE :domain',
-          {
-            domain: '%example.com%',
-          },
-        );
-      });
+      expect(result).toEqual(timeseries);
+      expect(
+        mockDmarcAnalyticsService.dispositionTimeseries,
+      ).toHaveBeenCalledWith(params);
     });
 
-    describe('authMatrix', () => {
-      it('should return authentication matrix', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue({
-            pp: '700',
-            pf: '100',
-            fp: '50',
-            ff: '150',
-          }),
-        };
+    it('should delegate authMatrix to DmarcAnalyticsService', async () => {
+      const params = { domain: 'example.com' };
+      const matrix = {
+        dkimPass_spfPass: 700,
+        dkimPass_spfFail: 100,
+        dkimFail_spfPass: 50,
+        dkimFail_spfFail: 150,
+      };
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.authMatrix.mockResolvedValue(matrix);
 
-        const result = await service.authMatrix({});
+      const result = await service.authMatrix(params);
 
-        expect(result).toEqual({
-          dkimPass_spfPass: 700,
-          dkimPass_spfFail: 100,
-          dkimFail_spfPass: 50,
-          dkimFail_spfFail: 150,
-        });
-      });
-
-      it('should filter auth matrix by date range', async () => {
-        const from = new Date('2024-01-01');
-        const to = new Date('2024-12-31');
-
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue({
-            pp: '500',
-            pf: '50',
-            fp: '25',
-            ff: '75',
-          }),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        await service.authMatrix({ from, to });
-
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rep.beginDate >= :from',
-          { from },
-        );
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rep.beginDate <= :to',
-          { to },
-        );
-      });
+      expect(result).toEqual(matrix);
+      expect(mockDmarcAnalyticsService.authMatrix).toHaveBeenCalledWith(params);
     });
 
-    describe('topIps', () => {
-      it('should return top IPs', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([
-            {
-              ip: '1.2.3.4',
-              total: '1000',
-              pass: '800',
-              fail: '200',
-              lastSeen: '2024-01-15',
-            },
-            {
-              ip: '5.6.7.8',
-              total: '500',
-              pass: '400',
-              fail: '100',
-              lastSeen: '2024-01-14',
-            },
-          ]),
-        };
+    it('should delegate topIps to DmarcAnalyticsService', async () => {
+      const params = { limit: 10 };
+      const ips = [
+        {
+          ip: '1.2.3.4',
+          total: 1000,
+          pass: 800,
+          fail: 200,
+          lastSeen: '2024-01-15',
+        },
+      ];
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.topIps.mockResolvedValue(ips);
 
-        const result = await service.topIps({ limit: 10 });
+      const result = await service.topIps(params);
 
-        expect(result).toEqual([
-          {
-            ip: '1.2.3.4',
-            total: 1000,
-            pass: 800,
-            fail: 200,
-            lastSeen: '2024-01-15',
-          },
-          {
-            ip: '5.6.7.8',
-            total: 500,
-            pass: 400,
-            fail: 100,
-            lastSeen: '2024-01-14',
-          },
-        ]);
-        expect(mockQueryBuilder.limit).toHaveBeenCalledWith(10);
-      });
-
-      it('should filter top IPs by domain', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([]),
-        };
-
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
-
-        await service.topIps({ domain: 'example.com', limit: 5 });
-
-        expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-          'rec.headerFrom ILIKE :domain',
-          {
-            domain: '%example.com%',
-          },
-        );
-      });
+      expect(result).toEqual(ips);
+      expect(mockDmarcAnalyticsService.topIps).toHaveBeenCalledWith(params);
     });
 
-    describe('newIps', () => {
-      it('should return new IPs', async () => {
-        const mockQueryBuilder = {
-          leftJoin: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          select: jest.fn().mockReturnThis(),
-          addSelect: jest.fn().mockReturnThis(),
-          groupBy: jest.fn().mockReturnThis(),
-          orderBy: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          getRawMany: jest.fn().mockResolvedValue([
-            { ip: '9.10.11.12', firstSeen: '2024-01-15', count: '10' },
-            { ip: '13.14.15.16', firstSeen: '2024-01-14', count: '5' },
-          ]),
-        };
+    it('should delegate newIps to DmarcAnalyticsService', async () => {
+      const params = { limit: 10 };
+      const ips = [{ ip: '9.10.11.12', firstSeen: '2024-01-15', count: 10 }];
 
-        mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(
-          mockQueryBuilder,
-        );
+      mockDmarcAnalyticsService.newIps.mockResolvedValue(ips);
 
-        const result = await service.newIps({ limit: 10 });
+      const result = await service.newIps(params);
 
-        expect(result).toEqual([
-          { ip: '9.10.11.12', firstSeen: '2024-01-15', count: 10 },
-          { ip: '13.14.15.16', firstSeen: '2024-01-14', count: 5 },
-        ]);
-      });
+      expect(result).toEqual(ips);
+      expect(mockDmarcAnalyticsService.newIps).toHaveBeenCalledWith(params);
     });
   });
 
-  describe('Helper Methods', () => {
-    it('should coerce single value to array', () => {
-      const value = 'test';
-      const result = (service as any).coerceToArray(value);
-
-      expect(result).toEqual(['test']);
-    });
-
-    it('should return array as is', () => {
-      const value = ['test1', 'test2'];
-      const result = (service as any).coerceToArray(value);
-
-      expect(result).toEqual(['test1', 'test2']);
-    });
-
-    it('should return empty array for null/undefined', () => {
-      const result1 = (service as any).coerceToArray(null);
-      const result2 = (service as any).coerceToArray(undefined);
-
-      expect(result1).toEqual([]);
-      expect(result2).toEqual([]);
-    });
-  });
-
-  describe('unzipReport', () => {
-    const xmlString = '<root>hello</root>';
-    const xmlBuffer = Buffer.from(xmlString, 'utf8');
-
-    it('should return text when type is xml', async () => {
-      const result = await service.unzipReport(xmlBuffer, 'xml');
-      expect(result).toBe(xmlString);
-    });
-
-    it('should decompress gzip when type is gz', async () => {
-      const gz = zlib.gzipSync(xmlBuffer);
-      const result = await service.unzipReport(gz, 'gz');
-      expect(result).toBe(xmlString);
-    });
-
-    it('should detect gzip by signature when type is empty', async () => {
-      const gz = zlib.gzipSync(xmlBuffer);
-      const result = await service.unzipReport(gz, '');
-      expect(result).toBe(xmlString);
-    });
-
-    it('should read zip and prefer .xml entry (AdmZip path)', async () => {
-      const AdmZip = require('adm-zip');
-      const zip = new AdmZip();
-      zip.addFile('nested/ignored.txt', Buffer.from('ignore', 'utf8'));
-      zip.addFile('report.xml', xmlBuffer);
-      const zipBuffer = zip.toBuffer();
-
-      const result = await service.unzipReport(zipBuffer, 'zip');
-      expect(result).toBe(xmlString);
-    });
-
-    it('should read zip containing .xml.gz and gunzip (AdmZip path)', async () => {
-      const AdmZip = require('adm-zip');
-      const zip = new AdmZip();
-      const gz = zlib.gzipSync(xmlBuffer);
-      zip.addFile('report.xml.gz', gz);
-      const zipBuffer = zip.toBuffer();
-
-      const result = await service.unzipReport(zipBuffer, 'zip');
-      expect(result).toBe(xmlString);
-    });
-
-    it('should fallback to first file as text when no xml/gz (AdmZip path)', async () => {
-      const AdmZip = require('adm-zip');
-      const zip = new AdmZip();
-      zip.addFile('notes.txt', xmlBuffer);
-      const zipBuffer = zip.toBuffer();
-
-      const result = await service.unzipReport(zipBuffer, 'zip');
-      expect(result).toBe(xmlString);
-    });
-
-    it('should fallback to unzipper when AdmZip reports format error', async () => {
-      // Mock adm-zip to throw a format error, and unzipper to succeed
-      jest.resetModules();
-      jest.doMock('adm-zip', () => {
-        return jest.fn().mockImplementation(() => {
-          throw new Error('Invalid or unsupported zip format');
-        });
-      });
-
-      const fakeFile = {
-        path: 'inside.xml',
-        buffer: jest.fn().mockResolvedValue(xmlBuffer),
-        type: 'file',
-      } as any;
-      const unzipperModule = require('unzipper');
-      const openBufferMock = jest
-        .spyOn(unzipperModule.Open, 'buffer')
-        .mockResolvedValue({ files: [fakeFile] });
-
-      // Re-require the service class to pick up mocks
-      const {
-        DmarcReportService: FreshService,
-      } = require('./dmarc-report.service');
-      const freshService = new FreshService(
-        mockDmarcReportRepository as unknown as Repository<DmarcReport>,
-        mockDmarcRecordRepository as unknown as Repository<DmarcRecord>,
-        mockGenericRepository as unknown as Repository<DkimResult>,
-        mockGenericRepository as unknown as Repository<SpfResult>,
-        mockGenericRepository as unknown as Repository<PolicyOverrideReason>,
-        geolocationService,
-        forwardingDetectionService,
-      );
-
-      const someZipBuffer = Buffer.from('504b0304deadbeef', 'hex'); // looks like zip
-      const result = await freshService.unzipReport(someZipBuffer, 'zip');
-      expect(result).toBe(xmlString);
-      expect(openBufferMock).toHaveBeenCalled();
-    });
-
-    it('should throw for invalid buffer', async () => {
-      await expect(service.unzipReport(null as any, 'xml')).rejects.toThrow(
-        'Invalid file buffer',
-      );
-      await expect(service.unzipReport({} as any, 'xml')).rejects.toThrow(
-        'Invalid file buffer',
-      );
-    });
-
-    it('should throw for unsupported type when no signatures match', async () => {
-      const junk = Buffer.from('not an archive and not xml', 'utf8');
-      await expect(service.unzipReport(junk, 'bin')).rejects.toThrow(
-        'Unsupported file type',
-      );
-    });
-  });
-
-  describe('Domain helper queries', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
-    it('getDomains should combine and deduplicate domains from reports and records', async () => {
-      const reportQB = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getRawMany: jest
-          .fn()
-          .mockResolvedValue([
-            { domain: 'example.com' },
-            { domain: 'test.com' },
-          ]),
-      };
-      const recordQB = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getRawMany: jest
-          .fn()
-          .mockResolvedValue([
-            { domain: 'example.com' },
-            { domain: 'another.com' },
-          ]),
-      };
-
-      mockDmarcReportRepository.createQueryBuilder.mockReturnValueOnce(
-        reportQB as any,
-      );
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValueOnce(
-        recordQB as any,
-      );
-
-      const result = await service.getDomains();
-      expect(result).toEqual(['another.com', 'example.com', 'test.com']); // sorted
-    });
-
-    it('getReportDomains should return ordered list from reports only', async () => {
-      const reportQB = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        getRawMany: jest
-          .fn()
-          .mockResolvedValue([{ domain: 'a.com' }, { domain: 'b.com' }]),
-      };
-      mockDmarcReportRepository.createQueryBuilder.mockReturnValueOnce(
-        reportQB as any,
-      );
-
-      const result = await service.getReportDomains();
-      expect(result).toEqual(['a.com', 'b.com']);
-      expect(reportQB.orderBy).toHaveBeenCalledWith('domain', 'ASC');
-    });
-  });
-
-  describe('Geo and aggregation analytics (additional)', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
-    it('getTopCountries should return mapped results and honor limit', async () => {
-      const qb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          {
-            country: 'US',
-            countryname: 'United States',
-            count: '100',
-            dmarcpasscount: '80',
-            dkimpasscount: '70',
-            spfpasscount: '75',
-          },
-          {
-            country: 'DE',
-            countryname: 'Germany',
-            count: '50',
-            dmarcpasscount: '40',
-            dkimpasscount: '35',
-            spfpasscount: '30',
-          },
-        ]),
-      };
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(qb as any);
-
-      const result = await service.getTopCountries({ limit: 2 });
-      expect(result[0]).toEqual({
-        country: 'US',
-        countryName: 'United States',
-        count: 100,
-        dmarcPassCount: 80,
-        dkimPassCount: 70,
-        spfPassCount: 75,
-      });
-      expect(qb.limit).toHaveBeenCalledWith(2);
-    });
-
-    it('getTopCountries should apply filters (domain, from, to)', async () => {
-      const qb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([]),
-      };
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(qb as any);
-
-      const from = new Date('2024-01-01');
-      const to = new Date('2024-12-31');
-      await service.getTopCountries({
-        domain: 'example.com',
-        from,
-        to,
-        limit: 5,
-      });
-      expect(qb.andWhere).toHaveBeenCalledWith(
-        'record.headerFrom ILIKE :domain',
-        { domain: '%example.com%' },
-      );
-      expect(qb.andWhere).toHaveBeenCalledWith('report.beginDate >= :from', {
-        from,
-      });
-      expect(qb.andWhere).toHaveBeenCalledWith('report.endDate <= :to', { to });
-    });
-
-    it('getTopCountriesPaginated should return paginated data and total', async () => {
-      const baseQB: any = {
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        clone: jest.fn(),
-        select: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn(),
-        getRawMany: jest.fn(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-      };
-      const totalQB: any = {
-        select: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ total: '3' }),
-      };
-      baseQB.clone.mockReturnValue(totalQB);
-      baseQB.getRawMany.mockResolvedValue([
+  describe('Delegation to Geo Analytics Service', () => {
+    it('should delegate getTopCountries to DmarcGeoAnalyticsService', async () => {
+      const params = { limit: 10 };
+      const countries = [
         {
           country: 'US',
-          countryname: 'United States',
-          count: '100',
-          dmarcpasscount: '80',
-          dkimpasscount: '70',
-          spfpasscount: '75',
+          countryName: 'United States',
+          count: 100,
+          dmarcPassCount: 80,
+          dkimPassCount: 70,
+          spfPassCount: 75,
         },
-        {
-          country: 'DE',
-          countryname: 'Germany',
-          count: '50',
-          dmarcpasscount: '40',
-          dkimpasscount: '35',
-          spfpasscount: '30',
-        },
-      ]);
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(baseQB);
+      ];
 
-      const result = await service.getTopCountriesPaginated({
-        page: 1,
-        pageSize: 2,
-      });
-      expect(result.total).toBe(3);
-      expect(result.data[0].country).toBe('US');
-      expect(baseQB.offset).toHaveBeenCalledWith(0);
-      expect(baseQB.limit).toHaveBeenCalledWith(2);
+      mockDmarcGeoAnalyticsService.getTopCountries.mockResolvedValue(countries);
+
+      const result = await service.getTopCountries(params);
+
+      expect(result).toEqual(countries);
+      expect(mockDmarcGeoAnalyticsService.getTopCountries).toHaveBeenCalledWith(
+        params,
+      );
     });
 
-    it('getGeoHeatmapData should return mapped heatmap points', async () => {
-      const qb = {
-        leftJoin: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
+    it('should delegate getTopCountriesPaginated to DmarcGeoAnalyticsService', async () => {
+      const params = { page: 1, pageSize: 10 };
+      const paginatedCountries = {
+        data: [
           {
-            latitude: '37.77',
-            longitude: '-122.42',
-            count: '100',
-            passcount: '80',
-            failcount: '20',
-          },
-        ]),
-      };
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(qb as any);
-
-      const result = await service.getGeoHeatmapData({});
-      expect(result[0]).toEqual({
-        latitude: 37.77,
-        longitude: -122.42,
-        count: 100,
-        passCount: 80,
-        failCount: 20,
-      });
-    });
-
-    it('getTopIpsEnhanced should return paginated enhanced IP data', async () => {
-      const baseQB: any = {
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ total: '2' }),
-        getRawMany: jest.fn().mockResolvedValue([
-          {
-            sourceip: '1.2.3.4',
             country: 'US',
-            countryname: 'United States',
-            city: 'NY',
-            latitude: '40.7',
-            longitude: '-74.0',
-            count: '100',
-            passcount: '80',
-            failcount: '20',
-            dkimpasscount: '60',
-            spfpasscount: '70',
+            countryName: 'United States',
+            count: 100,
+            dmarcPassCount: 80,
+            dkimPassCount: 70,
+            spfPassCount: 75,
           },
-          {
-            sourceip: '5.6.7.8',
-            count: '50',
-            passcount: '40',
-            failcount: '10',
-            dkimpasscount: '30',
-            spfpasscount: '35',
-          },
-        ]),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
+        ],
+        total: 50,
       };
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(baseQB);
 
-      const result = await service.getTopIpsEnhanced({ page: 1, pageSize: 10 });
-      expect(result.total).toBe(2);
-      expect(result.data[0].sourceIp).toBe('1.2.3.4');
-      expect(result.data[0].latitude).toBe(40.7);
-      expect(result.data[1].country).toBeUndefined();
+      mockDmarcGeoAnalyticsService.getTopCountriesPaginated.mockResolvedValue(
+        paginatedCountries,
+      );
+
+      const result = await service.getTopCountriesPaginated(params);
+
+      expect(result).toEqual(paginatedCountries);
+      expect(
+        mockDmarcGeoAnalyticsService.getTopCountriesPaginated,
+      ).toHaveBeenCalledWith(params);
     });
 
-    it('getTopHeaderFromDomainsPaginated should return paginated headerFrom data', async () => {
-      const baseQB: any = {
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        offset: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockReturnThis(),
-        clone: jest.fn(),
-        getRawOne: jest.fn(),
-        getRawMany: jest.fn(),
-      };
-
-      const totalQB: any = {
-        select: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ total: '4' }),
-      };
-      baseQB.clone.mockReturnValue(totalQB);
-      baseQB.getRawMany.mockResolvedValue([
+    it('should delegate getGeoHeatmapData to DmarcGeoAnalyticsService', async () => {
+      const params = { domain: 'example.com' };
+      const heatmap = [
         {
-          headerfrom: 'a.example.com',
-          count: '10',
-          dmarcpasscount: '8',
-          dkimpasscount: '7',
-          spfpasscount: '7',
+          latitude: 37.77,
+          longitude: -122.42,
+          count: 100,
+          passCount: 80,
+          failCount: 20,
         },
-        {
-          headerfrom: 'b.example.com',
-          count: '5',
-          dmarcpasscount: '3',
-          dkimpasscount: '2',
-          spfpasscount: '3',
-        },
-      ]);
+      ];
 
-      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(baseQB);
+      mockDmarcGeoAnalyticsService.getGeoHeatmapData.mockResolvedValue(heatmap);
 
-      const result = await service.getTopHeaderFromDomainsPaginated({
+      const result = await service.getGeoHeatmapData(params);
+
+      expect(result).toEqual(heatmap);
+      expect(
+        mockDmarcGeoAnalyticsService.getGeoHeatmapData,
+      ).toHaveBeenCalledWith(params);
+    });
+
+    it('should delegate getTopIpsEnhanced to DmarcGeoAnalyticsService', async () => {
+      const params = { page: 1, pageSize: 10 };
+      const ips = {
+        data: [
+          {
+            sourceIp: '1.2.3.4',
+            count: 100,
+            passCount: 80,
+            failCount: 20,
+            dkimPassCount: 60,
+            spfPassCount: 70,
+            country: 'US',
+            countryName: 'United States',
+            city: 'NY',
+            latitude: 40.7,
+            longitude: -74.0,
+          },
+        ],
+        total: 2,
         page: 1,
-        pageSize: 2,
-      });
-      expect(result.total).toBe(4);
-      expect(result.data[0].headerFrom).toBe('a.example.com');
-      expect(baseQB.offset).toHaveBeenCalledWith(0);
-      expect(baseQB.limit).toHaveBeenCalledWith(2);
+        pageSize: 10,
+      };
+
+      mockDmarcGeoAnalyticsService.getTopIpsEnhanced.mockResolvedValue(ips);
+
+      const result = await service.getTopIpsEnhanced(params);
+
+      expect(result).toEqual(ips);
+      expect(
+        mockDmarcGeoAnalyticsService.getTopIpsEnhanced,
+      ).toHaveBeenCalledWith(params);
+    });
+
+    it('should delegate getTopHeaderFromDomainsPaginated to DmarcGeoAnalyticsService', async () => {
+      const params = { page: 1, pageSize: 10 };
+      const domains = {
+        data: [
+          {
+            headerFrom: 'a.example.com',
+            count: 10,
+            dmarcPassCount: 8,
+            dkimPassCount: 7,
+            spfPassCount: 7,
+          },
+        ],
+        total: 4,
+      };
+
+      mockDmarcGeoAnalyticsService.getTopHeaderFromDomainsPaginated.mockResolvedValue(
+        domains,
+      );
+
+      const result = await service.getTopHeaderFromDomainsPaginated(params);
+
+      expect(result).toEqual(domains);
+      expect(
+        mockDmarcGeoAnalyticsService.getTopHeaderFromDomainsPaginated,
+      ).toHaveBeenCalledWith(params);
+    });
+  });
+
+  describe('Delegation to Search Service', () => {
+    it('should delegate searchRecords to DmarcSearchService', async () => {
+      const params = { page: 1, pageSize: 10, domain: 'example.com' };
+      const searchResults = {
+        data: [{ id: '1', sourceIp: '1.2.3.4' }] as any[],
+        total: 1,
+        page: 1,
+        pageSize: 10,
+      };
+
+      mockDmarcSearchService.searchRecords.mockResolvedValue(searchResults);
+
+      const result = await service.searchRecords(params);
+
+      expect(result).toEqual(searchResults);
+      expect(mockDmarcSearchService.searchRecords).toHaveBeenCalledWith(params);
+    });
+
+    it('should delegate getDistinctValues to DmarcSearchService', async () => {
+      const field = 'domain';
+      const from = new Date('2024-01-01');
+      const to = new Date('2024-12-31');
+      const distinctValues = ['example.com', 'test.com'];
+
+      mockDmarcSearchService.getDistinctValues.mockResolvedValue(
+        distinctValues,
+      );
+
+      const result = await service.getDistinctValues(field, from, to);
+
+      expect(result).toEqual(distinctValues);
+      expect(mockDmarcSearchService.getDistinctValues).toHaveBeenCalledWith(
+        field,
+        from,
+        to,
+      );
+    });
+
+    it('should delegate getDomains to DmarcSearchService', async () => {
+      const domains = ['example.com', 'test.com'];
+
+      mockDmarcSearchService.getDomains.mockResolvedValue(domains);
+
+      const result = await service.getDomains();
+
+      expect(result).toEqual(domains);
+      expect(mockDmarcSearchService.getDomains).toHaveBeenCalled();
+    });
+
+    it('should delegate getReportDomains to DmarcSearchService', async () => {
+      const domains = ['example.com', 'test.com'];
+
+      mockDmarcSearchService.getReportDomains.mockResolvedValue(domains);
+
+      const result = await service.getReportDomains();
+
+      expect(result).toEqual(domains);
+      expect(mockDmarcSearchService.getReportDomains).toHaveBeenCalled();
     });
   });
 });
