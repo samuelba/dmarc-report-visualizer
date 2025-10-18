@@ -26,7 +26,9 @@
     "docker:dev": "docker compose up -d",
     "typeorm:build": "tsc -p tsconfig.build.json",
     "typeorm:run": "node -e \"(async()=>{const ds=require('./dist/src/typeorm-datasource.js').default;await ds.initialize();await ds.runMigrations();await ds.destroy();console.log('Migrations run.');})().catch(e=>{console.error(e);process.exit(1);})\"",
-    "migrate": "npm run build && npm run typeorm:run"
+    "migrate": "npm run build && npm run typeorm:run",
+    "backup": "npm run build && node dist/src/scripts/pre-migration-backup.js",
+    "migrate:safe": "npm run build && node dist/src/scripts/pre-migration-backup.js && npm run typeorm:run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

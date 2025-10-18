@@ -24,3 +24,7 @@ client_*.json
 /scripts/dmarc_reports
 /backend/reports
 /material/data
+
+# Backups
+*.sql
+*.sql.gz

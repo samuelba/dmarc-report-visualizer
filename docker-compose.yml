@@ -35,6 +35,11 @@ services:
       DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
       DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
 
+      # Backup Configuration
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      BACKUP_MANDATORY: ${BACKUP_MANDATORY:-true}
+      BACKUP_KEEP_COUNT: ${BACKUP_KEEP_COUNT:-10}
+
       # CORS Configuration
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
 
@@ -81,6 +86,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./reports:/app/reports
+      - ./backups:/app/backups
     networks:
       - dmarc-network
     restart: unless-stopped
