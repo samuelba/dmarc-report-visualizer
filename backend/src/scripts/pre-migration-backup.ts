@@ -1,0 +1,182 @@
+import { DataSource } from 'typeorm';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const execAsync = promisify(exec);
+
+interface BackupConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  database: string;
+  backupDir: string;
+}
+
+async function ensureBackupDirectory(backupDir: string): Promise<void> {
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+    console.log(`Created backup directory: ${backupDir}`);
+  }
+}
+
+async function checkPendingMigrations(
+  dataSource: DataSource,
+): Promise<boolean> {
+  try {
+    await dataSource.initialize();
+    const pendingMigrations = await dataSource.showMigrations();
+    await dataSource.destroy();
+    return pendingMigrations;
+  } catch (error) {
+    console.error('Error checking pending migrations:', error);
+    // If we can't check, assume there might be migrations and proceed with backup
+    return true;
+  }
+}
+
+async function createBackup(config: BackupConfig): Promise<string> {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupFileName = `backup_${config.database}_${timestamp}.sql.gz`;
+  const backupFilePath = path.join(config.backupDir, backupFileName);
+
+  console.log(`Creating database backup: ${backupFileName}`);
+
+  // Set PGPASSWORD environment variable for pg_dump
+  const env = {
+    ...process.env,
+    PGPASSWORD: config.password,
+  };
+
+  // Use pg_dump with gzip compression
+  const command = `pg_dump -h ${config.host} -p ${config.port} -U ${config.username} -d ${config.database} -F p | gzip > ${backupFilePath}`;
+
+  try {
+    await execAsync(command, { env, shell: '/bin/sh' });
+    console.log(`✓ Backup created successfully: ${backupFilePath}`);
+
+    // Get file size
+    const stats = fs.statSync(backupFilePath);
+    const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+    console.log(`  Backup size: ${fileSizeInMB} MB (compressed)`);
+
+    return backupFilePath;
+  } catch (error: any) {
+    console.error('✗ Failed to create backup:', error.message);
+    throw error;
+  }
+}
+
+async function cleanOldBackups(
+  backupDir: string,
+  keepCount: number = 10,
+): Promise<void> {
+  try {
+    const files = fs
+      .readdirSync(backupDir)
+      .filter(
+        (file) =>
+          file.startsWith('backup_') &&
+          (file.endsWith('.sql') || file.endsWith('.sql.gz')),
+      )
+      .map((file) => ({
+        name: file,
+        path: path.join(backupDir, file),
+        time: fs.statSync(path.join(backupDir, file)).mtime.getTime(),
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (files.length > keepCount) {
+      console.log(`Cleaning old backups (keeping ${keepCount} most recent)...`);
+      const filesToDelete = files.slice(keepCount);
+
+      for (const file of filesToDelete) {
+        fs.unlinkSync(file.path);
+        console.log(`  Deleted old backup: ${file.name}`);
+      }
+
+      console.log(`✓ Cleaned ${filesToDelete.length} old backup(s)`);
+    }
+  } catch (error) {
+    console.error('Warning: Failed to clean old backups:', error);
+    // Don't throw - this is not critical
+  }
+}
+
+async function main() {
+  const config: BackupConfig = {
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
+    username: process.env.DATABASE_USERNAME || 'postgres',
+    password: process.env.DATABASE_PASSWORD || 'postgres',
+    database: process.env.DATABASE_NAME || 'dmarc',
+    backupDir: process.env.BACKUP_DIR || path.join(process.cwd(), 'backups'),
+  };
+
+  console.log('=== Pre-Migration Database Backup ===');
+  console.log(`Database: ${config.database}@${config.host}:${config.port}`);
+  console.log(`Backup directory: ${config.backupDir}`);
+
+  try {
+    // Ensure backup directory exists
+    await ensureBackupDirectory(config.backupDir);
+
+    // Create a temporary DataSource to check for pending migrations
+    const dataSource = new DataSource({
+      type: 'postgres',
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      database: config.database,
+      entities: [path.join(process.cwd(), 'dist/**/*.entity.js')],
+      migrations: [path.join(process.cwd(), 'dist/src/migrations/*.js')],
+    });
+
+    // Check if there are pending migrations
+    console.log('Checking for pending migrations...');
+    const hasPendingMigrations = await checkPendingMigrations(dataSource);
+
+    if (!hasPendingMigrations) {
+      console.log('✓ No pending migrations found. Skipping backup.');
+      return;
+    }
+
+    console.log('⚠ Pending migrations detected. Creating backup...');
+
+    // Create the backup
+    await createBackup(config);
+
+    // Clean old backups
+    const keepBackups = parseInt(process.env.BACKUP_KEEP_COUNT || '10', 10);
+    await cleanOldBackups(config.backupDir, keepBackups);
+
+    console.log('=== Backup completed successfully ===\n');
+  } catch (error: any) {
+    console.error('=== Backup failed ===');
+    console.error(error);
+
+    // Check if backup is mandatory
+    const backupMandatory = process.env.BACKUP_MANDATORY !== 'false';
+    if (backupMandatory) {
+      console.error('Backup is mandatory. Exiting to prevent data loss.');
+      process.exit(1);
+    } else {
+      console.warn(
+        '⚠ Backup failed but BACKUP_MANDATORY=false, continuing...',
+      );
+    }
+  }
+}
+
+// Run the backup if this script is executed directly
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+  });
+}
+
+export { main as runPreMigrationBackup };
