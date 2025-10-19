@@ -42,3 +42,4 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 - Upload reports via web interface
 - Directory watcher to auto-import reports from a specified folder
 - Gmail integration to download reports from email attachments
+- Automatic database backups before migrations - See [BACKUP_SYSTEM.md](BACKUP_SYSTEM.md) for details
