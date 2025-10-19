@@ -9,15 +9,23 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 if [ -f "$PROJECT_ROOT/.env" ]; then
     echo "Loading environment from $PROJECT_ROOT/.env"
     
-    # Export each line, handling quoted values properly
+    # Export each line, handling quoted values properly and preventing command injection
     while IFS= read -r line || [ -n "$line" ]; do
         # Skip comments and empty lines
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
         [[ -z "${line// }" ]] && continue
         
-        # Export the variable
-        if [[ "$line" =~ ^[A-Z_]+=.* ]]; then
-            export "$line"
+        # Export the variable safely by parsing key and value separately
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            value="${BASH_REMATCH[2]}"
+            # Remove quotes if present
+            value="${value#\"}"
+            value="${value%\"}"
+            value="${value#\'}"
+            value="${value%\'}"
+            # Export with explicit assignment to prevent command substitution
+            export "$key=$value"
         fi
     done < "$PROJECT_ROOT/.env"
     

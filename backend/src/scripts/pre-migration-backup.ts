@@ -1,10 +1,6 @@
 import { DataSource } from 'typeorm';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
-
-const execAsync = promisify(exec);
 
 interface BackupConfig {
   host: string;
@@ -16,8 +12,10 @@ interface BackupConfig {
 }
 
 async function ensureBackupDirectory(backupDir: string): Promise<void> {
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
+  try {
+    await fs.promises.access(backupDir);
+  } catch {
+    await fs.promises.mkdir(backupDir, { recursive: true });
     console.log(`Created backup directory: ${backupDir}`);
   }
 }
@@ -50,23 +48,89 @@ async function createBackup(config: BackupConfig): Promise<string> {
     PGPASSWORD: config.password,
   };
 
-  // Use pg_dump with gzip compression
-  const command = `pg_dump -h ${config.host} -p ${config.port} -U ${config.username} -d ${config.database} -F p | gzip > ${backupFilePath}`;
+  // Prepare pg_dump arguments safely
+  const pgDumpArgs = [
+    '-h',
+    config.host,
+    '-p',
+    String(config.port),
+    '-U',
+    config.username,
+    '-d',
+    config.database,
+    '-F',
+    'p',
+  ];
 
-  try {
-    await execAsync(command, { env, shell: '/bin/sh' });
-    console.log(`✓ Backup created successfully: ${backupFilePath}`);
+  // Use execFile for pg_dump and pipe to gzip
+  const { spawn } = require('child_process');
+  return new Promise<string>((resolve, reject) => {
+    const pgDump = spawn('pg_dump', pgDumpArgs, { env });
+    const gzip = spawn('gzip');
+    const outStream = fs.createWriteStream(backupFilePath);
 
-    // Get file size
-    const stats = fs.statSync(backupFilePath);
-    const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
-    console.log(`  Backup size: ${fileSizeInMB} MB (compressed)`);
+    pgDump.stdout.pipe(gzip.stdin);
+    gzip.stdout.pipe(outStream);
 
-    return backupFilePath;
-  } catch (error: any) {
-    console.error('✗ Failed to create backup:', error.message);
-    throw error;
-  }
+    let settled = false;
+    const safeReject = (error: Error) => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    };
+    const safeResolve = (value: string) => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    };
+
+    pgDump.on('error', (err: any) => {
+      console.error('✗ Failed to start pg_dump:', err.message);
+      safeReject(new Error(err && err.message ? err.message : String(err)));
+    });
+    gzip.on('error', (err: any) => {
+      console.error('✗ Failed to start gzip:', err.message);
+      safeReject(new Error(err && err.message ? err.message : String(err)));
+    });
+    outStream.on('error', (err: any) => {
+      console.error('✗ Failed to write backup file:', err.message);
+      safeReject(new Error(err && err.message ? err.message : String(err)));
+    });
+
+    outStream.on('finish', () => {
+      if (!settled) {
+        void (async () => {
+          try {
+            console.log(`✓ Backup created successfully: ${backupFilePath}`);
+            // Get file size asynchronously
+            const stats = await fs.promises.stat(backupFilePath);
+            const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+            console.log(`  Backup size: ${fileSizeInMB} MB (compressed)`);
+            safeResolve(backupFilePath);
+          } catch (err: any) {
+            console.error('✗ Failed to read backup file stats:', err.message);
+            safeReject(
+              new Error(err && err.message ? err.message : String(err)),
+            );
+          }
+        })();
+      }
+    });
+    // Handle pg_dump exit code
+    pgDump.on('exit', (code: number) => {
+      if (code !== 0) {
+        safeReject(new Error(`pg_dump exited with code ${code}`));
+      }
+    });
+    // Handle gzip exit code
+    gzip.on('exit', (code: number) => {
+      if (code !== 0) {
+        safeReject(new Error(`gzip exited with code ${code}`));
+      }
+    });
+  });
 }
 
 async function cleanOldBackups(
@@ -74,26 +138,32 @@ async function cleanOldBackups(
   keepCount: number = 10,
 ): Promise<void> {
   try {
-    const files = fs
-      .readdirSync(backupDir)
-      .filter(
-        (file) =>
-          file.startsWith('backup_') &&
-          (file.endsWith('.sql') || file.endsWith('.sql.gz')),
-      )
-      .map((file) => ({
-        name: file,
-        path: path.join(backupDir, file),
-        time: fs.statSync(path.join(backupDir, file)).mtime.getTime(),
-      }))
-      .sort((a, b) => b.time - a.time);
+    const allFiles = await fs.promises.readdir(backupDir);
+    const filteredFiles = await Promise.all(
+      allFiles
+        .filter(
+          (file) =>
+            file.startsWith('backup_') &&
+            (file.endsWith('.sql') || file.endsWith('.sql.gz')),
+        )
+        .map(async (file) => {
+          const filePath = path.join(backupDir, file);
+          const stats = await fs.promises.stat(filePath);
+          return {
+            name: file,
+            path: filePath,
+            time: stats.mtime.getTime(),
+          };
+        }),
+    );
+    const files = filteredFiles.sort((a, b) => b.time - a.time);
 
     if (files.length > keepCount) {
       console.log(`Cleaning old backups (keeping ${keepCount} most recent)...`);
       const filesToDelete = files.slice(keepCount);
 
       for (const file of filesToDelete) {
-        fs.unlinkSync(file.path);
+        await fs.promises.unlink(file.path);
         console.log(`  Deleted old backup: ${file.name}`);
       }
 
