@@ -1,0 +1,40 @@
+<h2 mat-dialog-title>{{ title }}</h2>
+
+<mat-dialog-content>
+  <!-- Add Mode Description -->
+  <p *ngIf="!isEditMode" class="dialog-description">
+    Add a domain that you own or manage to track its email authentication statistics.
+  </p>
+
+  <!-- Edit Mode: Show Domain Name -->
+  <div *ngIf="isEditMode" class="domain-name">
+    <mat-icon>domain</mat-icon>
+    <strong>{{ domain }}</strong>
+  </div>
+
+  <!-- Add Mode: Domain Input -->
+  <mat-form-field *ngIf="!isEditMode" appearance="outline" class="full-width" subscriptSizing="dynamic">
+    <mat-label>Domain Name</mat-label>
+    <input matInput [(ngModel)]="domain" placeholder="example.com" required />
+    <mat-hint>Enter the domain name (e.g., example.com or subdomain.example.com)</mat-hint>
+  </mat-form-field>
+
+  <!-- Notes (both modes) -->
+  <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+    <mat-label>Notes{{ isEditMode ? '' : ' (Optional)' }}</mat-label>
+    <textarea
+      matInput
+      [(ngModel)]="notes"
+      placeholder="Add notes about this domain..."
+      [rows]="isEditMode ? 4 : 3"
+    ></textarea>
+    <mat-hint *ngIf="isEditMode">Optional notes to help you remember what this domain is used for</mat-hint>
+  </mat-form-field>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Cancel</button>
+  <button matButton="filled" color="primary" (click)="onSubmit()" [disabled]="!isValid">
+    {{ submitButtonText }}
+  </button>
+</mat-dialog-actions>

@@ -94,6 +94,39 @@ export interface ReprocessingJob {
   isFinished?: boolean;
 }
 
+export interface Domain {
+  id: string;
+  domain: string;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDomainDto {
+  domain: string;
+  notes?: string;
+}
+
+export interface UpdateDomainDto {
+  notes?: string | null;
+}
+
+export interface DomainStatistics {
+  id?: string;
+  domain: string;
+  isManaged: boolean;
+  totalMessages: number;
+  passedMessages: number;
+  failedMessages: number;
+  dmarcPassRate: number;
+  spfPassRate: number;
+  dkimPassRate: number;
+  uniqueSources: number;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface DmarcReport {
   id: string;
   reportId?: string;
@@ -492,5 +525,31 @@ export class ApiService {
 
   getReprocessingJob(id: string) {
     return this.http.get<ReprocessingJob>(`${this.apiBase}/reprocessing/jobs/${id}`);
+  }
+
+  // Domains API
+  getDomainsList() {
+    return this.http.get<Domain[]>(`${this.apiBase}/domains`);
+  }
+
+  getDomainStatistics(daysBack: number = 30) {
+    let hp = new HttpParams().set('daysBack', String(daysBack));
+    return this.http.get<DomainStatistics[]>(`${this.apiBase}/domains/statistics`, { params: hp });
+  }
+
+  getDomainById(id: string) {
+    return this.http.get<Domain>(`${this.apiBase}/domains/${id}`);
+  }
+
+  createDomain(dto: CreateDomainDto) {
+    return this.http.post<Domain>(`${this.apiBase}/domains`, dto);
+  }
+
+  updateDomain(id: string, dto: UpdateDomainDto) {
+    return this.http.put<Domain>(`${this.apiBase}/domains/${id}`, dto);
+  }
+
+  deleteDomain(id: string) {
+    return this.http.delete<{ message: string }>(`${this.apiBase}/domains/${id}`);
   }
 }
