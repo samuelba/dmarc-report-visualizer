@@ -1,4 +1,6 @@
 .env
+/backups
+/coverage
 /dist
 /node_modules
 /reports
