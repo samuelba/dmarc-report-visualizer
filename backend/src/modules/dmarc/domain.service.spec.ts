@@ -310,6 +310,7 @@ describe('DomainService', () => {
       addSelect: jest.fn().mockReturnThis(),
       innerJoin: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       groupBy: jest.fn().mockReturnThis(),
       getRawMany: jest.fn(),
     } as unknown as SelectQueryBuilder<DmarcRecord>;
