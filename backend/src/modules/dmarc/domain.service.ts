@@ -98,9 +98,10 @@ export class DomainService {
     );
 
     // Get statistics for all domains that appear in DMARC reports
+    // Group by headerFrom to show all domains being used in email headers
     const stats = await this.dmarcRecordRepository
       .createQueryBuilder('record')
-      .select('LOWER(report.domain)', 'domain')
+      .select('LOWER(record.headerFrom)', 'domain')
       .addSelect('COUNT(DISTINCT record.sourceIp)', 'uniqueSources')
       .addSelect('SUM(record.count)', 'totalMessages')
       .addSelect(
@@ -121,7 +122,9 @@ export class DomainService {
       )
       .innerJoin('record.report', 'report')
       .where('report.beginDate >= :cutoffDate', { cutoffDate })
-      .groupBy('LOWER(report.domain)')
+      .andWhere('record.headerFrom IS NOT NULL')
+      .andWhere('record.headerFrom != :empty', { empty: '' })
+      .groupBy('LOWER(record.headerFrom)')
       .getRawMany();
 
     // Create result array combining managed and unmanaged domains
