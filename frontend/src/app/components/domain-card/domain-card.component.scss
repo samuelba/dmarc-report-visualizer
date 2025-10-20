@@ -1,0 +1,93 @@
+.domain-card {
+  height: 100%;
+
+  mat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+
+    mat-card-title {
+      font-size: 20px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      mat-icon.warning-icon {
+        color: var(--custom-warning-color);
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .card-actions {
+      margin-left: auto;
+    }
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .stat-item {
+    .stat-label {
+      font-size: 12px;
+      color: var(--custom-metric-label-color);
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 500;
+
+      &.pass-rate-good {
+        color: var(--custom-success-color);
+      }
+
+      &.pass-rate-warning {
+        color: var(--custom-warning-color);
+      }
+
+      &.pass-rate-danger {
+        color: var(--custom-error-color);
+      }
+
+      .pass-count {
+        color: var(--custom-success-color);
+      }
+
+      .fail-count {
+        color: var(--custom-error-color);
+      }
+    }
+  }
+
+  .notes-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: var(--custom-result-bg-color);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--mat-sys-on-surface-variant);
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--mat-sys-outline);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  }
+
+  &.unknown-card {
+    border-left: 4px solid var(--custom-warning-color);
+  }
+}
