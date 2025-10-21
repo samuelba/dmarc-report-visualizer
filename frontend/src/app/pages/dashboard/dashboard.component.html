@@ -222,7 +222,11 @@
 
           <div *ngIf="!loadingHeaderFrom">
             <div class="headerfrom-list">
-              <div *ngFor="let row of headerFromRows; let i = index" class="headerfrom-item">
+              <div
+                *ngFor="let row of headerFromRows; let i = index"
+                class="headerfrom-item"
+                [class.unmanaged-domain]="!isDomainManaged(row.headerFrom)"
+              >
                 <div class="hf-rank">{{ (headerFromPage - 1) * headerFromPageSize + i + 1 }}</div>
                 <div class="hf-info">
                   <div class="hf-name">
