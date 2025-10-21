@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { MaterialModule } from '../../shared/material.module';
 import { DomainStatistics } from '../../services/api.service';
 
@@ -13,10 +14,13 @@ import { DomainStatistics } from '../../services/api.service';
 export class DomainCardComponent {
   @Input() domain!: DomainStatistics;
   @Input() isManaged = false;
+  @Input() daysBack = 30;
 
   @Output() edit = new EventEmitter<DomainStatistics>();
   @Output() remove = new EventEmitter<DomainStatistics>();
   @Output() addToManaged = new EventEmitter<string>();
+
+  constructor(private router: Router) {}
 
   onEdit(): void {
     this.edit.emit(this.domain);
@@ -28,6 +32,15 @@ export class DomainCardComponent {
 
   onAddToManaged(): void {
     this.addToManaged.emit(this.domain.domain);
+  }
+
+  onExplore(): void {
+    this.router.navigate(['/explore'], {
+      queryParams: {
+        headerFrom: this.domain.domain,
+        period: `${this.daysBack}d`,
+      },
+    });
   }
 
   getPassRateClass(rate: number): string {

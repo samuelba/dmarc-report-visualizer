@@ -1,32 +1,34 @@
 <mat-card class="domain-card" [class.unknown-card]="!isManaged">
   <mat-card-header>
     <mat-card-title>
-      <mat-icon *ngIf="!isManaged" class="warning-icon">warning</mat-icon>
+      @if (!isManaged) {
+        <mat-icon class="warning-icon">warning</mat-icon>
+      }
       {{ domain.domain }}
     </mat-card-title>
     <div class="card-actions">
       <!-- Managed domain actions -->
-      <ng-container *ngIf="isManaged">
+      <ng-container>
         <button mat-icon-button [matMenuTriggerFor]="menu">
           <mat-icon>more_vert</mat-icon>
         </button>
         <mat-menu #menu="matMenu">
-          <button mat-menu-item (click)="onEdit()">
-            <mat-icon>edit</mat-icon>
-            <span>Edit Notes</span>
-          </button>
-          <button mat-menu-item (click)="onRemove()">
-            <mat-icon>delete</mat-icon>
-            <span>Remove</span>
+          @if (isManaged) {
+            <button mat-menu-item (click)="onEdit()">
+              <mat-icon>edit</mat-icon>
+              <span>Edit Notes</span>
+            </button>
+            <button mat-menu-item (click)="onRemove()">
+              <mat-icon>delete</mat-icon>
+              <span>Remove</span>
+            </button>
+          }
+          <button mat-menu-item (click)="onExplore()">
+            <mat-icon>search</mat-icon>
+            <span>Explore</span>
           </button>
         </mat-menu>
       </ng-container>
-
-      <!-- Unknown domain action -->
-      <button *ngIf="!isManaged" matButton="tonal" color="primary" (click)="onAddToManaged()">
-        <mat-icon>add</mat-icon>
-        Add to Managed
-      </button>
     </div>
   </mat-card-header>
   <mat-card-content>
@@ -65,9 +67,20 @@
         </div>
       </div>
     </div>
-    <div *ngIf="domain.notes" class="notes-section">
-      <mat-icon>note</mat-icon>
-      <span>{{ domain.notes }}</span>
+    @if (domain.notes) {
+      <div class="notes-section">
+        <mat-icon>note</mat-icon>
+        <span>{{ domain.notes }}</span>
+      </div>
+    }
+    <div>
+      <!-- Unknown domain action -->
+      @if (!isManaged) {
+        <button matButton="tonal" color="primary" (click)="onAddToManaged()">
+          <mat-icon>add</mat-icon>
+          Add to Managed
+        </button>
+      }
     </div>
   </mat-card-content>
 </mat-card>
