@@ -22,86 +22,100 @@
   </section>
 
   <!-- Loading Spinner -->
-  <div *ngIf="loading()" class="loading-container">
-    <mat-spinner></mat-spinner>
-  </div>
+  @if (loading()) {
+    <div class="loading-container">
+      <mat-spinner></mat-spinner>
+    </div>
+  }
 
   <!-- Managed Domains Section -->
-  <div *ngIf="!loading()" class="domains-section">
-    <div class="section-header">
-      <h2>
-        <mat-icon>check_circle</mat-icon>
-        Managed Domains
-      </h2>
-      <button matButton="tonal" color="primary" (click)="openAddDomainDialog()">
-        <mat-icon>add</mat-icon>
-        Add Domain
-      </button>
-    </div>
-    <p class="section-description">
-      These are the domains you have added to your list. They represent legitimate sending domains that you own or
-      manage.
-    </p>
+  @if (!loading()) {
+    <div class="domains-section">
+      <div class="section-header">
+        <h2>
+          <mat-icon>check_circle</mat-icon>
+          Managed Domains
+        </h2>
+        <button matButton="tonal" color="primary" (click)="openAddDomainDialog()">
+          <mat-icon>add</mat-icon>
+          Add Domain
+        </button>
+      </div>
+      <p class="section-description">
+        These are the domains you have added to your list. They represent legitimate sending domains that you own or
+        manage.
+      </p>
 
-    <mat-card *ngIf="managedDomains.length === 0" class="empty-state">
-      <mat-card-content>
-        <mat-icon>inbox</mat-icon>
-        <p>No managed domains yet</p>
-        <p class="hint">Click "Add Domain" to start tracking your sending domains</p>
-      </mat-card-content>
-    </mat-card>
+      @if (managedDomains.length === 0) {
+        <mat-card class="empty-state">
+          <mat-card-content>
+            <mat-icon>inbox</mat-icon>
+            <p>No managed domains yet</p>
+            <p class="hint">Click "Add Domain" to start tracking your sending domains</p>
+          </mat-card-content>
+        </mat-card>
+      }
 
-    <div class="domains-grid" *ngIf="managedDomains.length > 0">
-      <app-domain-card
-        *ngFor="let stat of managedDomains"
-        [domain]="stat"
-        [isManaged]="true"
-        (edit)="editDomain($event)"
-        (remove)="removeDomain($event)"
-      ></app-domain-card>
-    </div>
-  </div>
-
-  <!-- Unknown Domains Section -->
-  <div *ngIf="!loading()" class="domains-section unknown-section">
-    <div class="section-header">
-      <h2>
-        <mat-icon class="warning-icon">warning</mat-icon>
-        Unknown Domains in Reports
-      </h2>
-    </div>
-    <div class="warning-box">
-      <mat-icon>info</mat-icon>
-      <div class="warning-content">
-        <p><strong>Review these domains carefully!</strong></p>
-        <p>These domains appear in your DMARC reports but are not in your managed list. They could be:</p>
-        <ul>
-          <li><strong>Legitimate:</strong> Domains you forgot to add or subdomains you use</li>
-          <li><strong>Suspicious:</strong> Phishing or spoofing attempts using your domains</li>
-          <li><strong>Third-party:</strong> Services sending on your behalf</li>
-        </ul>
-        <p>
-          If you recognize a domain, you can add it to your managed list. If you don't recognize it, investigate further
-          to determine if it's a security concern.
-        </p>
+      <div class="domains-grid" *ngIf="managedDomains.length > 0">
+        @for (stat of managedDomains; track stat) {
+          <app-domain-card
+            [domain]="stat"
+            [isManaged]="true"
+            [daysBack]="daysBack"
+            (edit)="editDomain($event)"
+            (remove)="removeDomain($event)"
+          ></app-domain-card>
+        }
       </div>
     </div>
+  }
 
-    <mat-card *ngIf="unknownDomains.length === 0" class="empty-state success">
-      <mat-card-content>
-        <mat-icon>check_circle</mat-icon>
-        <p>No unknown domains found</p>
-        <p class="hint">All domains in your reports are managed!</p>
-      </mat-card-content>
-    </mat-card>
+  <!-- Unknown Domains Section -->
+  @if (!loading()) {
+    <div class="domains-section unknown-section">
+      <div class="section-header">
+        <h2>
+          <mat-icon class="warning-icon">warning</mat-icon>
+          Unknown Domains in Reports
+        </h2>
+      </div>
+      <div class="warning-box">
+        <mat-icon>info</mat-icon>
+        <div class="warning-content">
+          <p><strong>Review these domains carefully!</strong></p>
+          <p>These domains appear in your DMARC reports but are not in your managed list. They could be:</p>
+          <ul>
+            <li><strong>Legitimate:</strong> Domains you forgot to add or subdomains you use</li>
+            <li><strong>Suspicious:</strong> Phishing or spoofing attempts using your domains</li>
+            <li><strong>Third-party:</strong> Services sending on your behalf</li>
+          </ul>
+          <p>
+            If you recognize a domain, you can add it to your managed list. If you don't recognize it, investigate
+            further to determine if it's a security concern.
+          </p>
+        </div>
+      </div>
 
-    <div class="domains-grid" *ngIf="unknownDomains.length > 0">
-      <app-domain-card
-        *ngFor="let stat of unknownDomains"
-        [domain]="stat"
-        [isManaged]="false"
-        (addToManaged)="addUnknownDomain($event)"
-      ></app-domain-card>
+      @if (unknownDomains.length === 0) {
+        <mat-card class="empty-state success">
+          <mat-card-content>
+            <mat-icon>check_circle</mat-icon>
+            <p>No unknown domains found</p>
+            <p class="hint">All domains in your reports are managed!</p>
+          </mat-card-content>
+        </mat-card>
+      }
+
+      <div class="domains-grid" *ngIf="unknownDomains.length > 0">
+        @for (stat of unknownDomains; track stat) {
+          <app-domain-card
+            [domain]="stat"
+            [isManaged]="false"
+            [daysBack]="daysBack"
+            (addToManaged)="addUnknownDomain($event)"
+          ></app-domain-card>
+        }
+      </div>
     </div>
-  </div>
+  }
 </div>
