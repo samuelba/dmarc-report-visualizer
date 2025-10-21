@@ -66,6 +66,7 @@ export class DashboardComponent implements OnInit {
   topCountries: CountryData[] = [];
 
   headerFromRows: HeaderFromRow[] = [];
+  managedDomains: string[] = [];
 
   // Summary metrics
   totalCountries = 0;
@@ -136,8 +137,25 @@ export class DashboardComponent implements OnInit {
   constructor(private apiService: ApiService) {}
 
   ngOnInit() {
+    // Load managed domains list
+    this.loadManagedDomains();
     // Don't load data here - wait for the filter component to emit its initial filterChange event
     // This prevents a race condition where we load data twice (once with no filter, once with the default 30d filter)
+  }
+
+  loadManagedDomains() {
+    this.apiService.getDomainsList().subscribe({
+      next: (domains) => {
+        this.managedDomains = domains.map((d) => d.domain.toLowerCase());
+      },
+      error: (err) => {
+        console.error('Error loading managed domains:', err);
+      },
+    });
+  }
+
+  isDomainManaged(domain: string): boolean {
+    return this.managedDomains.includes(domain.toLowerCase());
   }
 
   onFilterChange(filter: FilterParams) {

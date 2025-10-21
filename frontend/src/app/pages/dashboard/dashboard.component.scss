@@ -168,6 +168,17 @@
 }
 
 /* Header-From list styles */
+:host .headerfrom-card ::ng-deep .mat-mdc-card-header-text {
+  width: 100% !important;
+
+  mat-card-title {
+    button {
+      margin-left: auto;
+      margin-bottom: -12px;
+    }
+  }
+}
+
 .headerfrom-list {
   display: flex;
   flex-direction: column;
@@ -182,6 +193,11 @@
   padding: 12px;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
+
+  &.unmanaged-domain {
+    border-left: 4px solid var(--custom-warning-color); // Orange warning color
+    padding-left: 8px; // Adjust padding to account for border
+  }
 }
 
 .hf-rank {
@@ -276,15 +292,4 @@ mat-card-title {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-:host .headerfrom-card ::ng-deep .mat-mdc-card-header-text {
-  width: 100% !important;
-
-  mat-card-title {
-    button {
-      margin-left: auto;
-      margin-bottom: -12px;
-    }
-  }
 }
