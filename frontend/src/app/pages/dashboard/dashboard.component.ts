@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MaterialModule } from '../../shared/material.module';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { DashboardFilterComponent } from '../../components/dashboard-filter/dashboard-filter.component';
@@ -46,6 +47,7 @@ interface HeaderFromRow {
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     MaterialModule,
     MatPaginatorModule,
     DashboardFilterComponent,

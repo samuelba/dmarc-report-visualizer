@@ -277,3 +277,14 @@ mat-card-title {
   align-items: center;
   gap: 8px;
 }
+
+:host .headerfrom-card ::ng-deep .mat-mdc-card-header-text {
+  width: 100% !important;
+
+  mat-card-title {
+    button {
+      margin-left: auto;
+      margin-bottom: -12px;
+    }
+  }
+}
