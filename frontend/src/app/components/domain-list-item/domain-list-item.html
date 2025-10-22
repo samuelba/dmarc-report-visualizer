@@ -1,0 +1,90 @@
+<div class="domain-list-item" [class.managed]="isManaged" [class.unmanaged]="!isManaged">
+  <!-- Domain Name Column -->
+  <div class="domain-name">
+    <span class="domain-text">{{ domain.domain }}</span>
+    @if (isManaged && domain.notes) {
+      <mat-icon class="notes-icon" [matTooltip]="domain.notes">info</mat-icon>
+    }
+  </div>
+
+  <!-- Messages Column -->
+  <div class="messages-col">
+    <span class="stat-value">{{ domain.totalMessages | number }}</span>
+    <span class="stat-label">messages</span>
+  </div>
+
+  <!-- Sources Column -->
+  <div class="sources-col">
+    <span class="stat-value">{{ domain.uniqueSources }}</span>
+    <span class="stat-label">sources</span>
+  </div>
+
+  <!-- DMARC Pass Rate Column -->
+  <div class="rate-col">
+    <div class="rate-bar">
+      <div
+        class="rate-fill"
+        [class]="getPassRateClass(domain.dmarcPassRate)"
+        [style.width.%]="domain.dmarcPassRate"
+      ></div>
+    </div>
+    <span class="rate-text" [class]="getPassRateClass(domain.dmarcPassRate)">
+      {{ domain.dmarcPassRate | number: '1.0-1' }}%
+    </span>
+    <span class="rate-label">DMARC</span>
+  </div>
+
+  <!-- SPF Pass Rate Column -->
+  <div class="rate-col">
+    <div class="rate-bar">
+      <div class="rate-fill" [class]="getPassRateClass(domain.spfPassRate)" [style.width.%]="domain.spfPassRate"></div>
+    </div>
+    <span class="rate-text" [class]="getPassRateClass(domain.spfPassRate)">
+      {{ domain.spfPassRate | number: '1.0-1' }}%
+    </span>
+    <span class="rate-label">SPF</span>
+  </div>
+
+  <!-- DKIM Pass Rate Column -->
+  <div class="rate-col">
+    <div class="rate-bar">
+      <div
+        class="rate-fill"
+        [class]="getPassRateClass(domain.dkimPassRate)"
+        [style.width.%]="domain.dkimPassRate"
+      ></div>
+    </div>
+    <span class="rate-text" [class]="getPassRateClass(domain.dkimPassRate)">
+      {{ domain.dkimPassRate | number: '1.0-1' }}%
+    </span>
+    <span class="rate-label">DKIM</span>
+  </div>
+
+  <!-- Actions Column -->
+  <div class="actions-col">
+    <button mat-icon-button [matMenuTriggerFor]="menu" class="menu-button">
+      <mat-icon>more_vert</mat-icon>
+    </button>
+    <mat-menu #menu="matMenu">
+      <button mat-menu-item (click)="onExplore()">
+        <mat-icon>search</mat-icon>
+        <span>Explore</span>
+      </button>
+      @if (isManaged) {
+        <button mat-menu-item (click)="onEdit()">
+          <mat-icon>edit</mat-icon>
+          <span>Edit</span>
+        </button>
+        <button mat-menu-item (click)="onRemove()">
+          <mat-icon>delete</mat-icon>
+          <span>Remove</span>
+        </button>
+      } @else {
+        <button mat-menu-item (click)="onAddToManaged()">
+          <mat-icon>add_circle</mat-icon>
+          <span>Add to Managed</span>
+        </button>
+      }
+    </mat-menu>
+  </div>
+</div>

@@ -10,19 +10,23 @@ import {
   DomainDialogResult,
 } from '../../components/domain-dialog/domain-dialog.component';
 import { DomainCardComponent } from '../../components/domain-card/domain-card.component';
+import { DomainListItemComponent } from '../../components/domain-list-item/domain-list-item';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-domains',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, DomainCardComponent],
+  imports: [CommonModule, FormsModule, MaterialModule, DomainCardComponent, DomainListItemComponent],
   templateUrl: './domains.component.html',
   styleUrls: ['./domains.component.scss'],
 })
 export class DomainsComponent implements OnInit {
+  private readonly LAYOUT_STORAGE_KEY = 'domains-layout-mode';
+
   daysBack = 30;
   loading = signal(false);
   statistics = signal<DomainStatistics[]>([]);
+  layoutMode: 'grid' | 'list' = 'grid';
 
   // Computed lists
   get managedDomains(): DomainStatistics[] {
@@ -40,6 +44,7 @@ export class DomainsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadLayoutPreference();
     this.loadStatistics();
   }
 
@@ -60,6 +65,22 @@ export class DomainsComponent implements OnInit {
 
   onDaysBackChange(): void {
     this.loadStatistics();
+  }
+
+  loadLayoutPreference(): void {
+    const savedLayout = localStorage.getItem(this.LAYOUT_STORAGE_KEY);
+    if (savedLayout === 'grid' || savedLayout === 'list') {
+      this.layoutMode = savedLayout;
+    }
+  }
+
+  saveLayoutPreference(): void {
+    localStorage.setItem(this.LAYOUT_STORAGE_KEY, this.layoutMode);
+  }
+
+  toggleLayout(): void {
+    this.layoutMode = this.layoutMode === 'grid' ? 'list' : 'grid';
+    this.saveLayoutPreference();
   }
 
   openAddDomainDialog(): void {

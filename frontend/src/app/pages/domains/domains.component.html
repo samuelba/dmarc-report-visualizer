@@ -1,6 +1,15 @@
 <div class="domains-container">
   <div class="page-header">
     <p class="subtitle">Manage your domains and review authentication statistics</p>
+    <div class="layout-toggle">
+      <button
+        mat-icon-button
+        [matTooltip]="layoutMode === 'grid' ? 'Switch to list view' : 'Switch to grid view'"
+        (click)="toggleLayout()"
+      >
+        <mat-icon>{{ layoutMode === 'grid' ? 'view_list' : 'view_module' }}</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- Time Period Selector -->
@@ -56,15 +65,25 @@
         </mat-card>
       }
 
-      <div class="domains-grid" *ngIf="managedDomains.length > 0">
+      <div [class]="layoutMode === 'grid' ? 'domains-grid' : 'domains-list'" *ngIf="managedDomains.length > 0">
         @for (stat of managedDomains; track stat) {
-          <app-domain-card
-            [domain]="stat"
-            [isManaged]="true"
-            [daysBack]="daysBack"
-            (edit)="editDomain($event)"
-            (remove)="removeDomain($event)"
-          ></app-domain-card>
+          @if (layoutMode === 'grid') {
+            <app-domain-card
+              [domain]="stat"
+              [isManaged]="true"
+              [daysBack]="daysBack"
+              (edit)="editDomain($event)"
+              (remove)="removeDomain($event)"
+            ></app-domain-card>
+          } @else {
+            <app-domain-list-item
+              [domain]="stat"
+              [isManaged]="true"
+              [daysBack]="daysBack"
+              (edit)="editDomain($event)"
+              (remove)="removeDomain($event)"
+            ></app-domain-list-item>
+          }
         }
       </div>
     </div>
@@ -106,14 +125,23 @@
         </mat-card>
       }
 
-      <div class="domains-grid" *ngIf="unknownDomains.length > 0">
+      <div [class]="layoutMode === 'grid' ? 'domains-grid' : 'domains-list'" *ngIf="unknownDomains.length > 0">
         @for (stat of unknownDomains; track stat) {
-          <app-domain-card
-            [domain]="stat"
-            [isManaged]="false"
-            [daysBack]="daysBack"
-            (addToManaged)="addUnknownDomain($event)"
-          ></app-domain-card>
+          @if (layoutMode === 'grid') {
+            <app-domain-card
+              [domain]="stat"
+              [isManaged]="false"
+              [daysBack]="daysBack"
+              (addToManaged)="addUnknownDomain($event)"
+            ></app-domain-card>
+          } @else {
+            <app-domain-list-item
+              [domain]="stat"
+              [isManaged]="false"
+              [daysBack]="daysBack"
+              (addToManaged)="addUnknownDomain($event)"
+            ></app-domain-list-item>
+          }
         }
       </div>
     </div>
