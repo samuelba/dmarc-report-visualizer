@@ -9,10 +9,30 @@
     gap: 12px;
     align-items: center;
     margin-bottom: 16px;
+
+    .filter-controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      grid-column: 1 / -1;
+
+      mat-form-field {
+        flex: 0 0 auto;
+      }
+
+      .layout-toggle {
+        margin-left: auto;
+      }
+    }
   }
 
   .page-header {
+    display: flex;
     margin-bottom: 20px;
+
+    .layout-toggle {
+      margin-left: auto;
+    }
 
     h1 {
       margin: 0 0 8px 0;
@@ -169,5 +189,15 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 20px;
+  }
+
+  .domains-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    app-domain-card {
+      width: 100%;
+    }
   }
 }

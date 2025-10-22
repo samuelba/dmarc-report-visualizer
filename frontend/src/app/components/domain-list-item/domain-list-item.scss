@@ -1,0 +1,169 @@
+.domain-list-item {
+  display: grid;
+  grid-template-columns: 1.5fr 0.8fr 0.8fr 1.2fr 1.2fr 1.2fr 60px;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--mat-sys-surface-container-low);
+  border-color: var(--mat-sys-surface-container-low);
+  box-shadow: var(--mat-sys-level1);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &.unmanaged {
+    border-left: 4px solid var(--custom-warning-color);
+  }
+
+  .domain-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    .domain-text {
+      font-weight: 500;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .notes-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--mat-sys-primary);
+      flex-shrink: 0;
+    }
+  }
+
+  .messages-col,
+  .sources-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+
+    .stat-value {
+      font-weight: 600;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--mat-sys-on-surface-variant);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+
+  .rate-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .rate-bar {
+      height: 6px;
+      background: var(--mat-sys-surface-variant);
+      border-radius: 3px;
+      overflow: hidden;
+      width: 100%;
+
+      .rate-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+
+        &.pass-rate-good {
+          background: linear-gradient(90deg, var(--custom-success-color), var(--custom-success-color));
+        }
+
+        &.pass-rate-warning {
+          background: linear-gradient(90deg, var(--custom-warning-color), var(--custom-warning-color));
+        }
+
+        &.pass-rate-danger {
+          background: linear-gradient(90deg, var(--custom-error-color), var(--custom-error-color));
+        }
+      }
+    }
+
+    .rate-text {
+      font-weight: 600;
+      font-size: 14px;
+      line-height: 1.2;
+
+      &.pass-rate-good {
+        color: var(--custom-success-color);
+      }
+
+      &.pass-rate-warning {
+        color: var(--custom-warning-color);
+      }
+
+      &.pass-rate-danger {
+        color: var(--custom-error-color);
+      }
+    }
+
+    .rate-label {
+      font-size: 11px;
+      color: var(--mat-sys-on-surface-variant);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  }
+
+  .actions-col {
+    display: flex;
+    justify-content: flex-end;
+
+    .menu-button {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 1200px) {
+  .domain-list-item {
+    grid-template-columns: 1.5fr 0.8fr 1.2fr 1.2fr 1.2fr 60px;
+
+    // Hide DKIM column on smaller screens
+    .sources-col {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .domain-list-item {
+    grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 60px;
+
+    // Hide SPF and sources columns
+    .messages-col,
+    .sources-col {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .domain-list-item {
+    grid-template-columns: 1fr auto 60px;
+    gap: 8px;
+
+    // Only show domain, messages, and actions
+    .rate-col {
+      display: none;
+    }
+
+    .messages-col {
+      align-items: flex-end;
+    }
+  }
+}
