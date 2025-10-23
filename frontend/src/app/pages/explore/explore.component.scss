@@ -90,136 +90,129 @@ th.mat-mdc-header-cell {
   gap: 8px;
 }
 
-.policy-reject {
-  color: var(--custom-error-color);
-  font-weight: 500;
-  background-color: var(--custom-error-bg-color);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
+.auth {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 4px;
+  align-items: center;
 }
 
-.policy-quarantine {
-  color: var(--custom-warning-color);
-  font-weight: 500;
-  background-color: var(--custom-warning-bg-color);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
+// Status icon styling
+%status-icon {
+  font-size: 1.1rem;
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+  margin-left: -1px;
 }
 
-.policy-none {
+.status-icon {
+  @extend %status-icon;
+}
+.status-pass-icon {
+  @extend %status-icon;
   color: var(--custom-success-color);
+}
+.status-fail-icon {
+  @extend %status-icon;
+  color: var(--custom-error-color);
+}
+.status-missing-icon {
+  @extend %status-icon;
+  color: var(--custom-unknown-color);
+}
+
+// Base badge styling - shared across all status badges
+%status-badge {
   font-weight: 500;
-  background-color: var(--custom-success-bg-color);
-  padding: 2px 6px;
+  padding: 2px 4px;
   border-radius: 4px;
   font-size: 12px;
+}
+
+// Policy styling
+.policy-reject,
+.disposition-reject {
+  @extend %status-badge;
+  color: var(--custom-error-color);
+  background-color: var(--custom-error-bg-color);
+}
+
+.policy-quarantine,
+.disposition-quarantine {
+  @extend %status-badge;
+  color: var(--custom-warning-color);
+  background-color: var(--custom-warning-bg-color);
+}
+
+.policy-none,
+.disposition-none {
+  @extend %status-badge;
+  color: var(--custom-success-color);
+  background-color: var(--custom-success-bg-color);
 }
 
 .policy-unknown {
+  @extend %status-badge;
   color: var(--custom-unknown-color);
-  font-weight: 500;
   background-color: var(--custom-unknown-bg-color);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-// Disposition styling
-.disposition-reject {
-  color: var(--custom-error-color);
-  font-weight: 500;
-  background-color: var(--custom-error-bg-color);
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.disposition-quarantine {
-  color: var(--custom-warning-color);
-  font-weight: 500;
-  background-color: var(--custom-warning-bg-color);
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.disposition-none {
-  color: var(--custom-success-color);
-  font-weight: 500;
-  background-color: var(--custom-success-bg-color);
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-size: 12px;
 }
 
 .disposition-missing {
+  @extend %status-badge;
   color: var(--custom-unknown-color);
-  font-weight: 400;
   background-color: var(--custom-unknown-bg-color);
-  padding: 2px 6px;
-  border-radius: 12px;
-  font-size: 12px;
+  font-weight: 400;
 }
 
 // Authentication styling
 .auth-pass {
+  @extend %status-badge;
   color: var(--custom-success-color);
-  font-weight: 500;
   background-color: var(--custom-success-bg-color);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 12px;
 }
 
 .auth-fail {
+  @extend %status-badge;
   color: var(--custom-error-color);
-  font-weight: 500;
   background-color: var(--custom-error-bg-color);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 12px;
 }
 
 .auth-missing {
+  @extend %status-badge;
   color: var(--custom-unknown-color);
-  font-weight: 500;
   background-color: var(--custom-unknown-bg-color);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 12px;
   font-style: italic;
   border: 1px dashed var(--custom-unknown-color);
 }
 
 // Forwarded email styling
+.forwarded-yes,
+.forwarded-no,
+.forwarded-unknown {
+  @extend %status-badge;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .forwarded-yes {
   color: var(--custom-info-color);
-  font-weight: 500;
   background-color: var(--custom-info-bg-color);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 12px;
+  font-weight: 500;
   cursor: help;
 }
 
 .forwarded-no {
   color: var(--custom-info-color);
-  font-weight: 400;
   background-color: var(--custom-info-bg-color);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 12px;
+  font-weight: 400;
 }
 
 .forwarded-unknown {
   color: var(--custom-unknown-color);
-  font-weight: 400;
   background-color: var(--custom-unknown-bg-color);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 12px;
+  font-weight: 400;
   font-style: italic;
   border: 1px dashed var(--custom-unknown-color);
 }

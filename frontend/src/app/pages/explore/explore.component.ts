@@ -317,28 +317,31 @@ export class ExploreComponent implements OnInit {
     return arr.map((s: any) => `${s?.domain || ''}:${s?.result || ''}`).join(', ');
   }
 
-  public formatDkimResultsColored(r: DmarcRecord): string {
-    const arr = r.dkimResults || [];
-    return arr
-      .map((d: any) => {
-        const result = d?.result || 'unknown';
-        const icon = result === 'pass' ? '✅' : result === 'fail' ? '❌' : '⚪';
-        const cssClass = result === 'pass' ? 'auth-pass' : result === 'fail' ? 'auth-fail' : 'auth-missing';
-        return `<span class="${cssClass}">${icon} ${d?.domain || 'unknown'}:${result}</span>`;
-      })
-      .join(' ');
+  public getAuthResultsForDisplay(r: DmarcRecord, type: 'dkim' | 'spf'): Array<{ domain: string; result: string }> {
+    const arr = type === 'dkim' ? r.dkimResults || [] : r.spfResults || [];
+    return arr.map((item: any) => ({
+      domain: item?.domain || 'unknown',
+      result: item?.result || 'unknown',
+    }));
   }
 
-  public formatSpfResultsColored(r: DmarcRecord): string {
-    const arr = r.spfResults || [];
-    return arr
-      .map((s: any) => {
-        const result = s?.result || 'unknown';
-        const icon = result === 'pass' ? '✅' : result === 'fail' ? '❌' : '⚪';
-        const cssClass = result === 'pass' ? 'auth-pass' : result === 'fail' ? 'auth-fail' : 'auth-missing';
-        return `<span class="${cssClass}">${icon} ${s?.domain || 'unknown'}:${result}</span>`;
-      })
-      .join(' ');
+  public getDkimResultsForDisplay(r: DmarcRecord): Array<{ domain: string; result: string }> {
+    return this.getAuthResultsForDisplay(r, 'dkim');
+  }
+
+  public getSpfResultsForDisplay(r: DmarcRecord): Array<{ domain: string; result: string }> {
+    return this.getAuthResultsForDisplay(r, 'spf');
+  }
+
+  public getResultIcon(result: string): string {
+    switch (result) {
+      case 'pass':
+        return 'check_box';
+      case 'fail':
+        return 'cancel';
+      default:
+        return 'help_center';
+    }
   }
 
   expandedRow: DmarcRecord | null = null;
@@ -544,13 +547,13 @@ export class ExploreComponent implements OnInit {
   getDispositionIcon(disposition: string | undefined): string {
     switch (disposition) {
       case 'reject':
-        return '🔴';
+        return 'cancel';
       case 'quarantine':
-        return '🟡';
+        return 'coronavirus';
       case 'none':
-        return '🟢';
+        return 'check_box';
       default:
-        return '⚪';
+        return '';
     }
   }
 
@@ -565,21 +568,13 @@ export class ExploreComponent implements OnInit {
     }
   }
 
-  getAuthIcon(authResult: string | undefined): string {
-    switch (authResult) {
-      case 'pass':
-        return '✅';
-      case 'fail':
-        return '❌';
-      default:
-        return '⚪';
-    }
-  }
-
-  // DKIM-specific methods that consider both policy_evaluated and auth_results
-  getDkimAuthLabel(record: DmarcRecord): string {
-    const policyResult = record.dmarcDkim;
-    const hasAuthResults = record.dkimResults && record.dkimResults.length > 0;
+  // Generic authentication methods that consider both policy_evaluated and auth_results
+  private getAuthLabel(record: DmarcRecord, type: 'dkim' | 'spf'): string {
+    const policyResult = type === 'dkim' ? record.dmarcDkim : record.dmarcSpf;
+    const hasAuthResults =
+      type === 'dkim'
+        ? record.dkimResults && record.dkimResults.length > 0
+        : record.spfResults && record.spfResults.length > 0;
 
     if (policyResult === 'pass') {
       return 'pass';
@@ -592,80 +587,62 @@ export class ExploreComponent implements OnInit {
     } else {
       return 'missing'; // No policy result
     }
+  }
+
+  private getAuthIcon(label: string): string {
+    switch (label) {
+      case 'pass':
+        return 'check_box';
+      case 'fail':
+        return 'cancel';
+      case 'missing':
+        return '';
+      default:
+        return '';
+    }
+  }
+
+  private getAuthClassByLabel(label: string): string {
+    switch (label) {
+      case 'pass':
+        return 'auth-pass';
+      case 'fail':
+        return 'auth-fail';
+      case 'missing':
+        return 'auth-missing';
+      default:
+        return 'auth-missing';
+    }
+  }
+
+  // DKIM-specific wrapper methods
+  getDkimAuthLabel(record: DmarcRecord): string {
+    return this.getAuthLabel(record, 'dkim');
   }
 
   getDkimAuthIcon(record: DmarcRecord): string {
     const label = this.getDkimAuthLabel(record);
-    switch (label) {
-      case 'pass':
-        return '✅';
-      case 'fail':
-        return '❌';
-      case 'missing':
-        return '⚪';
-      default:
-        return '⚪';
-    }
+    return this.getAuthIcon(label);
   }
 
   getDkimAuthClass(record: DmarcRecord): string {
     const label = this.getDkimAuthLabel(record);
-    switch (label) {
-      case 'pass':
-        return 'auth-pass';
-      case 'fail':
-        return 'auth-fail';
-      case 'missing':
-        return 'auth-missing';
-      default:
-        return 'auth-missing';
-    }
+    return this.getAuthClassByLabel(label);
   }
 
-  // SPF-specific methods that consider both policy_evaluated and auth_results
+  // SPF-specific wrapper methods
   getSpfAuthLabel(record: DmarcRecord): string {
-    const policyResult = record.dmarcSpf;
-    const hasAuthResults = record.spfResults && record.spfResults.length > 0;
-
-    if (policyResult === 'pass') {
-      return 'pass';
-    } else if (policyResult === 'fail') {
-      if (hasAuthResults) {
-        return 'fail'; // Authentication was attempted but failed
-      } else {
-        return 'missing'; // No authentication attempted (likely missing DNS record)
-      }
-    } else {
-      return 'missing'; // No policy result
-    }
+    return this.getAuthLabel(record, 'spf');
   }
 
   getSpfAuthIcon(record: DmarcRecord): string {
     const label = this.getSpfAuthLabel(record);
-    switch (label) {
-      case 'pass':
-        return '✅';
-      case 'fail':
-        return '❌';
-      case 'missing':
-        return '⚪';
-      default:
-        return '⚪';
-    }
+    return this.getAuthIcon(label);
   }
 
   getSpfAuthClass(record: DmarcRecord): string {
     const label = this.getSpfAuthLabel(record);
-    switch (label) {
-      case 'pass':
-        return 'auth-pass';
-      case 'fail':
-        return 'auth-fail';
-      case 'missing':
-        return 'auth-missing';
-      default:
-        return 'auth-missing';
-    }
+    return this.getAuthClassByLabel(label);
   }
 
   // Forwarded email helpers
@@ -681,11 +658,11 @@ export class ExploreComponent implements OnInit {
 
   getForwardedIcon(record: DmarcRecord): string {
     if (record.isForwarded === true) {
-      return '↪️';
+      return 'forward';
     } else if (record.isForwarded === false) {
-      return '📧';
+      return '';
     } else {
-      return '❓';
+      return 'question_mark';
     }
   }
 
