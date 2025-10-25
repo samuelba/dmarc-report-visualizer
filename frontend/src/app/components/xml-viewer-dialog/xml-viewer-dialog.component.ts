@@ -195,31 +195,34 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
       matchCount++;
     }
 
-    // Match based on disposition (in policy_evaluated section)
+    // Match based on disposition (in policy_evaluated section) - REQUIRED if present
     if (record.disposition) {
       checkCount++;
       const dispositionMatch = recordXml.includes(`<disposition>${record.disposition}</disposition>`);
-      if (dispositionMatch) {
-        matchCount++;
+      if (!dispositionMatch) {
+        return false; // Must match if specified
       }
+      matchCount++;
     }
 
-    // Match based on DKIM policy evaluated (in policy_evaluated section)
+    // Match based on DKIM policy evaluated (in policy_evaluated section) - REQUIRED if present
     if (record.dmarcDkim) {
       checkCount++;
       const dkimMatch = recordXml.includes(`<dkim>${record.dmarcDkim}</dkim>`);
-      if (dkimMatch) {
-        matchCount++;
+      if (!dkimMatch) {
+        return false; // Must match if specified
       }
+      matchCount++;
     }
 
-    // Match based on SPF policy evaluated (in policy_evaluated section)
+    // Match based on SPF policy evaluated (in policy_evaluated section) - REQUIRED if present
     if (record.dmarcSpf) {
       checkCount++;
       const spfMatch = recordXml.includes(`<spf>${record.dmarcSpf}</spf>`);
-      if (spfMatch) {
-        matchCount++;
+      if (!spfMatch) {
+        return false; // Must match if specified
       }
+      matchCount++;
     }
 
     // Match based on header_from (identifiers section)
@@ -249,11 +252,96 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
       }
     }
 
+    // Match based on DKIM auth results (from auth_results section)
+    if (record.dkimResults && record.dkimResults.length > 0) {
+      // Check if all DKIM results match
+      let allDkimMatch = true;
+      for (const dkim of record.dkimResults) {
+        const dkimObj = dkim as any;
+        // Check for domain, selector, and result presence
+        let thisDkimMatches = true;
+
+        if (dkimObj.domain) {
+          const domainInXml = recordXml.includes(`<domain>${dkimObj.domain}</domain>`);
+          if (!domainInXml) {
+            thisDkimMatches = false;
+          }
+        }
+
+        if (thisDkimMatches && dkimObj.selector) {
+          const selectorInXml = recordXml.includes(`<selector>${dkimObj.selector}</selector>`);
+          if (!selectorInXml) {
+            thisDkimMatches = false;
+          }
+        }
+
+        if (thisDkimMatches && dkimObj.result) {
+          // Look for result within a dkim auth result block (not policy_evaluated)
+          // We need to be more specific - check if this domain/selector/result combination exists
+          const dkimPattern = new RegExp(
+            `<dkim>\\s*<domain>${this.escapeRegex(dkimObj.domain || '')}</domain>\\s*<selector>${this.escapeRegex(dkimObj.selector || '')}</selector>\\s*<result>${this.escapeRegex(dkimObj.result)}</result>`,
+            'i'
+          );
+          if (!dkimPattern.test(recordXml)) {
+            thisDkimMatches = false;
+          }
+        }
+
+        if (!thisDkimMatches) {
+          allDkimMatch = false;
+          break;
+        }
+      }
+
+      if (allDkimMatch) {
+        checkCount++;
+        matchCount++;
+      }
+    }
+
+    // Match based on SPF auth results (from auth_results section)
+    if (record.spfResults && record.spfResults.length > 0) {
+      // Check if all SPF results match
+      let allSpfMatch = true;
+      for (const spf of record.spfResults) {
+        const spfObj = spf as any;
+        // Check for domain and result presence
+        let thisSpfMatches = true;
+
+        if (spfObj.domain && spfObj.result) {
+          // Look for domain and result within an spf auth result block
+          const spfPattern = new RegExp(
+            `<spf>\\s*<domain>${this.escapeRegex(spfObj.domain)}</domain>.*?<result>${this.escapeRegex(spfObj.result)}</result>`,
+            'is'
+          );
+          if (!spfPattern.test(recordXml)) {
+            thisSpfMatches = false;
+          }
+        }
+
+        if (!thisSpfMatches) {
+          allSpfMatch = false;
+          break;
+        }
+      }
+
+      if (allSpfMatch) {
+        checkCount++;
+        matchCount++;
+      }
+    }
+
     // We need at least source_ip and count to match, plus at least 2 more fields
-    const requiredMatches = Math.min(4, checkCount);
+    // Increase required matches if we have auth results to be more specific
+    const requiredMatches = Math.min(checkCount > 4 ? 5 : 4, checkCount);
     const isMatch = matchCount >= requiredMatches;
 
     return isMatch;
+  }
+
+  // Helper method to escape special regex characters
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   scrollToHighlight() {
