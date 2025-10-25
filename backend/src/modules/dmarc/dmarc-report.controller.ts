@@ -277,7 +277,6 @@ export class DmarcReportController {
   ): Promise<
     | Array<{
         country: string;
-        countryName: string;
         count: number;
         dmarcPassCount: number;
         dkimPassCount: number;
@@ -286,7 +285,6 @@ export class DmarcReportController {
     | {
         data: Array<{
           country: string;
-          countryName: string;
           count: number;
           dmarcPassCount: number;
           dkimPassCount: number;
@@ -326,6 +324,7 @@ export class DmarcReportController {
       count: number;
       passCount: number;
       failCount: number;
+      country: string;
     }>
   > {
     return this.dmarcReportService.getGeoHeatmapData({
@@ -351,7 +350,6 @@ export class DmarcReportController {
       dkimPassCount: number;
       spfPassCount: number;
       country?: string;
-      countryName?: string;
       city?: string;
       latitude?: number;
       longitude?: number;

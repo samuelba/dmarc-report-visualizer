@@ -11,7 +11,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { MaterialModule } from '../../shared/material.module';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import * as L from 'leaflet';
+import { getCountryName } from '../../utils/country.utils';
 
 interface HeatmapPoint {
   latitude: number;
@@ -19,6 +21,21 @@ interface HeatmapPoint {
   count: number;
   passCount: number;
   failCount: number;
+  country: string;
+}
+
+interface CountryGeoData {
+  type: string;
+  geometry: {
+    type: string;
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  properties: {
+    COUNTRY: string;
+    ISO: string;
+    COUNTRYAFF: string;
+    AFF_ISO: string;
+  };
 }
 
 @Component({
@@ -37,6 +54,9 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
   private map?: L.Map;
   private markers: L.CircleMarker[] = [];
   private filteredData: HeatmapPoint[] = [];
+  private countryCoordinates: Map<string, [number, number, string]> = new Map();
+
+  constructor(private http: HttpClient) {}
 
   ngOnInit() {
     // Fix for default markers in Leaflet
@@ -46,6 +66,9 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
       iconUrl: 'assets/leaflet/marker-icon.png',
       shadowUrl: 'assets/leaflet/marker-shadow.png',
     });
+
+    // Load country coordinates from GeoJSON
+    this.loadCountryCoordinates();
   }
 
   ngAfterViewInit() {
@@ -81,6 +104,27 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
     }
   }
 
+  private loadCountryCoordinates() {
+    this.http.get<{ features: CountryGeoData[] }>('assets/data/countries.geojson').subscribe({
+      next: (data) => {
+        data.features.forEach((feature) => {
+          const iso = feature.properties.ISO;
+          const [longitude, latitude] = feature.geometry.coordinates;
+          // Store coordinates (we'll use Intl.DisplayNames for country names)
+          this.countryCoordinates.set(iso, [latitude, longitude, '']);
+        });
+        // Re-render map if data is already loaded
+        if (this.heatmapData.length > 0) {
+          this.applyFilter();
+          this.updateHeatmap();
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load country coordinates:', err);
+      },
+    });
+  }
+
   private initializeMap() {
     this.map = L.map('world-map').setView([20, 0], 2);
 
@@ -107,7 +151,14 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
 
     // Add new markers
     this.filteredData.forEach((point) => {
-      const { latitude, longitude, count, passCount, failCount } = point;
+      const { count, passCount, failCount, country } = point;
+
+      // Get coordinates from GeoJSON data, fallback to API data if not found
+      const geoData = this.countryCoordinates.get(country);
+      const latitude = geoData ? geoData[0] : point.latitude;
+      const longitude = geoData ? geoData[1] : point.longitude;
+      // Use Intl.DisplayNames for consistent country name display
+      const displayName = getCountryName(country);
 
       // Determine color and visual properties based on filter mode and pass/fail ratio
       let color: string;
@@ -116,8 +167,8 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
       const passRatio = passCount / count;
       const isMixed = passRatio >= 0.2 && passRatio <= 0.8;
 
-      // Base radius calculation (logarithmic scale)
-      const baseRadius = Math.max(5, Math.min(30, Math.log10(count + 1) * 8));
+      // Base radius calculation (logarithmic scale) - larger for country-level aggregation
+      const baseRadius = Math.max(8, Math.min(50, Math.log10(count + 1) * 10));
 
       if (this.filterMode === 'pass') {
         if (isMixed) {
@@ -164,7 +215,7 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
         fillOpacity,
       });
 
-      // Add popup with details
+      // Add popup with country details
       const filterInfo =
         this.filterMode !== 'all'
           ? `<p><em>Filter: ${this.filterMode === 'pass' ? 'Pass Only' : 'Fail Only'}</em></p>`
@@ -174,7 +225,7 @@ export class WorldMapComponent implements OnInit, OnChanges, AfterViewInit {
 
       marker.bindPopup(`
         <div class="popup-content">
-          <h4>Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}</h4>
+          <h4>${displayName}${country ? ` (${country})` : ''}</h4>
           ${filterInfo}
           <p><strong>Total Records:</strong> ${count.toLocaleString()}</p>
           <p><strong>DMARC Pass:</strong> ${passCount.toLocaleString()} (${(passRatio * 100).toFixed(1)}%)</p>

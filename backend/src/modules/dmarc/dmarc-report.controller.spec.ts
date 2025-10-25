@@ -647,7 +647,6 @@ describe('DmarcReportController', () => {
         const mockData = [
           {
             country: 'US',
-            countryName: 'United States',
             count: 1000,
             dmarcPassCount: 800,
             dkimPassCount: 750,
@@ -677,7 +676,6 @@ describe('DmarcReportController', () => {
           data: [
             {
               country: 'US',
-              countryName: 'United States',
               count: 1000,
               dmarcPassCount: 800,
               dkimPassCount: 750,
@@ -713,9 +711,10 @@ describe('DmarcReportController', () => {
     });
 
     describe('getGeoHeatmap', () => {
-      it('should return geo heatmap data', async () => {
+      it('should return geo heatmap data aggregated by country', async () => {
         const mockData = [
           {
+            country: 'US',
             latitude: 37.4192,
             longitude: -122.0574,
             count: 100,

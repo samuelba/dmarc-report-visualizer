@@ -50,7 +50,6 @@ describe('DmarcGeoAnalyticsService', () => {
         getRawMany: jest.fn().mockResolvedValue([
           {
             country: 'US',
-            countryname: 'United States',
             count: '100',
             dmarcpasscount: '80',
             dkimpasscount: '70',
@@ -58,7 +57,6 @@ describe('DmarcGeoAnalyticsService', () => {
           },
           {
             country: 'DE',
-            countryname: 'Germany',
             count: '50',
             dmarcpasscount: '40',
             dkimpasscount: '35',
@@ -71,7 +69,6 @@ describe('DmarcGeoAnalyticsService', () => {
       const result = await service.getTopCountries({ limit: 2 });
       expect(result[0]).toEqual({
         country: 'US',
-        countryName: 'United States',
         count: 100,
         dmarcPassCount: 80,
         dkimPassCount: 70,
@@ -135,7 +132,6 @@ describe('DmarcGeoAnalyticsService', () => {
       baseQB.getRawMany.mockResolvedValue([
         {
           country: 'US',
-          countryname: 'United States',
           count: '100',
           dmarcpasscount: '80',
           dkimpasscount: '70',
@@ -143,7 +139,6 @@ describe('DmarcGeoAnalyticsService', () => {
         },
         {
           country: 'DE',
-          countryname: 'Germany',
           count: '50',
           dmarcpasscount: '40',
           dkimpasscount: '35',
@@ -164,7 +159,7 @@ describe('DmarcGeoAnalyticsService', () => {
   });
 
   describe('getGeoHeatmapData', () => {
-    it('should return mapped heatmap points', async () => {
+    it('should return mapped heatmap points aggregated by country', async () => {
       const qb = {
         leftJoin: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
@@ -174,6 +169,7 @@ describe('DmarcGeoAnalyticsService', () => {
         andWhere: jest.fn().mockReturnThis(),
         getRawMany: jest.fn().mockResolvedValue([
           {
+            country: 'US',
             latitude: '37.77',
             longitude: '-122.42',
             count: '100',
@@ -186,6 +182,7 @@ describe('DmarcGeoAnalyticsService', () => {
 
       const result = await service.getGeoHeatmapData({});
       expect(result[0]).toEqual({
+        country: 'US',
         latitude: 37.77,
         longitude: -122.42,
         count: 100,

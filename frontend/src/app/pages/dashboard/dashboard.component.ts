@@ -9,6 +9,7 @@ import { WorldMapComponent } from '../../components/world-map/world-map.componen
 import { EnhancedTopIpsComponent } from '../../components/enhanced-top-ips/enhanced-top-ips.component';
 import { ApiService } from '../../services/api.service';
 import { NgxEchartsModule } from 'ngx-echarts';
+import { getCountryName } from '../../utils/country.utils';
 
 interface FilterParams {
   domains: string[];
@@ -22,11 +23,11 @@ interface HeatmapPoint {
   count: number;
   passCount: number;
   failCount: number;
+  country: string;
 }
 
 interface CountryData {
   country: string;
-  countryName: string;
   count: number;
   dmarcPassCount: number;
   dkimPassCount: number;
@@ -501,6 +502,10 @@ export class DashboardComponent implements OnInit {
         this.loadingHeaderFrom = false;
       },
     });
+  }
+
+  getCountryName(countryCode: string): string {
+    return getCountryName(countryCode);
   }
 
   getPassRate(country: CountryData): number {

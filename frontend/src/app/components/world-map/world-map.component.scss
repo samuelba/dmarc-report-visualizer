@@ -143,3 +143,12 @@ mat-card-title {
 .leaflet-tile {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
 }
+
+:host ::ng-deep .leaflet-popup-content-wrapper,
+:host ::ng-deep .leaflet-popup-tip {
+  background: var(--mat-sys-surface-container-low) !important;
+}
+
+:host ::ng-deep .leaflet-container {
+  background: var(--mat-sys-surface-container) !important;
+}
