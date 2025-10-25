@@ -134,14 +134,21 @@ export class DmarcReportService {
     const savedReport = await this.dmarcReportRepository.save(newReport);
 
     // Create and save the records with proper relationships
+    const savedRecords: DmarcRecord[] = [];
     if (records && records.length > 0) {
       for (const recordData of records) {
         const record = this.dmarcRecordRepository.create({
           ...recordData,
           reportId: savedReport.id,
         });
-        await this.dmarcRecordRepository.save(record);
+        const savedRecord = await this.dmarcRecordRepository.save(record);
+        savedRecords.push(savedRecord);
       }
+    }
+
+    // Queue IP lookups if using async mode
+    if (savedRecords.length > 0) {
+      await this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
     }
 
     // Return the report with all relations loaded
@@ -185,14 +192,21 @@ export class DmarcReportService {
       });
 
       // Create new records with proper relationships
+      const savedRecords: DmarcRecord[] = [];
       if (dmarcReport.records && dmarcReport.records.length > 0) {
         for (const recordData of dmarcReport.records) {
           const record = this.dmarcRecordRepository.create({
             ...recordData,
             reportId: existing.id,
           });
-          await this.dmarcRecordRepository.save(record);
+          const savedRecord = await this.dmarcRecordRepository.save(record);
+          savedRecords.push(savedRecord);
         }
+      }
+
+      // Queue IP lookups if using async mode
+      if (savedRecords.length > 0) {
+        await this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
       }
 
       const updatedReport = await this.findByReportId(dmarcReport.reportId);

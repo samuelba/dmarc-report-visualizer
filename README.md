@@ -43,3 +43,8 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 - Directory watcher to auto-import reports from a specified folder
 - Gmail integration to download reports from email attachments
 - Automatic database backups before migrations - See [BACKUP_SYSTEM.md](BACKUP_SYSTEM.md) for details
+
+## IP Lookup Service
+
+The IP Lookup Service enriches DMARC reports with geolocation data (country, city, ISP, organization) based on source IP addresses. It supports multiple providers with fallback mechanisms and rate limiting.
+For detailed documentation, see [IP_LOOKUP.md](docs/IP_LOOKUP.md).

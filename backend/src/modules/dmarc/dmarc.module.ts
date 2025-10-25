@@ -4,6 +4,7 @@ import { DmarcReportController } from './dmarc-report.controller';
 import { ThirdPartySenderController } from './controllers/third-party-sender.controller';
 import { ReprocessingController } from './controllers/reprocessing.controller';
 import { DomainController } from './domain.controller';
+import { IpLookupController } from './controllers/ip-lookup.controller';
 import { DmarcReportService } from './dmarc-report.service';
 import { DomainService } from './domain.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
@@ -25,6 +26,8 @@ import { DmarcParserService } from './services/dmarc-parser.service';
 import { DmarcAnalyticsService } from './services/dmarc-analytics.service';
 import { DmarcGeoAnalyticsService } from './services/dmarc-geo-analytics.service';
 import { DmarcSearchService } from './services/dmarc-search.service';
+import { IpLookupInitService } from './services/ip-lookup-init.service';
+import { IpLookupQueueService } from './services/ip-lookup-queue.service';
 
 @Module({
   imports: [
@@ -45,6 +48,7 @@ import { DmarcSearchService } from './services/dmarc-search.service';
     ThirdPartySenderController,
     ReprocessingController,
     DomainController,
+    IpLookupController,
   ],
   providers: [
     DmarcReportService,
@@ -59,6 +63,8 @@ import { DmarcSearchService } from './services/dmarc-search.service';
     DmarcAnalyticsService,
     DmarcGeoAnalyticsService,
     DmarcSearchService,
+    IpLookupInitService,
+    IpLookupQueueService,
   ],
   exports: [DmarcReportService, GeolocationService, DmarcParserService],
 })

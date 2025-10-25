@@ -15,6 +15,13 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { OverlayModule } from '@angular/cdk/overlay';
+import {
+  GridTooltipComponent,
+  GridTooltipRow,
+  GridTooltipSection,
+} from '../../components/grid-tooltip/grid-tooltip.component';
 import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
 import {
   CombinedDateFilterComponent,
@@ -38,6 +45,9 @@ import {
     MatNativeDateModule,
     MatSortModule,
     MatDialogModule,
+    MatTooltipModule,
+    OverlayModule,
+    GridTooltipComponent,
     CombinedDateFilterComponent,
   ],
   templateUrl: './explore.component.html',
@@ -51,6 +61,8 @@ export class ExploreComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
+  hoveredInfoRecordId: string | null = null;
+
   readonly rows = signal<DmarcRecord[]>([]);
   readonly total = signal(0);
   readonly page = signal(1);
@@ -61,7 +73,7 @@ export class ExploreComponent implements OnInit {
   dateFilterValue: DateFilterValue = { mode: 'period', periodInput: '30d' };
 
   displayed = [
-    'expand',
+    'info',
     'date',
     'org',
     'ip',
@@ -344,11 +356,6 @@ export class ExploreComponent implements OnInit {
     }
   }
 
-  expandedRow: DmarcRecord | null = null;
-  toggleExpand(r: DmarcRecord) {
-    this.expandedRow = this.expandedRow === r ? null : r;
-  }
-
   // Auto-update table when filters change
   onFilterChange() {
     this.page.set(1);
@@ -444,6 +451,266 @@ export class ExploreComponent implements OnInit {
       // If the country code is invalid, just return it as-is
       return code;
     }
+  }
+
+  // Check if record has any geo data
+  hasGeoData(record: DmarcRecord): boolean {
+    return !!(
+      record.geoCountry ||
+      record.geoCity ||
+      record.geoIsp ||
+      record.geoOrg ||
+      (record.geoLatitude !== undefined && record.geoLatitude !== null) ||
+      (record.geoLongitude !== undefined && record.geoLongitude !== null) ||
+      record.geoLookupStatus ||
+      record.geoLookupCompletedAt
+    );
+  }
+
+  // Get IP geolocation tooltip rows
+  getIpTooltipRows(record: DmarcRecord): GridTooltipRow[] {
+    const rows: GridTooltipRow[] = [];
+
+    if (record.geoCountry) {
+      const countryName = this.getCountryName(record.geoCountry);
+      rows.push({ label: 'Country', value: `${countryName} (${record.geoCountry})` });
+    }
+    if (record.geoCity) {
+      rows.push({ label: 'City', value: record.geoCity });
+    }
+    if (
+      record.geoLatitude !== undefined &&
+      record.geoLatitude !== null &&
+      record.geoLongitude !== undefined &&
+      record.geoLongitude !== null
+    ) {
+      rows.push({ label: 'Coordinates', value: `${record.geoLatitude}, ${record.geoLongitude}` });
+    }
+    if (record.geoIsp) {
+      rows.push({ label: 'ISP', value: record.geoIsp });
+    }
+    if (record.geoOrg) {
+      rows.push({ label: 'Organization', value: record.geoOrg });
+    }
+    if (record.geoLookupStatus && record.geoLookupStatus !== 'completed') {
+      rows.push({
+        label: 'Lookup Status',
+        value: record.geoLookupStatus,
+        statusClass: `status-${record.geoLookupStatus}`,
+      });
+    }
+    if (record.geoLookupCompletedAt) {
+      const completedDate = new Date(record.geoLookupCompletedAt);
+      rows.push({ label: 'Lookup Completed', value: completedDate.toLocaleString() });
+    }
+
+    return rows;
+  }
+
+  // Get policy tooltip rows
+  getPolicyTooltipRows(record: DmarcRecord): GridTooltipRow[] {
+    const rows: GridTooltipRow[] = [];
+    const policy = (record as any).report?.policy;
+
+    if (!policy) {
+      return rows;
+    }
+
+    if (policy.p) {
+      rows.push({
+        label: 'Policy',
+        value: policy.p,
+        statusClass: `policy-${policy.p}`,
+        icon: policy.p === 'reject' ? 'cancel' : policy.p === 'quarantine' ? 'coronavirus' : undefined,
+      });
+    }
+    if (policy.sp) {
+      rows.push({
+        label: 'Subdomain Policy',
+        value: policy.sp,
+        statusClass: `policy-${policy.sp}`,
+        icon: policy.sp === 'reject' ? 'cancel' : policy.sp === 'quarantine' ? 'coronavirus' : undefined,
+      });
+    }
+    if (policy.adkim) {
+      rows.push({ label: 'DKIM Alignment', value: policy.adkim });
+    }
+    if (policy.aspf) {
+      rows.push({ label: 'SPF Alignment', value: policy.aspf });
+    }
+    if (policy.pct !== undefined && policy.pct !== null) {
+      rows.push({ label: 'Percentage', value: `${policy.pct}%` });
+    }
+
+    return rows;
+  }
+
+  // Check if record has policy data
+  hasPolicyData(record: DmarcRecord): boolean {
+    const policy = (record as any).report?.policy;
+    return !!(policy && (policy.p || policy.sp || policy.adkim || policy.aspf || policy.pct !== undefined));
+  }
+
+  // Get forwarded tooltip rows
+  getForwardedTooltipRows(record: DmarcRecord): GridTooltipRow[] {
+    const rows: GridTooltipRow[] = [];
+
+    // Status
+    const statusLabel = this.getForwardedLabel(record);
+    const statusIcon = this.getForwardedIcon(record);
+    rows.push({
+      label: 'Status',
+      value: statusLabel,
+      statusClass: this.getForwardedClass(record),
+      icon: statusIcon || undefined,
+    });
+
+    // Reason (if available)
+    if (record.forwardReason) {
+      rows.push({
+        label: 'Reason',
+        value: record.forwardReason,
+      });
+    }
+
+    return rows;
+  }
+
+  // Check if record has forwarding data
+  hasForwardingData(record: DmarcRecord): boolean {
+    return record.isForwarded !== undefined && record.isForwarded !== null;
+  }
+
+  // Get comprehensive tooltip sections (all record details)
+  getComprehensiveTooltipSections(record: DmarcRecord): GridTooltipSection[] {
+    const sections: GridTooltipSection[] = [];
+
+    // Identifiers section
+    const identifierRows: GridTooltipRow[] = [];
+    if (record.headerFrom) {
+      identifierRows.push({ label: 'Header From', value: record.headerFrom });
+    }
+    if (record.envelopeFrom) {
+      identifierRows.push({ label: 'Envelope From', value: record.envelopeFrom });
+    }
+    if (record.envelopeTo) {
+      identifierRows.push({ label: 'Envelope To', value: record.envelopeTo });
+    }
+    if (identifierRows.length > 0) {
+      sections.push({ title: 'Identifiers', rows: identifierRows });
+    }
+
+    // Geolocation section
+    if (this.hasGeoData(record)) {
+      const geoRows = this.getIpTooltipRows(record);
+      if (geoRows.length > 0) {
+        sections.push({ title: 'Geolocation', rows: geoRows });
+      }
+    }
+
+    // Published Policy section
+    if (this.hasPolicyData(record)) {
+      const policyRows = this.getPolicyTooltipRows(record);
+      if (policyRows.length > 0) {
+        sections.push({ title: 'Published DMARC Policy', rows: policyRows });
+      }
+    }
+
+    // Forwarding Detection section
+    if (this.hasForwardingData(record)) {
+      const forwardRows = this.getForwardedTooltipRows(record);
+      if (forwardRows.length > 0) {
+        sections.push({ title: 'Forwarding Detection', rows: forwardRows });
+      }
+    }
+
+    // Authentication Results section
+    const authRows: GridTooltipRow[] = [];
+
+    // DKIM Results
+    if (record.dkimResults && record.dkimResults.length > 0) {
+      record.dkimResults.forEach((dkim: any, index: number) => {
+        const dkimLabel = record.dkimResults!.length > 1 ? `DKIM ${index + 1}` : 'DKIM';
+        const dkimParts: string[] = [];
+
+        if (dkim.domain) {
+          dkimParts.push(dkim.domain);
+        }
+        if (dkim.selector) {
+          dkimParts.push(`(${dkim.selector})`);
+        }
+
+        const dkimValue = dkimParts.length > 0 ? dkimParts.join(' ') : 'N/A';
+        const dkimIcon = this.getResultIcon(dkim.result);
+        const dkimClass =
+          dkim.result === 'pass'
+            ? 'status-pass-icon'
+            : dkim.result === 'fail'
+              ? 'status-fail-icon'
+              : 'status-missing-icon';
+
+        authRows.push({
+          label: dkimLabel,
+          value: `${dkim.result || 'unknown'}: ${dkimValue}`,
+          icon: dkimIcon,
+          statusClass: dkimClass,
+        });
+      });
+    } else {
+      authRows.push({
+        label: 'DKIM',
+        value: 'No DKIM results',
+        icon: 'remove',
+        statusClass: 'status-missing-icon',
+      });
+    }
+
+    // SPF Results
+    if (record.spfResults && record.spfResults.length > 0) {
+      record.spfResults.forEach((spf: any, index: number) => {
+        const spfLabel = record.spfResults!.length > 1 ? `SPF ${index + 1}` : 'SPF';
+        const spfValue = spf.domain || 'N/A';
+        const spfIcon = this.getResultIcon(spf.result);
+        const spfClass =
+          spf.result === 'pass'
+            ? 'status-pass-icon'
+            : spf.result === 'fail'
+              ? 'status-fail-icon'
+              : 'status-missing-icon';
+
+        authRows.push({
+          label: spfLabel,
+          value: `${spf.result || 'unknown'}: ${spfValue}`,
+          icon: spfIcon,
+          statusClass: spfClass,
+        });
+      });
+    } else {
+      authRows.push({
+        label: 'SPF',
+        value: 'No SPF results',
+        icon: 'remove',
+        statusClass: 'status-missing-icon',
+      });
+    }
+
+    if (authRows.length > 0) {
+      sections.push({ title: 'Authentication Results', rows: authRows });
+    }
+
+    // Policy Override section (if exists)
+    const overrideRows: GridTooltipRow[] = [];
+    if (record.reasonType) {
+      overrideRows.push({ label: 'Reason Type', value: record.reasonType });
+    }
+    if (record.reasonComment) {
+      overrideRows.push({ label: 'Reason Comment', value: record.reasonComment });
+    }
+    if (overrideRows.length > 0) {
+      sections.push({ title: 'Policy Override', rows: overrideRows });
+    }
+
+    return sections;
   }
 
   // Format date for URL without timezone issues

@@ -1,0 +1,183 @@
+.grid-tooltip-overlay {
+  background-color: var(--tooltip-background-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-title {
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+// Section styles for multi-section tooltips
+.tooltip-section {
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.section-title {
+  margin: 0 0 8px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.section-divider {
+  height: 1px;
+  background: var(--mat-sys-on-surface);
+  margin: 12px 0;
+}
+
+.grid-tooltip-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 0px;
+  min-width: 300px;
+  max-width: 700px;
+}
+
+.grid-item {
+  padding: 4px 0;
+
+  &.label {
+    font-weight: 500;
+    // color: rgba(255, 255, 255, 0.7);
+    text-align: right;
+    padding-right: 8px;
+  }
+
+  &.value {
+    // color: rgba(255, 255, 255, 0.95);
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &.no-data {
+    color: rgba(255, 255, 255, 0.5);
+    padding: 8px 0;
+  }
+}
+
+// Icon styling
+.value-icon {
+  font-size: 1.2rem;
+  width: auto;
+  height: auto;
+  line-height: 1.2rem;
+  flex-shrink: 0;
+}
+
+// Status-specific colors
+.status-pending {
+  color: var(--custom-warning-color);
+}
+.status-processing {
+  color: var(--custom-info-color);
+}
+.status-failed {
+  color: var(--custom-error-color);
+}
+.status-skipped {
+  color: var(--custom-unknown-color);
+}
+.status-completed {
+  color: var(--custom-success-color);
+}
+
+// Bagde styling
+%badge {
+  display: inline-block;
+  padding: 0px 6px;
+  border-radius: 4px;
+}
+
+// Policy badge styling (matches explore component badges)
+.policy-reject {
+  @extend %badge;
+  color: var(--custom-error-color);
+  background-color: var(--custom-error-bg-color);
+}
+
+.policy-quarantine {
+  @extend %badge;
+  color: var(--custom-warning-color);
+  background-color: var(--custom-warning-bg-color);
+}
+
+.policy-none {
+  @extend %badge;
+  color: var(--custom-info-color);
+  background-color: var(--custom-info-bg-color);
+}
+
+.policy-unknown {
+  @extend %badge;
+  color: var(--custom-unknown-color);
+  background-color: var(--custom-unknown-bg-color);
+}
+
+// Forwarded status badge styling (matches explore component badges)
+.forwarded-yes {
+  @extend %badge;
+  color: var(--custom-info-color);
+  background-color: var(--custom-info-bg-color);
+}
+
+.forwarded-no {
+  @extend %badge;
+  color: var(--custom-info-color);
+  background-color: var(--custom-info-bg-color);
+}
+
+.forwarded-unknown {
+  @extend %badge;
+  color: var(--custom-unknown-color);
+  background-color: var(--custom-unknown-bg-color);
+  border: 1px dashed var(--custom-unknown-color);
+}
+
+// Authentication status icon colors (for DKIM/SPF results)
+.status-pass-icon {
+  @extend %badge;
+  color: var(--custom-success-color);
+  background-color: var(--custom-success-bg-color);
+}
+
+.status-fail-icon {
+  @extend %badge;
+  color: var(--custom-error-color);
+  background-color: var(--custom-error-bg-color);
+}
+
+.status-missing-icon {
+  @extend %badge;
+  color: var(--custom-unknown-color);
+  background-color: var(--custom-unknown-bg-color);
+  border: 1px dashed var(--custom-unknown-color);
+}

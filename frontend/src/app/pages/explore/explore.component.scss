@@ -199,8 +199,7 @@ th.mat-mdc-header-cell {
 .forwarded-yes {
   color: var(--custom-info-color);
   background-color: var(--custom-info-bg-color);
-  font-weight: 500;
-  cursor: help;
+  font-weight: 400;
 }
 
 .forwarded-no {
@@ -215,4 +214,20 @@ th.mat-mdc-header-cell {
   font-weight: 400;
   font-style: italic;
   border: 1px dashed var(--custom-unknown-color);
+}
+
+// Info icon styling
+.info-container {
+  display: flex;
+  align-items: center;
+  .info-icon {
+    color: var(--custom-info-color);
+    cursor: help;
+    font-size: 1.4rem;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: var(--custom-warning-color);
+    }
+  }
 }

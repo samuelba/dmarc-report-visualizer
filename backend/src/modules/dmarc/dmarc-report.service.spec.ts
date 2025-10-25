@@ -48,6 +48,7 @@ describe('DmarcReportService', () => {
   const mockDmarcParserService = {
     parseXmlReport: jest.fn(),
     unzipReport: jest.fn(),
+    queueIpLookupsForRecords: jest.fn(),
   };
 
   const mockDmarcAnalyticsService = {
@@ -495,6 +496,9 @@ describe('DmarcReportService', () => {
       mockDmarcReportRepository.update.mockResolvedValue({
         affected: 1,
       } as any);
+      mockDmarcParserService.queueIpLookupsForRecords.mockResolvedValue(
+        undefined,
+      );
 
       await expect(
         service.createOrUpdateByReportId(reportData),
