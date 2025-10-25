@@ -10,15 +10,28 @@ import { SpfResult } from '../entities/spf-result.entity';
 import { PolicyOverrideReason } from '../entities/policy-override-reason.entity';
 import { GeolocationService } from './geolocation.service';
 import { ForwardingDetectionService } from './forwarding-detection.service';
+import { IpLookupQueueService } from './ip-lookup-queue.service';
 
 @Injectable()
 export class DmarcParserService {
   private readonly logger = new Logger(DmarcParserService.name);
+  private useAsyncIpLookup = true; // Toggle between sync and async IP lookup
 
   constructor(
     private geolocationService: GeolocationService,
     private forwardingDetectionService: ForwardingDetectionService,
+    private ipLookupQueueService: IpLookupQueueService,
   ) {}
+
+  /**
+   * Enable or disable async IP lookup (default: true)
+   * When enabled: IPs are queued for background processing (non-blocking)
+   * When disabled: IPs are looked up immediately (blocking)
+   */
+  setAsyncIpLookup(enabled: boolean): void {
+    this.useAsyncIpLookup = enabled;
+    this.logger.log(`Async IP lookup ${enabled ? 'enabled' : 'disabled'}`);
+  }
 
   /**
    * Parse XML DMARC report content into a structured DmarcReport object
@@ -198,21 +211,33 @@ export class DmarcParserService {
 
       // Add geolocation data for the source IP
       if (dmarcRecord.sourceIp) {
-        try {
-          const geoData = await this.geolocationService.getLocationForIp(
-            dmarcRecord.sourceIp,
+        if (this.useAsyncIpLookup) {
+          // Async mode: Just queue the IP, don't block parsing
+          // Geo data will be filled in by background worker
+          // Note: We'll queue after the record is saved (has an ID)
+          this.logger.debug(
+            `IP ${dmarcRecord.sourceIp} will be queued for async lookup`,
           );
-          if (geoData) {
-            dmarcRecord.geoCountry = geoData.country;
-            dmarcRecord.geoCountryName = geoData.countryName;
-            dmarcRecord.geoCity = geoData.city;
-            dmarcRecord.geoLatitude = geoData.latitude;
-            dmarcRecord.geoLongitude = geoData.longitude;
+        } else {
+          // Sync mode: Lookup immediately (blocks parsing)
+          try {
+            const geoData = await this.geolocationService.getLocationForIp(
+              dmarcRecord.sourceIp,
+            );
+            if (geoData) {
+              dmarcRecord.geoCountry = geoData.country;
+              dmarcRecord.geoCountryName = geoData.countryName;
+              dmarcRecord.geoCity = geoData.city;
+              dmarcRecord.geoLatitude = geoData.latitude;
+              dmarcRecord.geoLongitude = geoData.longitude;
+              dmarcRecord.geoIsp = geoData.isp;
+              dmarcRecord.geoOrg = geoData.org;
+            }
+          } catch (error) {
+            this.logger.warn(
+              `Failed to get geolocation for IP ${dmarcRecord.sourceIp}: ${error instanceof Error ? error.message : String(error)}`,
+            );
           }
-        } catch (error) {
-          this.logger.warn(
-            `Failed to get geolocation for IP ${dmarcRecord.sourceIp}: ${error instanceof Error ? error.message : String(error)}`,
-          );
         }
       }
 
@@ -510,5 +535,52 @@ export class DmarcParserService {
       return [];
     }
     return Array.isArray(maybeArray) ? maybeArray : [maybeArray];
+  }
+
+  /**
+   * Queue IP lookups for records that were parsed in async mode
+   * Call this after records have been saved to the database
+   * @param records - Array of saved DMARC records with IDs
+   */
+  async queueIpLookupsForRecords(records: DmarcRecord[]): Promise<void> {
+    if (!this.useAsyncIpLookup) {
+      return; // Not using async mode
+    }
+
+    // Group records by IP
+    const ipMap = new Map<string, string[]>();
+
+    for (const record of records) {
+      if (!record.sourceIp || !record.id) {
+        continue;
+      }
+
+      // Skip if already has geo data
+      if (record.geoCountry) {
+        continue;
+      }
+
+      if (!ipMap.has(record.sourceIp)) {
+        ipMap.set(record.sourceIp, []);
+      }
+      ipMap.get(record.sourceIp)!.push(record.id);
+    }
+
+    if (ipMap.size === 0) {
+      return;
+    }
+
+    // Queue all IPs
+    const items = Array.from(ipMap.entries()).map(([ip, recordIds]) => ({
+      ip,
+      recordIds,
+      priority: 0, // High priority for new records
+    }));
+
+    await this.ipLookupQueueService.queueMultipleIps(items);
+
+    this.logger.log(
+      `Queued ${items.length} unique IPs for ${records.length} records`,
+    );
   }
 }

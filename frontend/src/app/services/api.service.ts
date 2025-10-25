@@ -45,6 +45,18 @@ export interface DmarcRecord {
   dkimResults: DkimResult[];
   spfResults: SpfResult[];
   policyOverrideReasons: PolicyOverrideReason[];
+  // Geolocation fields
+  geoCountry?: string | null;
+  geoCountryName?: string | null;
+  geoCity?: string | null;
+  geoLatitude?: number | null;
+  geoLongitude?: number | null;
+  geoIsp?: string | null;
+  geoOrg?: string | null;
+  geoLookupStatus?: 'pending' | 'processing' | 'completed' | 'failed' | 'skipped' | null;
+  geoLookupAttempts?: number | null;
+  geoLookupLastAttempt?: string | null;
+  geoLookupCompletedAt?: string | null;
 }
 
 export interface ThirdPartySender {

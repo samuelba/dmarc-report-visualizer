@@ -1,0 +1,62 @@
+<div class="grid-tooltip-overlay">
+  <div class="grid-tooltip-content">
+    <!-- Overall title (optional) -->
+    @if (title) {
+      <h4 class="tooltip-title">{{ title }}</h4>
+    }
+    <!-- Single section mode (backward compatible) -->
+    @if (rows.length > 0 && sections.length === 0) {
+      <ng-container>
+        <div class="grid-tooltip-grid">
+          @for (row of rows; track row) {
+            <ng-container>
+              <div class="grid-item label">{{ row.label }}:</div>
+              <div class="grid-item value" [ngClass]="row.statusClass">
+                @if (row.icon) {
+                  <mat-icon class="value-icon">{{ row.icon }}</mat-icon>
+                }
+                <span>{{ row.value }}</span>
+              </div>
+            </ng-container>
+          }
+        </div>
+      </ng-container>
+    }
+
+    <!-- Multiple sections mode -->
+    @if (sections.length > 0) {
+      <ng-container>
+        @for (section of sections; track section; let i = $index) {
+          <div class="tooltip-section">
+            <h5 class="section-title">{{ section.title }}</h5>
+            <div class="grid-tooltip-grid">
+              @for (row of section.rows; track row) {
+                <ng-container>
+                  <div class="grid-item label">{{ row.label }}:</div>
+                  <div class="grid-item value" [ngClass]="row.statusClass">
+                    @if (row.icon) {
+                      <mat-icon class="value-icon">{{ row.icon }}</mat-icon>
+                    }
+                    <span>{{ row.value }}</span>
+                  </div>
+                </ng-container>
+              }
+            </div>
+            @if (!$last) {
+              <div class="section-divider"></div>
+            }
+          </div>
+        }
+      </ng-container>
+    }
+
+    <!-- Empty state -->
+    @if (rows.length === 0 && sections.length === 0) {
+      <ng-container>
+        <div class="grid-item no-data" style="text-align: center; font-style: italic; padding: 8px">
+          {{ emptyMessage || 'No data available' }}
+        </div>
+      </ng-container>
+    }
+  </div>
+</div>

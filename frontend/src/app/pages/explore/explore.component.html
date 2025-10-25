@@ -104,20 +104,46 @@
     </section>
 
     <section>
-      <table
-        mat-table
-        [dataSource]="rows()"
-        [multiTemplateDataRows]="true"
-        matSort
-        (matSortChange)="onSort($event)"
-        class="mat-elevation-z1"
-      >
-        <ng-container matColumnDef="expand">
+      <table mat-table [dataSource]="rows()" matSort (matSortChange)="onSort($event)" class="mat-elevation-z1">
+        <ng-container matColumnDef="info">
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let r">
-            <button mat-icon-button (click)="toggleExpand(r)">
-              <mat-icon>{{ expandedRow === r ? 'expand_less' : 'expand_more' }}</mat-icon>
-            </button>
+            <div class="info-container">
+              <mat-icon
+                class="info-icon"
+                cdkOverlayOrigin
+                #infoTrigger="cdkOverlayOrigin"
+                (mouseenter)="hoveredInfoRecordId = r.id"
+                (mouseleave)="hoveredInfoRecordId = null"
+              >
+                lightbulb
+              </mat-icon>
+            </div>
+            <ng-template
+              cdkConnectedOverlay
+              [cdkConnectedOverlayOrigin]="infoTrigger"
+              [cdkConnectedOverlayOpen]="hoveredInfoRecordId === r.id"
+              [cdkConnectedOverlayHasBackdrop]="false"
+              [cdkConnectedOverlayPositions]="[
+                { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 },
+                { originX: 'end', originY: 'center', overlayX: 'start', overlayY: 'center', offsetX: 8 },
+                { originX: 'end', originY: 'bottom', overlayX: 'start', overlayY: 'bottom', offsetX: 8 },
+                { originX: 'start', originY: 'top', overlayX: 'end', overlayY: 'top', offsetX: -8 },
+                { originX: 'start', originY: 'center', overlayX: 'end', overlayY: 'center', offsetX: -8 },
+                { originX: 'start', originY: 'bottom', overlayX: 'end', overlayY: 'bottom', offsetX: -8 },
+              ]"
+              [cdkConnectedOverlayViewportMargin]="8"
+              [cdkConnectedOverlayFlexibleDimensions]="true"
+              [cdkConnectedOverlayPush]="true"
+            >
+              <div (mouseenter)="hoveredInfoRecordId = r.id" (mouseleave)="hoveredInfoRecordId = null">
+                <app-grid-tooltip
+                  title="Record Details"
+                  [sections]="getComprehensiveTooltipSections(r)"
+                  emptyMessage="No additional details available"
+                ></app-grid-tooltip>
+              </div>
+            </ng-template>
           </td>
         </ng-container>
         <ng-container matColumnDef="date">
@@ -166,7 +192,7 @@
         <ng-container matColumnDef="forwarded">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="isForwarded">Forwarded</th>
           <td mat-cell *matCellDef="let r">
-            <span [class]="getForwardedClass(r)" [title]="r.forwardReason || ''">
+            <span [class]="getForwardedClass(r)">
               <mat-icon class="status-icon">{{ getForwardedIcon(r) }}</mat-icon
               >{{ getForwardedLabel(r) }}
             </span>
@@ -233,64 +259,8 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="detail">
-          <td mat-cell *matCellDef="let r" [attr.colspan]="displayed.length">
-            <div *ngIf="expandedRow === r" class="detail-content">
-              <div class="detail-section">
-                <h4>Identifiers</h4>
-                <div><strong>Envelope From:</strong> {{ r.envelopeFrom || 'N/A' }}</div>
-                <div><strong>Envelope To:</strong> {{ r.envelopeTo || 'N/A' }}</div>
-              </div>
-
-              <div class="detail-section" *ngIf="r.reasonType || r.reasonComment">
-                <h4>Policy Override</h4>
-                <div *ngIf="r.reasonType"><strong>Reason Type:</strong> {{ r.reasonType }}</div>
-                <div *ngIf="r.reasonComment"><strong>Reason Comment:</strong> {{ r.reasonComment }}</div>
-              </div>
-
-              <div class="detail-section" *ngIf="r.isForwarded !== undefined && r.isForwarded !== null">
-                <h4>Forwarding Detection</h4>
-                <div>
-                  <strong>Forwarded: </strong>
-                  <span [class]="getForwardedClass(r)"
-                    ><mat-icon class="status-icon">{{ getForwardedIcon(r) }}</mat-icon
-                    >{{ getForwardedLabel(r) }}</span
-                  >
-                </div>
-                <div *ngIf="r.forwardReason"><strong>Reason:</strong> {{ r.forwardReason }}</div>
-              </div>
-
-              <div class="detail-section" *ngIf="r.report?.policy">
-                <h4>Published Policy</h4>
-                <div class="policy-grid">
-                  <div *ngIf="r.report.policy.p">
-                    <strong>Policy: </strong>
-                    <span [class]="getPolicyClass(r.report.policy.p)">{{ r.report.policy.p }}</span>
-                  </div>
-                  <div *ngIf="r.report.policy.sp">
-                    <strong>Subdomain Policy: </strong>
-                    <span [class]="getPolicyClass(r.report.policy.sp)">{{ r.report.policy.sp }}</span>
-                  </div>
-                  <div *ngIf="r.report.policy.adkim"><strong>DKIM Alignment:</strong> {{ r.report.policy.adkim }}</div>
-                  <div *ngIf="r.report.policy.aspf"><strong>SPF Alignment:</strong> {{ r.report.policy.aspf }}</div>
-                  <div *ngIf="r.report.policy.pct !== undefined">
-                    <strong>Percentage:</strong> {{ r.report.policy.pct }}%
-                  </div>
-                  <div *ngIf="r.report.policy.fo"><strong>Failure Options:</strong> {{ r.report.policy.fo }}</div>
-                </div>
-              </div>
-            </div>
-          </td>
-        </ng-container>
-
         <tr mat-header-row *matHeaderRowDef="displayed"></tr>
         <tr mat-row *matRowDef="let row; columns: displayed" class="element-row"></tr>
-        <tr
-          mat-row
-          *matRowDef="let row; columns: ['detail']"
-          class="detail-row"
-          [class.expanded]="expandedRow === row"
-        ></tr>
       </table>
 
       <mat-paginator

@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { DmarcParserService } from './dmarc-parser.service';
 import { GeolocationService } from './geolocation.service';
 import { ForwardingDetectionService } from './forwarding-detection.service';
+import { IpLookupQueueService } from './ip-lookup-queue.service';
 import * as zlib from 'zlib';
 
 describe('DmarcParserService', () => {
@@ -16,6 +17,12 @@ describe('DmarcParserService', () => {
     detectForwarding: jest.fn(),
   };
 
+  const mockIpLookupQueueService = {
+    addToQueue: jest.fn(),
+    processQueue: jest.fn(),
+    getQueueStats: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -27,6 +34,10 @@ describe('DmarcParserService', () => {
         {
           provide: ForwardingDetectionService,
           useValue: mockForwardingDetectionService,
+        },
+        {
+          provide: IpLookupQueueService,
+          useValue: mockIpLookupQueueService,
         },
       ],
     }).compile();
@@ -91,6 +102,9 @@ describe('DmarcParserService', () => {
 </feedback>`;
 
     beforeEach(() => {
+      // Disable async IP lookup for tests so we can verify synchronous behavior
+      service.setAsyncIpLookup(false);
+
       mockGeolocationService.getLocationForIp.mockResolvedValue({
         country: 'US',
         countryName: 'United States',

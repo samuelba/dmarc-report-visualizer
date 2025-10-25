@@ -12,6 +12,15 @@ import { DkimResult } from './dkim-result.entity';
 import { SpfResult } from './spf-result.entity';
 import { PolicyOverrideReason } from './policy-override-reason.entity';
 
+// Enum for IP lookup status
+export enum GeoLookupStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  SKIPPED = 'skipped',
+}
+
 @Index('idx_dmarc_record_source_ip', ['sourceIp'])
 @Index('idx_dmarc_record_header_from', ['headerFrom'])
 @Index('idx_dmarc_record_count', ['count'])
@@ -95,6 +104,33 @@ export class DmarcRecord {
 
   @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
   geoLongitude: number;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  @Index('idx_dmarc_records_geo_isp')
+  geoIsp: string;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  @Index('idx_dmarc_records_geo_org')
+  geoOrg: string;
+
+  // IP Lookup tracking
+  @Column({
+    type: 'enum',
+    enum: GeoLookupStatus,
+    nullable: true,
+    default: GeoLookupStatus.PENDING,
+  })
+  @Index('idx_dmarc_records_geo_lookup_status')
+  geoLookupStatus: GeoLookupStatus | null;
+
+  @Column({ type: 'integer', default: 0 })
+  geoLookupAttempts: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  geoLookupLastAttempt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  geoLookupCompletedAt: Date;
 
   // Relationships to authentication results
   @OneToMany(() => DkimResult, (dkimResult) => dkimResult.record, {

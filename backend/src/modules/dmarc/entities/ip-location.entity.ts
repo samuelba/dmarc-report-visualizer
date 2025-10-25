@@ -44,6 +44,10 @@ export class IpLocation {
   @Column({ type: 'varchar', length: 200, nullable: true })
   isp: string;
 
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  @Index('idx_ip_locations_org')
+  org: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
