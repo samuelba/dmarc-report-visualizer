@@ -18,7 +18,6 @@ export class DmarcGeoAnalyticsService {
   }): Promise<
     Array<{
       country: string;
-      countryName: string;
       count: number;
       dmarcPassCount: number;
       dkimPassCount: number;
@@ -32,7 +31,6 @@ export class DmarcGeoAnalyticsService {
       .leftJoin('record.report', 'report')
       .select([
         'record.geoCountry as country',
-        'record.geoCountryName as countryName',
         'SUM(record.count) as count',
         // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
         "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as dmarcPassCount",
@@ -40,7 +38,7 @@ export class DmarcGeoAnalyticsService {
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
       .where('record.geoCountry IS NOT NULL')
-      .groupBy('record.geoCountry, record.geoCountryName')
+      .groupBy('record.geoCountry')
       .orderBy('count', 'DESC')
       .limit(limit);
 
@@ -61,7 +59,6 @@ export class DmarcGeoAnalyticsService {
     const result = await query.getRawMany();
     return result.map((r) => ({
       country: r.country,
-      countryName: r.countryname || r.country,
       count: parseInt(r.count, 10),
       dmarcPassCount: parseInt(r.dmarcpasscount, 10),
       dkimPassCount: parseInt(r.dkimpasscount, 10),
@@ -78,7 +75,6 @@ export class DmarcGeoAnalyticsService {
   }): Promise<{
     data: Array<{
       country: string;
-      countryName: string;
       count: number;
       dmarcPassCount: number;
       dkimPassCount: number;
@@ -119,14 +115,13 @@ export class DmarcGeoAnalyticsService {
     const dataQuery = baseQuery
       .select([
         'record.geoCountry as country',
-        'record.geoCountryName as countryName',
         'SUM(record.count) as count',
         // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
         "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as dmarcPassCount",
         "SUM(CASE WHEN record.dmarcDkim = 'pass' THEN record.count ELSE 0 END) as dkimPassCount",
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
-      .groupBy('record.geoCountry, record.geoCountryName')
+      .groupBy('record.geoCountry')
       .orderBy('count', 'DESC')
       .offset((page - 1) * pageSize)
       .limit(pageSize);
@@ -134,7 +129,6 @@ export class DmarcGeoAnalyticsService {
     const result = await dataQuery.getRawMany();
     const data = result.map((r) => ({
       country: r.country,
-      countryName: r.countryname || r.country,
       count: parseInt(r.count, 10),
       dmarcPassCount: parseInt(r.dmarcpasscount, 10),
       dkimPassCount: parseInt(r.dkimpasscount, 10),
@@ -155,6 +149,7 @@ export class DmarcGeoAnalyticsService {
       count: number;
       passCount: number;
       failCount: number;
+      country: string;
     }>
   > {
     const { domain, from, to } = params;
@@ -163,17 +158,17 @@ export class DmarcGeoAnalyticsService {
       .createQueryBuilder('record')
       .leftJoin('record.report', 'report')
       .select([
-        'record.geoLatitude as latitude',
-        'record.geoLongitude as longitude',
+        'record.geoCountry as country',
+        // Use average coordinates for the country center
+        'AVG(record.geoLatitude) as latitude',
+        'AVG(record.geoLongitude) as longitude',
         'SUM(record.count) as count',
         // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
         "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as passCount",
         "SUM(CASE WHEN NOT (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as failCount",
       ])
-      .where(
-        'record.geoLatitude IS NOT NULL AND record.geoLongitude IS NOT NULL',
-      )
-      .groupBy('record.geoLatitude, record.geoLongitude')
+      .where('record.geoCountry IS NOT NULL')
+      .groupBy('record.geoCountry')
       .orderBy('count', 'DESC');
 
     if (domain) {
@@ -192,6 +187,7 @@ export class DmarcGeoAnalyticsService {
 
     const result = await query.getRawMany();
     return result.map((r) => ({
+      country: r.country,
       latitude: parseFloat(r.latitude),
       longitude: parseFloat(r.longitude),
       count: parseInt(r.count, 10),
@@ -215,7 +211,6 @@ export class DmarcGeoAnalyticsService {
       dkimPassCount: number;
       spfPassCount: number;
       country?: string;
-      countryName?: string;
       city?: string;
       latitude?: number;
       longitude?: number;
@@ -257,7 +252,6 @@ export class DmarcGeoAnalyticsService {
       .select([
         'record.sourceIp as sourceIp',
         'record.geoCountry as country',
-        'record.geoCountryName as countryName',
         'record.geoCity as city',
         'record.geoLatitude as latitude',
         'record.geoLongitude as longitude',
@@ -269,7 +263,7 @@ export class DmarcGeoAnalyticsService {
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
       .groupBy(
-        'record.sourceIp, record.geoCountry, record.geoCountryName, record.geoCity, record.geoLatitude, record.geoLongitude',
+        'record.sourceIp, record.geoCountry, record.geoCity, record.geoLatitude, record.geoLongitude',
       )
       .orderBy('count', 'DESC')
       .offset((page - 1) * pageSize)
@@ -285,7 +279,6 @@ export class DmarcGeoAnalyticsService {
       dkimPassCount: parseInt(r.dkimpasscount, 10),
       spfPassCount: parseInt(r.spfpasscount, 10),
       country: r.country || undefined,
-      countryName: r.countryname || undefined,
       city: r.city || undefined,
       latitude: r.latitude ? parseFloat(r.latitude) : undefined,
       longitude: r.longitude ? parseFloat(r.longitude) : undefined,

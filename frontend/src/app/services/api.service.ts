@@ -422,7 +422,6 @@ export class ApiService {
     return this.http.get<
       Array<{
         country: string;
-        countryName: string;
         count: number;
         dmarcPassCount: number;
         dkimPassCount: number;
@@ -445,6 +444,7 @@ export class ApiService {
         count: number;
         passCount: number;
         failCount: number;
+        country: string;
       }>
     >(`${this.apiBase}/dmarc-reports/geo-heatmap`, { params: hp });
   }
@@ -465,7 +465,6 @@ export class ApiService {
         dkimPassCount: number;
         spfPassCount: number;
         country?: string;
-        countryName?: string;
         city?: string;
         latitude?: number;
         longitude?: number;

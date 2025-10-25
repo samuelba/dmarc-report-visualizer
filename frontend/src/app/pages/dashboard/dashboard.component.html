@@ -19,19 +19,6 @@
         </mat-card-content>
       </mat-card>
 
-      <mat-card class="summary-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>location_on</mat-icon>
-            Locations
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="metric-value">{{ totalLocations }}</div>
-          <div class="metric-label">Geographic Points</div>
-        </mat-card-content>
-      </mat-card>
-
       <!-- DKIM Pie Chart Card -->
       <mat-card class="summary-card pie-chart-card">
         <mat-card-header>
@@ -161,7 +148,7 @@
                 <div class="country-info">
                   <div class="country-name">
                     <mat-icon>flag</mat-icon>
-                    {{ country.countryName || country.country }}
+                    {{ getCountryName(country.country) }}
                   </div>
                   <div class="country-stats">
                     <span class="total-count">{{ country.count | number }} records</span>

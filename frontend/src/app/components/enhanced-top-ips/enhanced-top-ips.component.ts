@@ -4,6 +4,7 @@ import { MaterialModule } from '../../shared/material.module';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { ApiService } from '../../services/api.service';
+import { getCountryName } from '../../utils/country.utils';
 
 interface EnhancedIpData {
   sourceIp: string;
@@ -13,7 +14,6 @@ interface EnhancedIpData {
   dkimPassCount: number;
   spfPassCount: number;
   country?: string;
-  countryName?: string;
   city?: string;
   latitude?: number;
   longitude?: number;
@@ -97,6 +97,10 @@ export class EnhancedTopIpsComponent implements OnInit, OnChanges {
 
   getPercentage(value: number, total: number): number {
     return total > 0 ? Math.round((value / total) * 100) : 0;
+  }
+
+  getCountryName(countryCode: string): string {
+    return getCountryName(countryCode);
   }
 
   getProgressBarColor(passCount: number, total: number): 'primary' | 'accent' | 'warn' {

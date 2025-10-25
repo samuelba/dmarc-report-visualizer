@@ -796,7 +796,6 @@ describe('DmarcReportService', () => {
       const countries = [
         {
           country: 'US',
-          countryName: 'United States',
           count: 100,
           dmarcPassCount: 80,
           dkimPassCount: 70,
@@ -820,7 +819,6 @@ describe('DmarcReportService', () => {
         data: [
           {
             country: 'US',
-            countryName: 'United States',
             count: 100,
             dmarcPassCount: 80,
             dkimPassCount: 70,
@@ -846,6 +844,7 @@ describe('DmarcReportService', () => {
       const params = { domain: 'example.com' };
       const heatmap = [
         {
+          country: 'US',
           latitude: 37.77,
           longitude: -122.42,
           count: 100,
