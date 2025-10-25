@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DmarcRecord, GeoLookupStatus } from '../entities/dmarc-record.entity';
@@ -15,7 +20,7 @@ interface QueuedIpLookup {
 }
 
 @Injectable()
-export class IpLookupQueueService implements OnModuleInit {
+export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IpLookupQueueService.name);
   private queue: QueuedIpLookup[] = [];
   private processing = false;
@@ -43,6 +48,12 @@ export class IpLookupQueueService implements OnModuleInit {
     } catch (error) {
       this.logger.error('Failed to load pending lookups on startup', error);
     }
+  }
+
+  async onModuleDestroy() {
+    // Stop the background processor to allow graceful shutdown
+    this.logger.log('Stopping IP lookup queue processor');
+    this.stopProcessor();
   }
 
   /**
