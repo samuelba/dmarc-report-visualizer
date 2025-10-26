@@ -24,9 +24,7 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IpLookupQueueService.name);
   private queue: QueuedIpLookup[] = [];
   private processing = false;
-  private processingInterval: NodeJS.Timeout | null = null;
-  private readonly PROCESS_INTERVAL_MS = 1000; // Check queue every second
-  private readonly MAX_RETRIES = 3;
+  private readonly PROCESS_INTERVAL_MS = 1000; // Wait time after API calls
 
   constructor(
     @InjectRepository(DmarcRecord)
@@ -35,13 +33,10 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    // Start the background processor
-    this.startProcessor();
-
     // Load and queue any pending IPs from the database
     this.logger.log('Checking for pending IP lookups on startup...');
     try {
-      const count = await this.processPendingLookups(100000); // Process up to 100000 on startup
+      const count = await this.processPendingLookups(500000); // Process up to 500000 on startup
       if (count > 0) {
         this.logger.log(`Queued ${count} pending IPs for lookup`);
       }
@@ -51,9 +46,8 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    // Stop the background processor to allow graceful shutdown
-    this.logger.log('Stopping IP lookup queue processor');
-    this.stopProcessor();
+    // Nothing to clean up - event-driven processing
+    this.logger.log('IP lookup queue service shutting down');
   }
 
   /**
@@ -94,6 +88,9 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
 
     // Sort queue by priority
     this.queue.sort((a, b) => a.priority - b.priority);
+
+    // Trigger processing (event-driven, only when items are added)
+    this.triggerProcessing();
   }
 
   /**
@@ -102,10 +99,41 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   async queueMultipleIps(
     items: Array<{ ip: string; recordIds: string[]; priority?: number }>,
   ): Promise<void> {
+    // Add all items to queue without triggering processing each time
     for (const item of items) {
-      await this.queueIpLookup(item.ip, item.recordIds, item.priority || 1);
+      const ip = item.ip;
+      const recordIds = item.recordIds;
+      const priority = item.priority || 1;
+
+      // Check if this IP is already in the queue
+      const existing = this.queue.find((qItem) => qItem.ip === ip);
+
+      if (existing) {
+        // Add record IDs to existing queue item
+        existing.recordIds = [
+          ...new Set([...existing.recordIds, ...recordIds]),
+        ];
+        // Upgrade priority if needed
+        existing.priority = Math.min(existing.priority, priority);
+      } else {
+        // Add new item to queue
+        this.queue.push({
+          ip,
+          recordIds,
+          priority,
+          retries: 0,
+          failedAttempts: 0,
+        });
+      }
     }
+
+    // Sort queue by priority once after all items are added
+    this.queue.sort((a, b) => a.priority - b.priority);
+
     this.logger.log(`Queued ${items.length} IPs for lookup`);
+
+    // Trigger processing once after all items are queued
+    this.triggerProcessing();
   }
 
   /**
@@ -139,28 +167,18 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Start the background processor
+   * Trigger queue processing (event-driven, no continuous polling)
    */
-  private startProcessor(): void {
-    if (this.processingInterval) {
-      return; // Already started
+  private triggerProcessing(): void {
+    // If already processing, the current processing loop will continue
+    // No need to trigger again - it will check queue after current item
+    if (this.processing) {
+      return;
     }
-
-    this.logger.log('Starting IP lookup queue processor');
-    this.processingInterval = setInterval(() => {
-      this.processQueue();
-    }, this.PROCESS_INTERVAL_MS);
-  }
-
-  /**
-   * Stop the background processor
-   */
-  stopProcessor(): void {
-    if (this.processingInterval) {
-      clearInterval(this.processingInterval);
-      this.processingInterval = null;
-      this.logger.log('Stopped IP lookup queue processor');
-    }
+    // Use setImmediate to avoid blocking the current execution
+    setImmediate(() => {
+      void this.processQueue();
+    });
   }
 
   /**
@@ -198,24 +216,63 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      // Process the lookup
-      await this.processIpLookup(item);
+      // Process the lookup (returns wasApiCall and shouldRemoveFromQueue)
+      const { wasApiCall, shouldRemoveFromQueue } =
+        await this.processIpLookup(item);
 
-      // Remove from queue
-      this.queue.shift();
+      // Remove from queue only if processing was successful
+      if (shouldRemoveFromQueue) {
+        this.queue.shift();
+      } else {
+        // Item needs to be retried - move to end of queue and wait
+        this.queue.shift();
+        this.queue.push(item);
+        // Wait before retrying to avoid tight loop
+        setTimeout(() => {
+          this.processing = false;
+          if (this.queue.length > 0) {
+            this.triggerProcessing();
+          }
+        }, this.PROCESS_INTERVAL_MS);
+        return; // Exit early, don't continue processing
+      }
+
+      // If it was an API call, wait before processing next item
+      // If it was a cache hit, process next item immediately
+      if (wasApiCall) {
+        // Wait before processing next item to respect rate limits
+        setTimeout(() => {
+          this.processing = false;
+          if (this.queue.length > 0) {
+            this.triggerProcessing();
+          }
+        }, this.PROCESS_INTERVAL_MS);
+      } else {
+        // Cache hit - process next item immediately
+        this.processing = false;
+        if (this.queue.length > 0) {
+          this.triggerProcessing();
+        }
+      }
     } catch (error) {
       this.logger.error(
         `Error processing queue: ${error instanceof Error ? error.message : String(error)}`,
       );
-    } finally {
       this.processing = false;
+      // Retry after a delay on error
+      if (this.queue.length > 0) {
+        setTimeout(() => this.triggerProcessing(), this.PROCESS_INTERVAL_MS);
+      }
     }
   }
 
   /**
    * Process a single IP lookup
+   * @returns object with wasApiCall and shouldRemoveFromQueue flags
    */
-  private async processIpLookup(item: QueuedIpLookup): Promise<void> {
+  private async processIpLookup(
+    item: QueuedIpLookup,
+  ): Promise<{ wasApiCall: boolean; shouldRemoveFromQueue: boolean }> {
     try {
       this.logger.debug(
         `Looking up IP ${item.ip} for ${item.recordIds.length} records`,
@@ -227,8 +284,20 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
         GeoLookupStatus.PROCESSING,
       );
 
+      // Check if we'll hit cache by checking provider stats before and after
+      const statsBefore = this.geolocationService.getProviderStats();
+      const currentProvider = this.geolocationService.getConfig().provider;
+      const requestsBefore =
+        statsBefore[currentProvider]?.usage?.minuteRequests || 0;
+
       // Perform the lookup
       const geoData = await this.geolocationService.getLocationForIp(item.ip);
+
+      // Check if API was actually called
+      const statsAfter = this.geolocationService.getProviderStats();
+      const requestsAfter =
+        statsAfter[currentProvider]?.usage?.minuteRequests || 0;
+      const wasApiCall = requestsAfter > requestsBefore;
 
       if (!geoData) {
         this.logger.warn(`No geolocation data found for IP ${item.ip}`);
@@ -238,31 +307,34 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
           GeoLookupStatus.FAILED,
           'No data available',
         );
-        return;
+        return { wasApiCall, shouldRemoveFromQueue: true };
       }
 
       // Update all records with this IP
       await this.updateRecordsWithGeoData(item.recordIds, geoData);
 
+      const cacheStatus = wasApiCall ? '(API call)' : '(cache hit)';
       this.logger.debug(
-        `Successfully updated ${item.recordIds.length} records with geo data for IP ${item.ip}`,
+        `Successfully updated ${item.recordIds.length} records with geo data for IP ${item.ip} ${cacheStatus}`,
       );
+
+      return { wasApiCall, shouldRemoveFromQueue: true };
     } catch (error) {
-      // Handle rate limit errors differently - put back in queue without penalty
+      // Handle rate limit errors differently - keep in queue without penalty
       if (error instanceof RateLimitError) {
         this.logger.warn(`Rate limited for IP ${item.ip}, will retry later`);
 
-        // Put item back at the end of the queue without incrementing failure counter
-        item.priority = 2; // Set to low priority to let other IPs process
-        this.queue.push(item);
+        // Downgrade priority to let other IPs process first
+        item.priority = 2;
 
         // Don't mark records as failed, keep them as pending/processing
         await this.updateRecordsStatus(item.recordIds, GeoLookupStatus.PENDING);
 
         this.logger.debug(
-          `Re-queued IP ${item.ip} after rate limit (will wait)`,
+          `Keeping IP ${item.ip} in queue after rate limit (will retry)`,
         );
-        return;
+        // Don't remove from queue, will be retried later
+        return { wasApiCall: true, shouldRemoveFromQueue: false };
       }
 
       // Handle other errors with retry logic
@@ -286,12 +358,13 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
       if (item.failedAttempts < MAX_FAILED_ATTEMPTS) {
         item.retries++;
         item.priority = Math.min(item.priority + 1, 2); // Downgrade priority
-        this.queue.push(item); // Add back to queue
         // Reset status back to pending for retry
         await this.updateRecordsStatus(item.recordIds, GeoLookupStatus.PENDING);
         this.logger.debug(
-          `Re-queued IP ${item.ip} (failed attempt ${item.failedAttempts}/${MAX_FAILED_ATTEMPTS})`,
+          `Keeping IP ${item.ip} in queue (failed attempt ${item.failedAttempts}/${MAX_FAILED_ATTEMPTS})`,
         );
+        // Don't remove from queue, will be retried
+        return { wasApiCall: true, shouldRemoveFromQueue: false };
       } else {
         // After MAX_FAILED_ATTEMPTS, try geoip-lite as last resort if not already configured
         const config = this.geolocationService.getConfig();
@@ -319,7 +392,6 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
 
           item.retries++;
           item.priority = 2; // Low priority
-          this.queue.push(item);
           await this.updateRecordsStatus(
             item.recordIds,
             GeoLookupStatus.PENDING,
@@ -332,10 +404,17 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
               fallbackProviders: originalFallbacks,
             });
           }, 100);
+
+          // Keep in queue for one more attempt with geoip-lite
+          return { wasApiCall: true, shouldRemoveFromQueue: false };
         } else {
           this.logger.error(`Max retries reached for IP ${item.ip}, giving up`);
+          // Remove from queue, we've exhausted all options
+          return { wasApiCall: true, shouldRemoveFromQueue: true };
         }
       }
+
+      return { wasApiCall: true, shouldRemoveFromQueue: true }; // Errors typically happen during API calls
     }
   }
 
