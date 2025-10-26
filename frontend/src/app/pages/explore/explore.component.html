@@ -223,6 +223,7 @@
           mat-row
           *matRowDef="let row; columns: displayed"
           class="element-row clickable-row"
+          [class.selected-row]="selectedRecordId === row.id"
           (click)="openRecordDetails(row)"
         ></tr>
       </table>

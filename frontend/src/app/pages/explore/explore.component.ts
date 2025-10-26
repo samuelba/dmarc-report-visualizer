@@ -58,6 +58,7 @@ export class ExploreComponent implements OnInit {
   private readonly regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
   hoveredInfoRecordId: string | null = null;
+  selectedRecordId: string | null = null;
 
   readonly rows = signal<DmarcRecord[]>([]);
   readonly total = signal(0);
@@ -265,6 +266,7 @@ export class ExploreComponent implements OnInit {
   }
 
   openRecordDetails(record: DmarcRecord) {
+    this.selectedRecordId = record.id;
     const dialogRef = this.dialog.open(RecordDetailsDialogComponent, {
       data: {
         record,
@@ -279,11 +281,15 @@ export class ExploreComponent implements OnInit {
     dialogRef.afterClosed().subscribe((result) => {
       if (result?.action === 'viewXml') {
         this.viewXml(result.record);
+      } else {
+        // Clear selection when dialog is closed without action
+        this.selectedRecordId = null;
       }
     });
   }
 
   private openXmlViewer(record: DmarcRecord, xml: string) {
+    this.selectedRecordId = record.id;
     const reportId = (record as any).report?.id;
     const dialogRef = this.dialog.open(XmlViewerDialogComponent, {
       data: {
@@ -301,6 +307,9 @@ export class ExploreComponent implements OnInit {
     dialogRef.afterClosed().subscribe((result) => {
       if (result?.action === 'viewRecordDetails' && result.record) {
         this.openRecordDetails(result.record);
+      } else {
+        // Clear selection when dialog is closed without action
+        this.selectedRecordId = null;
       }
     });
   }
