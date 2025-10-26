@@ -5,6 +5,9 @@
       {{ data.title || 'XML Report Viewer' }}
     </h2>
     <div class="header-actions">
+      <button *ngIf="data.record" mat-icon-button (click)="viewRecordDetails()" matTooltip="View Record Details">
+        <mat-icon>info</mat-icon>
+      </button>
       <button
         *ngIf="highlightedLines"
         mat-icon-button

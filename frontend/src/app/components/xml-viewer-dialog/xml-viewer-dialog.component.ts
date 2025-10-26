@@ -443,4 +443,8 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
       }
     );
   }
+
+  viewRecordDetails() {
+    this.dialogRef.close({ action: 'viewRecordDetails', record: this.data.record });
+  }
 }

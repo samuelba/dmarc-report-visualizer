@@ -52,6 +52,11 @@ th.mat-mdc-header-cell {
   padding-right: 4px !important;
 }
 
+tr td.mat-mdc-cell:first-child,
+tr th.mat-mdc-header-cell:first-child {
+  padding-left: 12px !important;
+}
+
 .auth {
   font-size: 12px;
 }
@@ -229,5 +234,19 @@ th.mat-mdc-header-cell {
     &:hover {
       color: var(--custom-warning-color);
     }
+  }
+}
+
+// Clickable row styling
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--explore-table-row-hover);
+  }
+
+  &:active {
+    background-color: var(--explore-table-row-active);
   }
 }
