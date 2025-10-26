@@ -5,9 +5,6 @@
       {{ data.title || 'XML Report Viewer' }}
     </h2>
     <div class="header-actions">
-      <button *ngIf="data.record" mat-icon-button (click)="viewRecordDetails()" matTooltip="View Record Details">
-        <mat-icon>info</mat-icon>
-      </button>
       <button
         *ngIf="highlightedLines"
         mat-icon-button
@@ -24,6 +21,9 @@
       </button>
       <button mat-icon-button (click)="copyShareLink()" matTooltip="Copy shareable link">
         <mat-icon>share</mat-icon>
+      </button>
+      <button *ngIf="data.record" mat-icon-button (click)="viewRecordDetails()" matTooltip="View Record Details">
+        <mat-icon>info</mat-icon>
       </button>
       <button mat-icon-button mat-dialog-close matTooltip="Close">
         <mat-icon>close</mat-icon>

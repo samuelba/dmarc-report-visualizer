@@ -272,7 +272,7 @@ export class ExploreComponent implements OnInit {
         record,
         getCountryName: this.getCountryName.bind(this),
       } as RecordDetailsDialogData,
-      width: '800px',
+      width: '850px',
       maxWidth: '90vw',
       height: '85vh',
     });
@@ -298,8 +298,8 @@ export class ExploreComponent implements OnInit {
         reportId: reportId,
         title: `DMARC Report XML - ${record.sourceIp || 'Unknown IP'}`,
       },
-      width: '90%',
-      maxWidth: '1400px',
+      width: '850px',
+      maxWidth: '90vw',
       height: '85vh',
     });
 
