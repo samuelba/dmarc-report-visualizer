@@ -36,7 +36,7 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
     // Load and queue any pending IPs from the database
     this.logger.log('Checking for pending IP lookups on startup...');
     try {
-      const count = await this.processPendingLookups(500000); // Process up to 500000 on startup
+      const count = await this.processPendingLookups(100000); // Process up to 100000 on startup
       if (count > 0) {
         this.logger.log(`Queued ${count} pending IPs for lookup`);
       }
@@ -182,6 +182,19 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Schedule next processing cycle after a delay
+   * @param delay - Delay in milliseconds before processing next item
+   */
+  private scheduleNextProcessing(delay: number): void {
+    setTimeout(() => {
+      this.processing = false;
+      if (this.queue.length > 0) {
+        this.triggerProcessing();
+      }
+    }, delay);
+  }
+
+  /**
    * Process the queue
    */
   private async processQueue(): Promise<void> {
@@ -220,49 +233,35 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
       const { wasApiCall, shouldRemoveFromQueue } =
         await this.processIpLookup(item);
 
-      // Remove from queue only if processing was successful
       if (shouldRemoveFromQueue) {
+        // Remove from queue - processing was successful
         this.queue.shift();
+
+        // If it was an API call, wait before processing next item
+        // If it was a cache hit, process next item immediately
+        if (wasApiCall) {
+          // Wait before processing next item to respect rate limits
+          this.scheduleNextProcessing(this.PROCESS_INTERVAL_MS);
+        } else {
+          // Cache hit - process next item immediately
+          this.processing = false;
+          if (this.queue.length > 0) {
+            this.triggerProcessing();
+          }
+        }
       } else {
         // Item needs to be retried - move to end of queue and wait
         this.queue.shift();
         this.queue.push(item);
         // Wait before retrying to avoid tight loop
-        setTimeout(() => {
-          this.processing = false;
-          if (this.queue.length > 0) {
-            this.triggerProcessing();
-          }
-        }, this.PROCESS_INTERVAL_MS);
-        return; // Exit early, don't continue processing
-      }
-
-      // If it was an API call, wait before processing next item
-      // If it was a cache hit, process next item immediately
-      if (wasApiCall) {
-        // Wait before processing next item to respect rate limits
-        setTimeout(() => {
-          this.processing = false;
-          if (this.queue.length > 0) {
-            this.triggerProcessing();
-          }
-        }, this.PROCESS_INTERVAL_MS);
-      } else {
-        // Cache hit - process next item immediately
-        this.processing = false;
-        if (this.queue.length > 0) {
-          this.triggerProcessing();
-        }
+        this.scheduleNextProcessing(this.PROCESS_INTERVAL_MS);
       }
     } catch (error) {
       this.logger.error(
         `Error processing queue: ${error instanceof Error ? error.message : String(error)}`,
       );
-      this.processing = false;
       // Retry after a delay on error
-      if (this.queue.length > 0) {
-        setTimeout(() => this.triggerProcessing(), this.PROCESS_INTERVAL_MS);
-      }
+      this.scheduleNextProcessing(this.PROCESS_INTERVAL_MS);
     }
   }
 
