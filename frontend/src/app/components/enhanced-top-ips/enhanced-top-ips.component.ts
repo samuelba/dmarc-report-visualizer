@@ -17,6 +17,8 @@ interface EnhancedIpData {
   city?: string;
   latitude?: number;
   longitude?: number;
+  isp?: string;
+  org?: string;
 }
 
 interface FilterParams {
@@ -39,6 +41,7 @@ export class EnhancedTopIpsComponent implements OnInit, OnChanges {
   displayedColumns: string[] = [
     'sourceIp',
     'location',
+    'entities',
     'count',
     'dkimPass',
     'spfPass',

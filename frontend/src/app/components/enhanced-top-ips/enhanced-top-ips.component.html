@@ -25,9 +25,6 @@
             <td mat-cell *matCellDef="let element">
               <div class="ip-cell">
                 <code>{{ element.sourceIp }}</code>
-                @if (element.latitude && element.longitude) {
-                  <mat-icon class="location-icon" matTooltip="Geographic location available"> location_on </mat-icon>
-                }
               </div>
             </td>
           </ng-container>
@@ -51,6 +48,33 @@
                 }
                 @if (!element.country && !element.city) {
                   <div class="no-location">
+                    <mat-icon>help_outline</mat-icon>
+                    Unknown
+                  </div>
+                }
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Entities Column -->
+          <ng-container matColumnDef="entities">
+            <th mat-header-cell *matHeaderCellDef>Entities</th>
+            <td mat-cell *matCellDef="let element">
+              <div class="entities-cell">
+                @if (element.isp) {
+                  <div class="isp" matTooltip="Internet Service Provider (ISP)" matTooltipPosition="before">
+                    <mat-icon class="isp-icon">language</mat-icon>
+                    {{ element.isp }}
+                  </div>
+                }
+                @if (element.org) {
+                  <div class="org" matTooltip="Company" matTooltipPosition="before">
+                    <mat-icon class="org-icon">corporate_fare</mat-icon>
+                    {{ element.org }}
+                  </div>
+                }
+                @if (!element.isp && !element.org) {
+                  <div class="no-entities">
                     <mat-icon>help_outline</mat-icon>
                     Unknown
                   </div>
