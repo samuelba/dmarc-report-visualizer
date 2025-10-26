@@ -64,14 +64,10 @@ describe('IpLookupQueueService', () => {
     service = module.get<IpLookupQueueService>(IpLookupQueueService);
     dmarcRecordRepository = module.get(getRepositoryToken(DmarcRecord));
     geolocationService = module.get(GeolocationService);
-
-    // Stop the auto-started processor
-    service.stopProcessor();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
-    service.stopProcessor();
   });
 
   it('should be defined', () => {
@@ -315,20 +311,25 @@ describe('IpLookupQueueService', () => {
     });
   });
 
-  describe('stopProcessor', () => {
-    it('should stop the background processor', () => {
-      // Start processor
-      service['startProcessor']();
-      expect(service['processingInterval']).not.toBeNull();
+  describe('event-driven processing', () => {
+    it('should trigger processing when items are queued', async () => {
+      const triggerSpy = jest.spyOn(service as any, 'triggerProcessing');
 
-      // Stop processor
-      service.stopProcessor();
-      expect(service['processingInterval']).toBeNull();
+      await service.queueIpLookup('1.2.3.4', ['record1'], 1);
+
+      expect(triggerSpy).toHaveBeenCalled();
     });
 
-    it('should not throw when stopping already stopped processor', () => {
-      service.stopProcessor();
-      expect(() => service.stopProcessor()).not.toThrow();
+    it('should not trigger processing if already processing', () => {
+      const triggerSpy = jest.spyOn(service as any, 'triggerProcessing');
+
+      // Set processing flag
+      service['processing'] = true;
+
+      service['triggerProcessing']();
+
+      // Should return early without calling processQueue
+      expect(triggerSpy).toHaveBeenCalled();
     });
   });
 
@@ -352,14 +353,21 @@ describe('IpLookupQueueService', () => {
         org: 'Test Org',
       };
       geolocationService.getLocationForIp.mockResolvedValue(mockGeoData);
+      geolocationService.getProviderStats.mockReturnValue({
+        'geoip-lite': {
+          name: 'GeoIP Lite',
+          rateLimits: {},
+          usage: {
+            minuteRequests: 0,
+            dailyRequests: 0,
+          },
+        },
+      });
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      // Start processor manually
-      service['startProcessor']();
-
-      // Advance timers and run pending promises
-      await jest.advanceTimersByTimeAsync(1100);
+      // Wait for setImmediate and promises
+      await jest.runAllTimersAsync();
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).toHaveBeenCalledWith(
@@ -379,11 +387,20 @@ describe('IpLookupQueueService', () => {
 
     it('should handle null geolocation data', async () => {
       geolocationService.getLocationForIp.mockResolvedValue(null);
+      geolocationService.getProviderStats.mockReturnValue({
+        'geoip-lite': {
+          name: 'GeoIP Lite',
+          rateLimits: {},
+          usage: {
+            minuteRequests: 0,
+            dailyRequests: 0,
+          },
+        },
+      });
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      service['startProcessor']();
-      await jest.advanceTimersByTimeAsync(1100);
+      await jest.runAllTimersAsync();
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(dmarcRecordRepository.update).toHaveBeenCalledWith(
@@ -398,11 +415,22 @@ describe('IpLookupQueueService', () => {
       geolocationService.getLocationForIp.mockRejectedValue(
         new RateLimitError('Rate limited', 1000),
       );
+      geolocationService.getProviderStats.mockReturnValue({
+        'geoip-lite': {
+          name: 'GeoIP Lite',
+          rateLimits: {},
+          usage: {
+            minuteRequests: 0,
+            dailyRequests: 0,
+          },
+        },
+      });
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      service['startProcessor']();
-      await jest.advanceTimersByTimeAsync(1100);
+      // Run only one cycle of timers (not all, to avoid infinite loop)
+      await jest.advanceTimersByTimeAsync(0); // Process setImmediate
+      await jest.advanceTimersByTimeAsync(1000); // Process setTimeout
 
       // Should be back in queue with low priority
       const stats = service.getQueueStats();
@@ -429,8 +457,7 @@ describe('IpLookupQueueService', () => {
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      service['startProcessor']();
-      await jest.advanceTimersByTimeAsync(1100);
+      await jest.runAllTimersAsync();
 
       // Should not process due to rate limit
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -439,32 +466,116 @@ describe('IpLookupQueueService', () => {
     }, 10000);
 
     it('should not process when already processing', async () => {
+      let resolveFirst: any;
       geolocationService.getLocationForIp.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          }),
       );
+      geolocationService.getProviderStats.mockReturnValue({
+        'geoip-lite': {
+          name: 'GeoIP Lite',
+          rateLimits: {},
+          usage: {
+            minuteRequests: 0,
+            dailyRequests: 0,
+          },
+        },
+      });
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
       await service.queueIpLookup('5.6.7.8', ['record2'], 0);
 
-      service['startProcessor']();
+      // Start processing first item
+      await jest.advanceTimersByTimeAsync(0);
 
-      // First call
-      await jest.advanceTimersByTimeAsync(1100);
-
-      // Second call should be skipped because still processing
-      await jest.advanceTimersByTimeAsync(1100);
-
-      // Only one call should have been made
+      // Only one call should have been made (second is blocked by processing flag)
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(1);
+
+      // Resolve first lookup
+      resolveFirst({ country: 'US' });
+      await jest.runAllTimersAsync();
+
+      // Now second should be processed
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(2);
     }, 10000);
 
     it('should not process empty queue', async () => {
-      service['startProcessor']();
-      await jest.advanceTimersByTimeAsync(1100);
+      service['triggerProcessing']();
+      await jest.runAllTimersAsync();
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).not.toHaveBeenCalled();
+    }, 10000);
+
+    it('should process cache hits immediately without delay', async () => {
+      const mockGeoData = { country: 'US', countryName: 'United States' };
+      geolocationService.getLocationForIp.mockResolvedValue(mockGeoData);
+
+      // Mock stats to show no API call was made (cache hit)
+      geolocationService.getProviderStats
+        .mockReturnValueOnce({
+          'geoip-lite': {
+            name: 'GeoIP Lite',
+            rateLimits: {},
+            usage: { minuteRequests: 5, dailyRequests: 50 },
+          },
+        })
+        .mockReturnValueOnce({
+          'geoip-lite': {
+            name: 'GeoIP Lite',
+            rateLimits: {},
+            usage: { minuteRequests: 5, dailyRequests: 50 }, // Same count = cache hit
+          },
+        });
+
+      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      await service.queueIpLookup('5.6.7.8', ['record2'], 0);
+
+      // Process both items
+      await jest.runAllTimersAsync();
+
+      // Both should be processed (cache hits don't wait)
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(2);
+      expect(service.getQueueStats().queueSize).toBe(0);
+    }, 10000);
+
+    it('should wait after API calls', async () => {
+      const mockGeoData = { country: 'US', countryName: 'United States' };
+      geolocationService.getLocationForIp.mockResolvedValue(mockGeoData);
+
+      // Mock stats to show API call was made
+      geolocationService.getProviderStats
+        .mockReturnValueOnce({
+          'geoip-lite': {
+            name: 'GeoIP Lite',
+            rateLimits: {},
+            usage: { minuteRequests: 5, dailyRequests: 50 },
+          },
+        })
+        .mockReturnValueOnce({
+          'geoip-lite': {
+            name: 'GeoIP Lite',
+            rateLimits: {},
+            usage: { minuteRequests: 6, dailyRequests: 51 }, // Increased = API call
+          },
+        });
+
+      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+
+      // Start processing
+      await jest.advanceTimersByTimeAsync(0);
+
+      // Should have processed first item
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(1);
+
+      // Queue should be empty after processing
+      expect(service.getQueueStats().queueSize).toBe(0);
     }, 10000);
   });
 
@@ -481,11 +592,22 @@ describe('IpLookupQueueService', () => {
       geolocationService.getLocationForIp.mockRejectedValue(
         new Error('Network error'),
       );
+      geolocationService.getProviderStats.mockReturnValue({
+        'geoip-lite': {
+          name: 'GeoIP Lite',
+          rateLimits: {},
+          usage: {
+            minuteRequests: 0,
+            dailyRequests: 0,
+          },
+        },
+      });
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      service['startProcessor']();
-      await jest.advanceTimersByTimeAsync(1100);
+      // Run only one cycle of timers (not all, to avoid infinite loop)
+      await jest.advanceTimersByTimeAsync(0); // Process setImmediate
+      await jest.advanceTimersByTimeAsync(1000); // Process setTimeout
 
       // Should mark as failed and requeue
       const stats = service.getQueueStats();
@@ -503,14 +625,23 @@ describe('IpLookupQueueService', () => {
       geolocationService.getLocationForIp.mockRejectedValue(
         new Error('Network error'),
       );
+      geolocationService.getProviderStats.mockReturnValue({
+        'geoip-lite': {
+          name: 'GeoIP Lite',
+          rateLimits: {},
+          usage: {
+            minuteRequests: 0,
+            dailyRequests: 0,
+          },
+        },
+      });
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      service['startProcessor']();
-
-      // Process 3 times (max failed attempts)
-      for (let i = 0; i < 3; i++) {
-        await jest.advanceTimersByTimeAsync(1100);
+      // Process 4 cycles in total: 3 failed attempts and 1 final attempt (with geoip-lite)
+      for (let i = 0; i < 4; i++) {
+        await jest.advanceTimersByTimeAsync(0); // Process setImmediate
+        await jest.advanceTimersByTimeAsync(1000); // Process setTimeout
       }
 
       // Should try geoip-lite as last resort
@@ -520,7 +651,7 @@ describe('IpLookupQueueService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should start processor and load pending lookups on init', async () => {
+    it('should load pending lookups on init and trigger processing', async () => {
       const mockRecords = [
         {
           id: 'record1',
@@ -538,6 +669,8 @@ describe('IpLookupQueueService', () => {
         geolocationService,
       );
 
+      const triggerSpy = jest.spyOn(freshService as any, 'triggerProcessing');
+
       await freshService.onModuleInit();
 
       // Wait for async operations
@@ -545,8 +678,7 @@ describe('IpLookupQueueService', () => {
 
       const stats = freshService.getQueueStats();
       expect(stats.queueSize).toBeGreaterThanOrEqual(0); // May have processed already
-
-      freshService.stopProcessor();
+      expect(triggerSpy).toHaveBeenCalled(); // Processing should be triggered
     });
   });
 });
