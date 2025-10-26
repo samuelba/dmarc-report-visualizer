@@ -214,6 +214,8 @@ export class DmarcGeoAnalyticsService {
       city?: string;
       latitude?: number;
       longitude?: number;
+      isp?: string;
+      org?: string;
     }>;
     total: number;
     page: number;
@@ -255,6 +257,8 @@ export class DmarcGeoAnalyticsService {
         'record.geoCity as city',
         'record.geoLatitude as latitude',
         'record.geoLongitude as longitude',
+        'record.geoIsp as isp',
+        'record.geoOrg as org',
         'SUM(record.count) as count',
         // DMARC passes if either DKIM or SPF passes (from policy_evaluated)
         "SUM(CASE WHEN (record.dmarcDkim = 'pass' OR record.dmarcSpf = 'pass') THEN record.count ELSE 0 END) as passCount",
@@ -263,7 +267,7 @@ export class DmarcGeoAnalyticsService {
         "SUM(CASE WHEN record.dmarcSpf = 'pass' THEN record.count ELSE 0 END) as spfPassCount",
       ])
       .groupBy(
-        'record.sourceIp, record.geoCountry, record.geoCity, record.geoLatitude, record.geoLongitude',
+        'record.sourceIp, record.geoCountry, record.geoCity, record.geoLatitude, record.geoLongitude, record.geoIsp, record.geoOrg',
       )
       .orderBy('count', 'DESC')
       .offset((page - 1) * pageSize)
@@ -282,6 +286,8 @@ export class DmarcGeoAnalyticsService {
       city: r.city || undefined,
       latitude: r.latitude ? parseFloat(r.latitude) : undefined,
       longitude: r.longitude ? parseFloat(r.longitude) : undefined,
+      isp: r.isp || undefined,
+      org: r.org || undefined,
     }));
 
     return {

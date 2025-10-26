@@ -193,7 +193,7 @@ describe('DmarcGeoAnalyticsService', () => {
   });
 
   describe('getTopIpsEnhanced', () => {
-    it('should return paginated enhanced IP data', async () => {
+    it('should return paginated enhanced IP data with ISP and Org', async () => {
       const baseQB: any = {
         leftJoin: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
@@ -208,6 +208,8 @@ describe('DmarcGeoAnalyticsService', () => {
             city: 'NY',
             latitude: '40.7',
             longitude: '-74.0',
+            isp: 'Example ISP',
+            org: 'Example Organization',
             count: '100',
             passcount: '80',
             failcount: '20',
@@ -234,7 +236,11 @@ describe('DmarcGeoAnalyticsService', () => {
       expect(result.total).toBe(2);
       expect(result.data[0].sourceIp).toBe('1.2.3.4');
       expect(result.data[0].latitude).toBe(40.7);
+      expect(result.data[0].isp).toBe('Example ISP');
+      expect(result.data[0].org).toBe('Example Organization');
       expect(result.data[1].country).toBeUndefined();
+      expect(result.data[1].isp).toBeUndefined();
+      expect(result.data[1].org).toBeUndefined();
     });
   });
 
