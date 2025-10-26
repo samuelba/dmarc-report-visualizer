@@ -1,0 +1,233 @@
+.record-details-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 600px;
+  max-width: 800px;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--xml-dialog-header-border-color);
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+mat-dialog-content {
+  flex: 1;
+  overflow: auto;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-height: none !important;
+}
+
+.record-summary {
+  padding: 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.summary-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-value {
+  font-size: 16px;
+  font-weight: 500;
+
+  &.disposition {
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    width: fit-content;
+    font-size: 14px;
+
+    &.disposition-none {
+      background-color: var(--custom-success-bg-color);
+      color: var(--custom-success-color);
+    }
+
+    &.disposition-quarantine {
+      background-color: var(--custom-warning-bg-color);
+      color: var(--custom-warning-color);
+    }
+
+    &.disposition-reject {
+      background-color: var(--custom-error-bg-color);
+      color: var(--custom-error-color);
+    }
+  }
+}
+
+.details-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// Detail Card Styling
+.detail-card {
+  mat-card-title {
+    &.card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  mat-card-content {
+    padding-top: 16px;
+  }
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  align-items: center;
+}
+
+.grid-label {
+  font-weight: 500;
+  text-align: right;
+  font-size: 13px;
+}
+
+.grid-value {
+  word-break: break-word;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  &.status {
+    text-transform: capitalize;
+  }
+}
+
+// Badge Styling
+%badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.policy-badge {
+  @extend %badge;
+
+  &.policy-reject {
+    color: var(--custom-error-color);
+    background-color: var(--custom-error-bg-color);
+  }
+
+  &.policy-quarantine {
+    color: var(--custom-warning-color);
+    background-color: var(--custom-warning-bg-color);
+  }
+
+  &.policy-none {
+    color: var(--custom-success-color);
+    background-color: var(--custom-success-bg-color);
+  }
+}
+
+.forwarded-badge {
+  @extend %badge;
+
+  &.forwarded-yes {
+    color: var(--custom-info-color);
+    background-color: var(--custom-info-bg-color);
+  }
+
+  &.forwarded-no {
+    color: var(--custom-info-color);
+    background-color: var(--custom-info-bg-color);
+  }
+
+  &.forwarded-unknown {
+    color: var(--custom-unknown-color);
+    background-color: var(--custom-unknown-bg-color);
+    border: 1px dashed var(--custom-unknown-color);
+  }
+}
+
+.auth-badge {
+  @extend %badge;
+
+  &.auth-pass {
+    color: var(--custom-success-color);
+    background-color: var(--custom-success-bg-color);
+  }
+
+  &.auth-fail {
+    color: var(--custom-error-color);
+    background-color: var(--custom-error-bg-color);
+  }
+
+  &.auth-missing {
+    color: var(--custom-unknown-color);
+    background-color: var(--custom-unknown-bg-color);
+    border: 1px dashed var(--custom-unknown-color);
+  }
+}
+
+.auth-details {
+  font-size: 12px;
+}
+
+.auth-selector {
+  font-style: italic;
+}

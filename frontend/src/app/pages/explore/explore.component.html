@@ -105,47 +105,6 @@
 
     <section>
       <table mat-table [dataSource]="rows()" matSort (matSortChange)="onSort($event)" class="mat-elevation-z1">
-        <ng-container matColumnDef="info">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let r">
-            <div class="info-container">
-              <mat-icon
-                class="info-icon"
-                cdkOverlayOrigin
-                #infoTrigger="cdkOverlayOrigin"
-                (mouseenter)="hoveredInfoRecordId = r.id"
-                (mouseleave)="hoveredInfoRecordId = null"
-              >
-                lightbulb
-              </mat-icon>
-            </div>
-            <ng-template
-              cdkConnectedOverlay
-              [cdkConnectedOverlayOrigin]="infoTrigger"
-              [cdkConnectedOverlayOpen]="hoveredInfoRecordId === r.id"
-              [cdkConnectedOverlayHasBackdrop]="false"
-              [cdkConnectedOverlayPositions]="[
-                { originX: 'end', originY: 'top', overlayX: 'start', overlayY: 'top', offsetX: 8 },
-                { originX: 'end', originY: 'center', overlayX: 'start', overlayY: 'center', offsetX: 8 },
-                { originX: 'end', originY: 'bottom', overlayX: 'start', overlayY: 'bottom', offsetX: 8 },
-                { originX: 'start', originY: 'top', overlayX: 'end', overlayY: 'top', offsetX: -8 },
-                { originX: 'start', originY: 'center', overlayX: 'end', overlayY: 'center', offsetX: -8 },
-                { originX: 'start', originY: 'bottom', overlayX: 'end', overlayY: 'bottom', offsetX: -8 },
-              ]"
-              [cdkConnectedOverlayViewportMargin]="8"
-              [cdkConnectedOverlayFlexibleDimensions]="true"
-              [cdkConnectedOverlayPush]="true"
-            >
-              <div (mouseenter)="hoveredInfoRecordId = r.id" (mouseleave)="hoveredInfoRecordId = null">
-                <app-grid-tooltip
-                  title="Record Details"
-                  [sections]="getComprehensiveTooltipSections(r)"
-                  emptyMessage="No additional details available"
-                ></app-grid-tooltip>
-              </div>
-            </ng-template>
-          </td>
-        </ng-container>
         <ng-container matColumnDef="date">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="date">Date</th>
           <td mat-cell *matCellDef="let r">{{ r.report?.beginDate | date: 'yyyy-MM-dd' }}</td>
@@ -255,12 +214,17 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>Actions</th>
           <td mat-cell *matCellDef="let r">
-            <button mat-button color="primary" (click)="viewXml(r)">XML</button>
+            <button mat-button color="primary" (click)="viewXml(r); $event.stopPropagation()">XML</button>
           </td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayed" class="element-row"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayed"
+          class="element-row clickable-row"
+          (click)="openRecordDetails(row)"
+        ></tr>
       </table>
 
       <mat-paginator

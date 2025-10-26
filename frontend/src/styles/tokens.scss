@@ -85,6 +85,10 @@
 
   --custom-metric-label-color: #666;
 
+  // Explore
+  --explore-table-row-hover: rgba(0, 0, 0, 0.04);
+  --explore-table-row-active: rgba(0, 0, 0, 0.08);
+
   // Tooltip styling
   --tooltip-background-color: #d9e5eb;
 
@@ -184,6 +188,10 @@
   --custom-unknown-bg-color: #333333;
 
   --custom-metric-label-color: #a7a7a7;
+
+  // Explore
+  --explore-table-row-hover: rgba(255, 255, 255, 0.04);
+  --explore-table-row-active: rgba(255, 255, 255, 0.08);
 
   // Tooltip styling
   --tooltip-background-color: #2e3437;
