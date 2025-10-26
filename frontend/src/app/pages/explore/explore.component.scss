@@ -250,3 +250,8 @@ tr th.mat-mdc-header-cell:first-child {
     background-color: var(--explore-table-row-active);
   }
 }
+
+// Selected row styling
+.selected-row {
+  background-color: var(--explore-table-row-selected) !important;
+}
