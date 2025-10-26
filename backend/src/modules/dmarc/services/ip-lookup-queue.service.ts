@@ -187,7 +187,10 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
    */
   private scheduleNextProcessing(delay: number): void {
     setTimeout(() => {
+      // Clear processing flag first
       this.processing = false;
+      // Then trigger next cycle if queue has items
+      // triggerProcessing() will check the flag and start processing
       if (this.queue.length > 0) {
         this.triggerProcessing();
       }
@@ -208,24 +211,32 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
       const item = this.queue[0]; // Get highest priority item
 
       // Check if we can make a request (rate limit check)
-      const providerStats = this.geolocationService.getProviderStats();
-      const currentProvider = this.geolocationService.getConfig().provider;
-      const currentStats = providerStats[currentProvider];
+      const geoConfig = this.geolocationService.getConfig();
+      if (!geoConfig?.provider) {
+        this.logger.error(
+          'Geolocation provider configuration is missing, skipping rate limit check',
+        );
+        // Continue processing without rate limit check
+      } else {
+        const providerStats = this.geolocationService.getProviderStats();
+        const currentProvider = geoConfig.provider;
+        const currentStats = providerStats[currentProvider];
 
-      // Simple rate limit check (can be enhanced)
-      if (currentStats?.usage) {
-        const { minuteRequests, minuteLimit, dailyRequests, dailyLimit } =
-          currentStats.usage;
+        // Simple rate limit check (can be enhanced)
+        if (currentStats?.usage) {
+          const { minuteRequests, minuteLimit, dailyRequests, dailyLimit } =
+            currentStats.usage;
 
-        if (
-          (minuteLimit && minuteRequests >= minuteLimit) ||
-          (dailyLimit && dailyRequests >= dailyLimit)
-        ) {
-          this.logger.debug(
-            `Rate limit approaching for ${currentProvider}, waiting...`,
-          );
-          this.processing = false;
-          return;
+          if (
+            (minuteLimit && minuteRequests >= minuteLimit) ||
+            (dailyLimit && dailyRequests >= dailyLimit)
+          ) {
+            this.logger.debug(
+              `Rate limit approaching for ${currentProvider}, waiting...`,
+            );
+            this.processing = false;
+            return;
+          }
         }
       }
 
@@ -243,11 +254,8 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
           // Wait before processing next item to respect rate limits
           this.scheduleNextProcessing(this.PROCESS_INTERVAL_MS);
         } else {
-          // Cache hit - process next item immediately
-          this.processing = false;
-          if (this.queue.length > 0) {
-            this.triggerProcessing();
-          }
+          // Cache hit - process next item immediately (no delay)
+          this.scheduleNextProcessing(0);
         }
       } else {
         // Item needs to be retried - move to end of queue and wait
@@ -284,19 +292,33 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
       );
 
       // Check if we'll hit cache by checking provider stats before and after
-      const statsBefore = this.geolocationService.getProviderStats();
-      const currentProvider = this.geolocationService.getConfig().provider;
-      const requestsBefore =
-        statsBefore[currentProvider]?.usage?.minuteRequests || 0;
+      const geoConfig = this.geolocationService.getConfig();
+      let wasApiCall = false;
+      let geoData;
 
-      // Perform the lookup
-      const geoData = await this.geolocationService.getLocationForIp(item.ip);
+      if (geoConfig?.provider) {
+        const statsBefore = this.geolocationService.getProviderStats();
+        const currentProvider = geoConfig.provider;
+        const requestsBefore =
+          statsBefore[currentProvider]?.usage?.minuteRequests || 0;
 
-      // Check if API was actually called
-      const statsAfter = this.geolocationService.getProviderStats();
-      const requestsAfter =
-        statsAfter[currentProvider]?.usage?.minuteRequests || 0;
-      const wasApiCall = requestsAfter > requestsBefore;
+        // Perform the lookup
+        geoData = await this.geolocationService.getLocationForIp(item.ip);
+
+        // Check if API was actually called
+        const statsAfter = this.geolocationService.getProviderStats();
+        const requestsAfter =
+          statsAfter[currentProvider]?.usage?.minuteRequests || 0;
+        wasApiCall = requestsAfter > requestsBefore;
+      } else {
+        // No provider config, just perform lookup without tracking
+        this.logger.warn(
+          'Geolocation provider configuration missing, cannot track API calls',
+        );
+        geoData = await this.geolocationService.getLocationForIp(item.ip);
+        // Assume it was an API call to be safe (apply rate limiting)
+        wasApiCall = true;
+      }
 
       if (!geoData) {
         this.logger.warn(`No geolocation data found for IP ${item.ip}`);
