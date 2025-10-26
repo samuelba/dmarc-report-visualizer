@@ -638,7 +638,7 @@ describe('IpLookupQueueService', () => {
 
       await service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
-      // Process 4 times (3 failed attempts + 1 final attempt with geoip-lite)
+      // Process 4 cycles in total: 3 failed attempts and 1 final attempt (with geoip-lite)
       for (let i = 0; i < 4; i++) {
         await jest.advanceTimersByTimeAsync(0); // Process setImmediate
         await jest.advanceTimersByTimeAsync(1000); // Process setTimeout
