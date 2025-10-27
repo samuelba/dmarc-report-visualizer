@@ -48,6 +48,7 @@ export class RecordDetailsDialogComponent {
 
   hasGeoData(): boolean {
     return !!(
+      this.record.sourceIp ||
       this.record.geoCountry ||
       this.record.geoCity ||
       this.record.geoIsp ||
@@ -64,12 +65,74 @@ export class RecordDetailsDialogComponent {
     return !!(policy && (policy.p || policy.sp || policy.adkim || policy.aspf || policy.pct !== undefined));
   }
 
+  // Determine if the record is for a subdomain based on headerFrom and policy domain
+  isSubdomain(): boolean {
+    const policy = this.getPolicy();
+    const policyDomain = (this.record as any).report?.domain;
+    const headerFrom = this.record.headerFrom;
+
+    if (!policyDomain || !headerFrom) {
+      return false;
+    }
+
+    // Extract domain from headerFrom (everything after @)
+    const headerDomain = headerFrom.toLowerCase();
+    const baseDomain = policyDomain.toLowerCase();
+
+    // If headerDomain is exactly the policy domain, it's not a subdomain
+    if (headerDomain === baseDomain) {
+      return false;
+    }
+
+    // If headerDomain ends with .policyDomain, it's a subdomain
+    return headerDomain.endsWith('.' + baseDomain);
+  }
+
+  // Get which policy applies to this record
+  getApplicablePolicy(): 'main' | 'subdomain' | 'unknown' {
+    const policy = this.getPolicy();
+    if (!policy) {
+      return 'unknown';
+    }
+
+    return this.isSubdomain() ? 'subdomain' : 'main';
+  }
+
   hasForwardingData(): boolean {
     return this.record.isForwarded !== undefined && this.record.isForwarded !== null;
   }
 
   hasPolicyOverride(): boolean {
     return !!(this.record.reasonType || this.record.reasonComment);
+  }
+
+  // DMARC Overall Status
+  getDmarcOverallStatus(): 'pass' | 'fail' {
+    // DMARC passes if either DKIM or SPF passes (with alignment)
+    if (this.record.dmarcDkim === 'pass' || this.record.dmarcSpf === 'pass') {
+      return 'pass';
+    }
+    return 'fail';
+  }
+
+  getDkimOverallStatus(): 'pass' | 'fail' | 'none' {
+    // Use dmarcDkim which represents the policy_evaluated result (with alignment)
+    if (this.record.dmarcDkim === 'pass') {
+      return 'pass';
+    } else if (this.record.dmarcDkim === 'fail') {
+      return 'fail';
+    }
+    return 'none';
+  }
+
+  getSpfOverallStatus(): 'pass' | 'fail' | 'none' {
+    // Use dmarcSpf which represents the policy_evaluated result (with alignment)
+    if (this.record.dmarcSpf === 'pass') {
+      return 'pass';
+    } else if (this.record.dmarcSpf === 'fail') {
+      return 'fail';
+    }
+    return 'none';
   }
 
   getForwardedLabel(): string {

@@ -255,3 +255,36 @@ tr th.mat-mdc-header-cell:first-child {
 .selected-row {
   background-color: var(--explore-table-row-selected) !important;
 }
+
+// Entities cell styling
+.entities-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 200px;
+}
+
+.entity-isp {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 20ch;
+}
+
+.entity-org {
+  font-size: 10px;
+  opacity: 0.7;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 20ch;
+}
+
+.entity-missing {
+  font-size: 12px;
+  opacity: 0.5;
+}

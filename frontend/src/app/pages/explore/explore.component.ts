@@ -69,7 +69,7 @@ export class ExploreComponent implements OnInit {
   // Combined date filter value
   dateFilterValue: DateFilterValue = { mode: 'period', periodInput: '30d' };
 
-  displayed = ['date', 'org', 'ip', 'country', 'count', 'disp', 'dkim', 'spf', 'forwarded', 'from', 'auth', 'actions'];
+  displayed = ['date', 'org', 'ip', 'country', 'entities', 'count', 'disp', 'dkim', 'spf', 'forwarded', 'from', 'auth'];
 
   filters: any = {
     domain: [] as string[],
@@ -274,7 +274,7 @@ export class ExploreComponent implements OnInit {
       } as RecordDetailsDialogData,
       width: '850px',
       maxWidth: '90vw',
-      height: '85vh',
+      height: '95vh',
     });
 
     // Handle actions from the dialog (e.g., view XML)
@@ -300,7 +300,7 @@ export class ExploreComponent implements OnInit {
       },
       width: '850px',
       maxWidth: '90vw',
-      height: '85vh',
+      height: '95vh',
     });
 
     // Handle actions from the XML viewer (e.g., view record details)
