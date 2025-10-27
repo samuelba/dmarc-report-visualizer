@@ -259,6 +259,8 @@ export class DmarcSearchService {
         LOWER(rec.geoCountry) LIKE :searchTerm OR
         LOWER(rec.geoCountryName) LIKE :searchTerm OR
         LOWER(rec.geoCity) LIKE :searchTerm OR
+        LOWER(rec.geoIsp) LIKE :searchTerm OR
+        LOWER(rec.geoOrg) LIKE :searchTerm OR
         LOWER(rec.reasonType) LIKE :searchTerm OR
         LOWER(rec.reasonComment) LIKE :searchTerm OR
         LOWER(rec.forwardReason) LIKE :searchTerm OR
@@ -283,13 +285,16 @@ export class DmarcSearchService {
       envelopeFrom: 'rec.envelopeFrom',
       country: 'rec.geoCountry',
       isForwarded: 'rec.isForwarded',
+      orgName: 'rep.orgName',
     };
     const col =
       params.sort && sortsMap[params.sort]
         ? sortsMap[params.sort]
         : 'rep.beginDate';
     const dir = (params.order || 'desc').toUpperCase() as 'ASC' | 'DESC';
+    // Primary sort by selected column, secondary sort by ID for consistent ordering
     qb.orderBy(col, dir)
+      .addOrderBy('rec.id', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize);
 

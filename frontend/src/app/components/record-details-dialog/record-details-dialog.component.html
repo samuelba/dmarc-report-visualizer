@@ -16,6 +16,78 @@
 
   <mat-dialog-content>
     <div class="details-content">
+      <!-- DMARC Status Section -->
+      <mat-card class="detail-card dmarc-status-card">
+        <mat-card-header>
+          <mat-card-title class="card-title">
+            <mat-icon>shield</mat-icon>
+            DMARC Status
+          </mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="status-grid">
+            <div class="status-item">
+              <span class="status-label">Disposition</span>
+              <span class="status-value">
+                <span class="disposition-badge" [class]="'disposition-' + (record.disposition || 'none')">
+                  @if (record.disposition === 'reject') {
+                    <mat-icon>cancel</mat-icon>
+                  } @else if (record.disposition === 'quarantine') {
+                    <mat-icon>report</mat-icon>
+                  } @else {
+                    <mat-icon>check_circle</mat-icon>
+                  }
+                  {{ record.disposition || 'none' }}
+                </span>
+              </span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">DMARC Result</span>
+              <span class="status-value">
+                <span class="auth-badge" [class]="'auth-' + getDmarcOverallStatus()">
+                  <mat-icon>{{ getAuthIcon(getDmarcOverallStatus()) }}</mat-icon>
+                  {{ getDmarcOverallStatus() }}
+                </span>
+              </span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">DKIM Status</span>
+              <span class="status-value">
+                <span
+                  class="auth-badge"
+                  [class]="getDkimOverallStatus() === 'none' ? 'auth-missing' : 'auth-' + getDkimOverallStatus()"
+                >
+                  <mat-icon>{{ getAuthIcon(getDkimOverallStatus()) }}</mat-icon>
+                  {{ getDkimOverallStatus() }}
+                </span>
+              </span>
+            </div>
+
+            <div class="status-item">
+              <span class="status-label">SPF Status</span>
+              <span class="status-value">
+                <span
+                  class="auth-badge"
+                  [class]="getSpfOverallStatus() === 'none' ? 'auth-missing' : 'auth-' + getSpfOverallStatus()"
+                >
+                  <mat-icon>{{ getAuthIcon(getSpfOverallStatus()) }}</mat-icon>
+                  {{ getSpfOverallStatus() }}
+                </span>
+              </span>
+            </div>
+
+            @if (record.count !== undefined && record.count !== null) {
+              <div class="status-item">
+                <span class="status-label">Count</span>
+                <span class="status-value">{{ record.count }}</span>
+              </div>
+            }
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Identifiers Section -->
       @if (hasIdentifiers()) {
         <mat-card class="detail-card">
@@ -55,6 +127,10 @@
           </mat-card-header>
           <mat-card-content>
             <div class="card-grid">
+              @if (record.sourceIp) {
+                <span class="grid-label">IP Address:</span>
+                <span class="grid-value ip-address">{{ record.sourceIp }}</span>
+              }
               @if (record.geoCountry) {
                 <span class="grid-label">Country:</span>
                 <span class="grid-value">{{ getCountryName(record.geoCountry) }} ({{ record.geoCountry }})</span>
@@ -105,44 +181,68 @@
             </mat-card-title>
           </mat-card-header>
           <mat-card-content>
-            <div class="card-grid">
+            <div class="status-grid">
               @if (getPolicy()?.p) {
-                <span class="grid-label">Policy:</span>
-                <span class="grid-value">
-                  <span class="policy-badge" [class]="'policy-' + getPolicy()?.p">
-                    @if (getPolicy()?.p === 'reject') {
-                      <mat-icon>cancel</mat-icon>
-                    } @else if (getPolicy()?.p === 'quarantine') {
-                      <mat-icon>coronavirus</mat-icon>
+                <div class="status-item">
+                  <span class="status-label">
+                    Policy
+                    @if (getApplicablePolicy() === 'main') {
+                      <mat-icon class="applies-icon" matTooltip="This policy applies to this record"
+                        >check_circle</mat-icon
+                      >
                     }
-                    {{ getPolicy()?.p }}
                   </span>
-                </span>
+                  <span class="status-value">
+                    <span class="policy-badge" [class]="'policy-' + getPolicy()?.p">
+                      @if (getPolicy()?.p === 'reject') {
+                        <mat-icon>cancel</mat-icon>
+                      } @else if (getPolicy()?.p === 'quarantine') {
+                        <mat-icon>coronavirus</mat-icon>
+                      }
+                      {{ getPolicy()?.p }}
+                    </span>
+                  </span>
+                </div>
               }
               @if (getPolicy()?.sp) {
-                <span class="grid-label">Subdomain Policy:</span>
-                <span class="grid-value">
-                  <span class="policy-badge" [class]="'policy-' + getPolicy()?.sp">
-                    @if (getPolicy()?.sp === 'reject') {
-                      <mat-icon>cancel</mat-icon>
-                    } @else if (getPolicy()?.sp === 'quarantine') {
-                      <mat-icon>coronavirus</mat-icon>
+                <div class="status-item">
+                  <span class="status-label">
+                    Subdomain Policy
+                    @if (getApplicablePolicy() === 'subdomain') {
+                      <mat-icon class="applies-icon" matTooltip="This policy applies to this record"
+                        >check_circle</mat-icon
+                      >
                     }
-                    {{ getPolicy()?.sp }}
                   </span>
-                </span>
+                  <span class="status-value">
+                    <span class="policy-badge" [class]="'policy-' + getPolicy()?.sp">
+                      @if (getPolicy()?.sp === 'reject') {
+                        <mat-icon>cancel</mat-icon>
+                      } @else if (getPolicy()?.sp === 'quarantine') {
+                        <mat-icon>coronavirus</mat-icon>
+                      }
+                      {{ getPolicy()?.sp }}
+                    </span>
+                  </span>
+                </div>
               }
               @if (getPolicy()?.adkim) {
-                <span class="grid-label">DKIM Alignment:</span>
-                <span class="grid-value">{{ getPolicy()?.adkim }}</span>
+                <div class="status-item">
+                  <span class="status-label">DKIM Alignment</span>
+                  <span class="status-value">{{ getPolicy()?.adkim }}</span>
+                </div>
               }
               @if (getPolicy()?.aspf) {
-                <span class="grid-label">SPF Alignment:</span>
-                <span class="grid-value">{{ getPolicy()?.aspf }}</span>
+                <div class="status-item">
+                  <span class="status-label">SPF Alignment</span>
+                  <span class="status-value">{{ getPolicy()?.aspf }}</span>
+                </div>
               }
               @if (getPolicy()?.pct !== undefined && getPolicy()?.pct !== null) {
-                <span class="grid-label">Percentage:</span>
-                <span class="grid-value">{{ getPolicy()?.pct }}%</span>
+                <div class="status-item">
+                  <span class="status-label">Percentage</span>
+                  <span class="status-value">{{ getPolicy()?.pct }}%</span>
+                </div>
               }
             </div>
           </mat-card-content>
