@@ -1,28 +1,6 @@
 .settings-container {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-.settings-content {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  font-size: 2rem;
-  font-weight: 500;
-
-  mat-icon {
-    font-size: 2rem;
-    width: 2rem;
-    height: 2rem;
-  }
 }
 
 .tab-content {
@@ -67,7 +45,7 @@ mat-card-header {
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
     display: inline-block;
-    max-width: 300px;
+    max-width: 500px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -285,25 +263,4 @@ mat-chip {
 
 mat-slide-toggle {
   margin: 0;
-}
-
-// Responsive
-@media (max-width: 768px) {
-  .settings-content {
-    padding: 1rem;
-  }
-
-  .senders-table,
-  .jobs-table {
-    font-size: 0.85rem;
-
-    code.pattern {
-      max-width: 150px;
-    }
-  }
-
-  .current-job .results {
-    flex-direction: column;
-    gap: 1rem;
-  }
 }
