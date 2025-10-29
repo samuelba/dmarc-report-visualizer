@@ -225,3 +225,82 @@ body {
     }
   }
 }
+
+// Card flip animations for dialogs
+
+$perspective-distance: 4000px;
+
+// Outgoing (front) dialog animation
+@keyframes dialog-card-flip-out {
+  0% {
+    transform: perspective($perspective-distance) rotateY(0deg);
+  }
+  100% {
+    transform: perspective($perspective-distance) rotateY(180deg);
+  }
+}
+
+@keyframes dialog-card-flip-in {
+  0% {
+    transform: perspective($perspective-distance) rotateY(-180deg);
+  }
+  100% {
+    transform: perspective($perspective-distance) rotateY(0deg);
+  }
+}
+
+// Reverse direction (flip back)
+@keyframes dialog-card-flip-out-reverse {
+  0% {
+    transform: perspective($perspective-distance) rotateY(0deg);
+  }
+  100% {
+    transform: perspective($perspective-distance) rotateY(-180deg);
+  }
+}
+
+@keyframes dialog-card-flip-in-reverse {
+  0% {
+    transform: perspective($perspective-distance) rotateY(180deg);
+  }
+  100% {
+    transform: perspective($perspective-distance) rotateY(0deg);
+  }
+}
+
+// Panel wrapper gets the class via MatDialogRef.addPanelClass / panelClass
+.cdk-overlay-pane.flip-dialog {
+  perspective: $perspective-distance;
+}
+
+.cdk-overlay-pane.flip-dialog .mat-mdc-dialog-container {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+// Outgoing (front) dialog animation
+.cdk-overlay-pane.flip-exit .mat-mdc-dialog-container {
+  animation: dialog-card-flip-out 600ms ease-in-out forwards;
+}
+
+// Incoming (back) dialog animation
+.cdk-overlay-pane.flip-enter .mat-mdc-dialog-container {
+  // Start visually as the back side
+  transform: perspective($perspective-distance) rotateY(-180deg);
+  animation: dialog-card-flip-in 600ms ease-in-out forwards;
+}
+
+// Reverse direction animations
+.cdk-overlay-pane.flip-exit-reverse .mat-mdc-dialog-container {
+  animation: dialog-card-flip-out-reverse 600ms ease-in-out forwards;
+}
+
+.cdk-overlay-pane.flip-enter-reverse .mat-mdc-dialog-container {
+  transform: perspective($perspective-distance) rotateY(180deg);
+  animation: dialog-card-flip-in-reverse 600ms ease-in-out forwards;
+}
+
+// Optional: suppress default fade during flip if any
+.cdk-overlay-pane.flip-dialog .mat-mdc-dialog-container {
+  transition: none !important;
+}

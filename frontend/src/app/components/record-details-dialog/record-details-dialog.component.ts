@@ -1,6 +1,6 @@
 import { Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -23,7 +23,8 @@ export class RecordDetailsDialogComponent {
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: RecordDetailsDialogData,
     private dialogRef: MatDialogRef<RecordDetailsDialogComponent>,
-    private api: ApiService
+    private api: ApiService,
+    private dialog: MatDialog
   ) {}
 
   get record(): DmarcRecord {
@@ -67,7 +68,6 @@ export class RecordDetailsDialogComponent {
 
   // Determine if the record is for a subdomain based on headerFrom and policy domain
   isSubdomain(): boolean {
-    const policy = this.getPolicy();
     const policyDomain = (this.record as any).report?.domain;
     const headerFrom = this.record.headerFrom;
 
@@ -187,8 +187,55 @@ export class RecordDetailsDialogComponent {
     }
   }
 
-  viewXml() {
-    this.dialogRef.close({ action: 'viewXml', record: this.record });
+  async viewXml() {
+    const reportId = (this.record as any)?.report?.id;
+    // Add flip classes to current dialog pane
+    // Remove any stale flip state from previous flips
+    this.dialogRef.removePanelClass('flip-enter');
+    this.dialogRef.removePanelClass('flip-enter-reverse');
+    this.dialogRef.removePanelClass('flip-exit');
+    this.dialogRef.removePanelClass('flip-exit-reverse');
+    this.dialogRef.addPanelClass('flip-dialog');
+    // Forward exit: rotate 0 -> 180deg
+    this.dialogRef.addPanelClass('flip-exit');
+
+    // Open the XML dialog immediately with flip-enter; fill XML when loaded
+    const { XmlViewerDialogComponent } = await import('../xml-viewer-dialog/xml-viewer-dialog.component');
+    const xmlRef = this.dialog.open(XmlViewerDialogComponent, {
+      data: {
+        xml: '',
+        record: this.record,
+        reportId,
+        title: `DMARC Report XML - ${this.record.sourceIp || 'Unknown IP'}`,
+      },
+      width: '850px',
+      maxWidth: '90vw',
+      height: '95vh',
+      // Forward enter: start at -180 -> 0deg
+      panelClass: ['flip-dialog', 'flip-enter'],
+      enterAnimationDuration: '0ms',
+      exitAnimationDuration: '0ms',
+    });
+
+    // After flip-in completes, clear flip-enter class on the new dialog
+    setTimeout(() => xmlRef.removePanelClass('flip-enter'), 650);
+
+    // Fetch XML and inject into the opened dialog
+    if (reportId) {
+      this.api.getReportXml(reportId).subscribe({
+        next: (xml) => {
+          if (xmlRef?.componentInstance && typeof (xmlRef.componentInstance as any).setXml === 'function') {
+            (xmlRef.componentInstance as any).setXml(xml);
+          }
+        },
+        error: () => {
+          // Leave XML dialog open; caller can retry or close.
+        },
+      });
+    }
+
+    // Close the current dialog after the flip duration
+    setTimeout(() => this.dialogRef.close({ action: 'flip' }), 600);
   }
 
   close() {
