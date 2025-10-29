@@ -1,17 +1,16 @@
 import { Component, Inject, OnInit, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { DomSanitizer } from '@angular/platform-browser';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markup';
 
 import 'prismjs/plugins/line-numbers/prism-line-numbers';
 import 'prismjs/plugins/line-highlight/prism-line-highlight';
-import { DmarcRecord } from '../../services/api.service';
+import { ApiService, DmarcRecord } from '../../services/api.service';
 
 export interface XmlViewerDialogData {
   xml: string;
@@ -38,11 +37,19 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     @Inject(MAT_DIALOG_DATA) public data: XmlViewerDialogData,
     private dialogRef: MatDialogRef<XmlViewerDialogComponent>,
     private snackBar: MatSnackBar,
-    private sanitizer: DomSanitizer
+    private dialog: MatDialog,
+    private api: ApiService
   ) {}
 
   ngOnInit() {
-    this.processXml();
+    if (this.data?.xml) {
+      this.processXml();
+    } else if (this.data?.reportId) {
+      // Lazy-load XML if not provided
+      this.api.getReportXml(this.data.reportId).subscribe({
+        next: (xml) => this.setXml(xml),
+      });
+    }
   }
 
   ngAfterViewInit() {
@@ -82,6 +89,20 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
 
     // Store the formatted XML content
     this.highlightedXml = processedXml;
+  }
+
+  // Allow late XML injection (used by flip animation orchestration)
+  public setXml(xml: string) {
+    this.data.xml = xml || '';
+    this.processXml();
+
+    // Re-run Prism highlighting if view initialized
+    setTimeout(() => {
+      if (this.xmlContent?.nativeElement) {
+        const pre = this.xmlContent.nativeElement;
+        Prism.highlightAllUnder(pre.parentElement);
+      }
+    }, 0);
   }
 
   private formatXml(xml: string): string {
@@ -444,7 +465,52 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     );
   }
 
-  viewRecordDetails() {
-    this.dialogRef.close({ action: 'viewRecordDetails', record: this.data.record });
+  async viewRecordDetails() {
+    if (!this.data.record) {
+      this.dialogRef.close();
+      return;
+    }
+
+    // Add flip classes to current dialog pane
+    // Remove any stale flip state from previous flips
+    this.dialogRef.removePanelClass('flip-enter');
+    this.dialogRef.removePanelClass('flip-enter-reverse');
+    this.dialogRef.removePanelClass('flip-exit');
+    this.dialogRef.removePanelClass('flip-exit-reverse');
+    this.dialogRef.addPanelClass('flip-dialog');
+    // Reverse exit: rotate 0 -> -180deg
+    this.dialogRef.addPanelClass('flip-exit-reverse');
+
+    // Open the Details dialog immediately with flip-enter
+    const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+    const { RecordDetailsDialogComponent } = await import('../record-details-dialog/record-details-dialog.component');
+    const detailsRef = this.dialog.open(RecordDetailsDialogComponent, {
+      data: {
+        record: this.data.record,
+        getCountryName: (code?: string) => {
+          if (!code) {
+            return '';
+          }
+          try {
+            return regionNames.of(code.toUpperCase()) || code;
+          } catch {
+            return code;
+          }
+        },
+      },
+      width: '850px',
+      maxWidth: '90vw',
+      height: '95vh',
+      // Reverse enter: start at 180 -> 0deg
+      panelClass: ['flip-dialog', 'flip-enter-reverse'],
+      enterAnimationDuration: '0ms',
+      exitAnimationDuration: '0ms',
+    });
+
+    // After flip-in completes, clear flip-enter-reverse on the new dialog
+    setTimeout(() => detailsRef.removePanelClass('flip-enter-reverse'), 650);
+
+    // Close this dialog after the flip duration
+    setTimeout(() => this.dialogRef.close({ action: 'flip' }), 600);
   }
 }

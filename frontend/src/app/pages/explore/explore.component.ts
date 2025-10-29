@@ -279,6 +279,10 @@ export class ExploreComponent implements OnInit {
 
     // Handle actions from the dialog (e.g., view XML)
     dialogRef.afterClosed().subscribe((result) => {
+      if (result?.action === 'flip') {
+        // Flip handled internally; keep selection as is
+        return;
+      }
       if (result?.action === 'viewXml') {
         this.viewXml(result.record);
       } else {
@@ -305,6 +309,10 @@ export class ExploreComponent implements OnInit {
 
     // Handle actions from the XML viewer (e.g., view record details)
     dialogRef.afterClosed().subscribe((result) => {
+      if (result?.action === 'flip') {
+        // Flip handled internally; keep selection as is
+        return;
+      }
       if (result?.action === 'viewRecordDetails' && result.record) {
         this.openRecordDetails(result.record);
       } else {
