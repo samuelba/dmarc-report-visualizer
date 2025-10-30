@@ -9,6 +9,7 @@ import { DmarcReportService } from './dmarc-report.service';
 import chokidar, { FSWatcher } from 'chokidar';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { minifyXml } from './utils/xml-minifier.util';
 
 @Injectable()
 export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
@@ -184,7 +185,7 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
         `[${this.instanceId}] Unzipped content length: ${xmlContent.length}`,
       );
       const parsed = await this.dmarcReportService.parseXmlReport(xmlContent);
-      (parsed as any).originalXml = xmlContent;
+      (parsed as any).originalXml = minifyXml(xmlContent);
       const recordsCount = Array.isArray((parsed as any).records)
         ? (parsed as any).records.length
         : Number((parsed as any).records?.length || 0);

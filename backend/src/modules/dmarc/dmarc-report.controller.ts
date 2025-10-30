@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { QueryReportsDto } from './dto/query-reports.dto';
+import { minifyXml } from './utils/xml-minifier.util';
 import {
   StatsQueryDto,
   TimeSeriesQueryDto,
@@ -192,7 +193,7 @@ export class DmarcReportController {
     );
     const dmarcReportData =
       await this.dmarcReportService.parseXmlReport(xmlContent);
-    (dmarcReportData as any).originalXml = xmlContent;
+    (dmarcReportData as any).originalXml = minifyXml(xmlContent);
     return this.dmarcReportService.createOrUpdateByReportId(dmarcReportData);
   }
 
@@ -219,7 +220,7 @@ export class DmarcReportController {
           );
           const parsed =
             await this.dmarcReportService.parseXmlReport(xmlContent);
-          (parsed as any).originalXml = xmlContent;
+          (parsed as any).originalXml = minifyXml(xmlContent);
           const result =
             await this.dmarcReportService.createOrUpdateByReportId(parsed);
 

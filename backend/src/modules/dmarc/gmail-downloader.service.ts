@@ -10,6 +10,7 @@ import { OAuth2Client } from 'google-auth-library';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { DmarcReportService } from './dmarc-report.service';
+import { minifyXml } from './utils/xml-minifier.util';
 
 type GmailAuthConfig = {
   clientEmail: string;
@@ -387,7 +388,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
             );
             const parsed =
               await this.dmarcReportService.parseXmlReport(xmlContent);
-            (parsed as any).originalXml = xmlContent;
+            (parsed as any).originalXml = minifyXml(xmlContent);
             await this.dmarcReportService.createOrUpdateByReportId(parsed);
             count += 1;
             this.logger.log(
