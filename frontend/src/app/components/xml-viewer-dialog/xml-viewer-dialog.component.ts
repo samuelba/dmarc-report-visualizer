@@ -11,6 +11,7 @@ import 'prismjs/components/prism-markup';
 import 'prismjs/plugins/line-numbers/prism-line-numbers';
 import 'prismjs/plugins/line-highlight/prism-line-highlight';
 import { ApiService, DmarcRecord } from '../../services/api.service';
+import format from 'xml-formatter';
 
 export interface XmlViewerDialogData {
   xml: string;
@@ -77,10 +78,8 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     // Trim any leading/trailing whitespace to ensure line numbers are accurate
     let processedXml = this.data.xml.trim();
 
-    // If XML is all on one line, format it properly
-    if (processedXml.split('\n').length < 10) {
-      processedXml = this.formatXml(processedXml);
-    }
+    // Always format XML using xml-formatter for consistency
+    processedXml = this.formatXml(processedXml);
 
     // Find and highlight the specific record if provided
     if (this.data.record) {
@@ -107,59 +106,13 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
 
   private formatXml(xml: string): string {
     try {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xml, 'text/xml');
-
-      // Check for parsing errors
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
-        return xml; // Return original if parsing fails
-      }
-
-      return this.serializeXml(xmlDoc.documentElement, 0);
+      return format(xml, {
+        indentation: '  ', // 2 spaces indentation
+        collapseContent: true, // Collapse content to a single line if it fits
+      });
     } catch (_e) {
       return xml; // Return original on error
     }
-  }
-
-  private serializeXml(node: Node, indent: number): string {
-    const indentStr = '  '.repeat(indent);
-
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim() || '';
-      return text ? text : '';
-    }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as Element;
-      const tagName = element.tagName;
-      const attributes = Array.from(element.attributes)
-        .map((attr) => ` ${attr.name}="${attr.value}"`)
-        .join('');
-
-      const children = Array.from(element.childNodes);
-
-      // If only text content, keep it inline
-      if (children.length === 1 && children[0].nodeType === Node.TEXT_NODE) {
-        const text = children[0].textContent?.trim() || '';
-        return `${indentStr}<${tagName}${attributes}>${text}</${tagName}>\n`;
-      }
-
-      // For empty elements
-      if (children.length === 0) {
-        return `${indentStr}<${tagName}${attributes}/>\n`;
-      }
-
-      // For elements with children
-      let result = `${indentStr}<${tagName}${attributes}>\n`;
-      children.forEach((child) => {
-        result += this.serializeXml(child, indent + 1);
-      });
-      result += `${indentStr}</${tagName}>\n`;
-      return result;
-    }
-
-    return '';
   }
 
   private findRecordLines(xml: string, record: DmarcRecord): string | null {
