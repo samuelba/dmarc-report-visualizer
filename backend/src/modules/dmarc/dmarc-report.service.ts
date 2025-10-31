@@ -125,6 +125,39 @@ export class DmarcReportService {
     });
   }
 
+  /**
+   * Find a report by its composite unique key (reportId + orgName + email)
+   * This properly handles uniqueness across different reporting organizations
+   *
+   * Note: The database unique constraint uses COALESCE(column, '') to treat NULL
+   * and empty string as equivalent for uniqueness. However, in queries we match
+   * the actual stored values. The constraint ensures no duplicates can exist.
+   */
+  async findByCompositeKey(
+    reportId: string,
+    orgName?: string,
+    email?: string,
+  ): Promise<DmarcReport | null> {
+    const where: FindOptionsWhere<DmarcReport> = {
+      reportId,
+      // Pass values as-is - TypeORM will match them correctly
+      // undefined means: don't filter on this field
+      orgName,
+      email,
+    };
+
+    return this.dmarcReportRepository.findOne({
+      where,
+      relations: {
+        records: {
+          dkimResults: true,
+          spfResults: true,
+          policyOverrideReasons: true,
+        },
+      },
+    });
+  }
+
   async create(dmarcReport: Partial<DmarcReport>): Promise<DmarcReport> {
     // Extract records before creating the report
     const { records, ...reportData } = dmarcReport;
@@ -163,17 +196,13 @@ export class DmarcReportService {
       return this.create(dmarcReport);
     }
 
-    // Check if report already exists
-    const existing = await this.dmarcReportRepository.findOne({
-      where: { reportId: dmarcReport.reportId },
-      relations: {
-        records: {
-          dkimResults: true,
-          spfResults: true,
-          policyOverrideReasons: true,
-        },
-      },
-    });
+    // Check if report already exists using composite key (reportId + orgName + email)
+    // This prevents different organizations from overwriting each other's reports
+    const existing = await this.findByCompositeKey(
+      dmarcReport.reportId,
+      dmarcReport.orgName,
+      dmarcReport.email,
+    );
 
     if (existing) {
       // Delete existing records to replace them
@@ -209,7 +238,11 @@ export class DmarcReportService {
         await this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
       }
 
-      const updatedReport = await this.findByReportId(dmarcReport.reportId);
+      const updatedReport = await this.findByCompositeKey(
+        dmarcReport.reportId,
+        dmarcReport.orgName,
+        dmarcReport.email,
+      );
       if (!updatedReport) {
         throw new BadRequestException('Failed to find updated DMARC report');
       }
