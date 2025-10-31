@@ -1,6 +1,10 @@
 <div class="settings-container">
   <div class="settings-content">
-    <mat-tab-group (selectedIndexChange)="onTabChange($event)" [selectedIndex]="selectedTabIndex()">
+    <mat-tab-group
+      mat-stretch-tabs="false"
+      (selectedIndexChange)="onTabChange($event)"
+      [selectedIndex]="selectedTabIndex()"
+    >
       <!-- Third-Party Senders Tab -->
       <mat-tab label="Third-Party Senders">
         <div class="tab-content">
@@ -329,6 +333,114 @@
                   </table>
                 </div>
               }
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- Utilities Tab -->
+      <mat-tab label="Utilities">
+        <div class="tab-content">
+          <mat-card>
+            <mat-card-header>
+              <mat-card-title>Delete Old Reports</mat-card-title>
+              <mat-card-subtitle>
+                Permanently delete reports older than a specific date to free up database space.
+              </mat-card-subtitle>
+            </mat-card-header>
+
+            <mat-card-content>
+              <div class="utilities-section">
+                <div class="info-box warning-box">
+                  <mat-icon color="warn">warning</mat-icon>
+                  <div class="info-content">
+                    <strong>Warning: This action is irreversible!</strong>
+                    <ul>
+                      <li>Deleted reports cannot be recovered</li>
+                      <li>All associated records, DKIM results, and SPF results will also be deleted</li>
+                      <li>Consider backing up your database before proceeding</li>
+                      <li><strong>This operation may take several minutes to hours for large datasets</strong></li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="delete-section">
+                  <mat-form-field appearance="outline" class="delete-date-field">
+                    <mat-label>Delete reports older than</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="deletePicker"
+                      [(ngModel)]="deleteOlderThan"
+                      placeholder="Select date"
+                      [disabled]="isDeletingReports()"
+                    />
+                    <mat-datepicker-toggle matIconSuffix [for]="deletePicker"></mat-datepicker-toggle>
+                    <mat-datepicker #deletePicker></mat-datepicker>
+                    <mat-hint> Select a date. All reports created before this date will be deleted. </mat-hint>
+                  </mat-form-field>
+
+                  <div class="quick-date-buttons">
+                    <button
+                      mat-stroked-button
+                      (click)="deleteOlderThan.set(getYearsAgoDeleteDate(5))"
+                      [disabled]="isDeletingReports()"
+                    >
+                      5 Years Ago
+                    </button>
+                    <button
+                      mat-stroked-button
+                      (click)="deleteOlderThan.set(getYearsAgoDeleteDate(2))"
+                      [disabled]="isDeletingReports()"
+                    >
+                      2 Years Ago
+                    </button>
+                    <button
+                      mat-stroked-button
+                      (click)="deleteOlderThan.set(getYearsAgoDeleteDate(1))"
+                      [disabled]="isDeletingReports()"
+                    >
+                      1 Year Ago
+                    </button>
+                    <button
+                      mat-stroked-button
+                      (click)="deleteOlderThan.set(getMonthsAgoDeleteDate(6))"
+                      [disabled]="isDeletingReports()"
+                    >
+                      6 Months Ago
+                    </button>
+                  </div>
+
+                  @if (deleteOlderThan()) {
+                    <div class="selected-date-info">
+                      <mat-icon color="primary">info</mat-icon>
+                      <span>
+                        This will delete all reports created before
+                        <strong>{{ deleteOlderThan()! | date: 'medium' }}</strong>
+                      </span>
+                    </div>
+                  }
+
+                  <div class="action-bar">
+                    <button
+                      matButton="filled"
+                      color="warn"
+                      (click)="deleteOldReports()"
+                      [disabled]="!deleteOlderThan() || isDeletingReports()"
+                    >
+                      <mat-icon>delete_forever</mat-icon>
+                      @if (isDeletingReports()) {
+                        Deleting Reports...
+                      } @else {
+                        Delete Old Reports
+                      }
+                    </button>
+                  </div>
+
+                  @if (isDeletingReports()) {
+                    <mat-progress-bar mode="indeterminate" class="delete-progress"></mat-progress-bar>
+                  }
+                </div>
+              </div>
             </mat-card-content>
           </mat-card>
         </div>

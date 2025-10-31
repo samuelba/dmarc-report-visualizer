@@ -447,6 +447,22 @@ export class DmarcReportController {
     return this.dmarcReportService.remove(id);
   }
 
+  @Delete('old-reports')
+  async deleteOldReports(
+    @Query('olderThan') olderThan: string,
+  ): Promise<{ deletedCount: number }> {
+    if (!olderThan) {
+      throw new BadRequestException('olderThan query parameter is required');
+    }
+
+    const date = new Date(olderThan);
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date format');
+    }
+
+    return this.dmarcReportService.deleteOldReports(date);
+  }
+
   @Get('records/search')
   async searchRecords(
     @Query('page') page?: string,

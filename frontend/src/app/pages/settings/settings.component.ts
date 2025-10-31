@@ -64,10 +64,15 @@ export class SettingsComponent implements OnInit {
   // Tab tracking
   selectedTabIndex = signal(0);
   private readonly REPROCESSING_TAB_INDEX = 1;
+  private readonly UTILITIES_TAB_INDEX = 2;
 
   // Date range for reprocessing
   dateFrom = signal<Date | null>(null);
   dateTo = signal<Date | null>(null);
+
+  // Utilities - Delete Old Reports
+  deleteOlderThan = signal<Date | null>(null);
+  isDeletingReports = signal(false);
 
   ngOnInit() {
     this.loadThirdPartySenders();
@@ -359,5 +364,50 @@ export class SettingsComponent implements OnInit {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  // Utilities Methods
+  deleteOldReports() {
+    const olderThan = this.deleteOlderThan();
+
+    if (!olderThan) {
+      this.snackBar.open('Please select a date', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const dateStr = olderThan.toLocaleDateString();
+    const confirmMessage = `Are you sure you want to delete ALL reports created before ${dateStr}?\n\nThis action cannot be undone!`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    this.isDeletingReports.set(true);
+
+    this.api.deleteOldReports(olderThan).subscribe({
+      next: (result) => {
+        this.isDeletingReports.set(false);
+        this.snackBar.open(`Successfully deleted ${result.deletedCount} old reports`, 'Close', { duration: 5000 });
+        // Reset the date field
+        this.deleteOlderThan.set(null);
+      },
+      error: (err) => {
+        console.error('Failed to delete old reports:', err);
+        this.isDeletingReports.set(false);
+        this.snackBar.open('Failed to delete old reports', 'Close', { duration: 5000 });
+      },
+    });
+  }
+
+  getYearsAgoDeleteDate(years: number): Date {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - years);
+    return date;
+  }
+
+  getMonthsAgoDeleteDate(months: number): Date {
+    const date = new Date();
+    date.setMonth(date.getMonth() - months);
+    return date;
   }
 }
