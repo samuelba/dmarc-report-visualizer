@@ -563,4 +563,10 @@ export class ApiService {
   deleteDomain(id: string) {
     return this.http.delete<{ message: string }>(`${this.apiBase}/domains/${id}`);
   }
+
+  // Utilities API
+  deleteOldReports(olderThanDate: Date) {
+    const params = new HttpParams().set('olderThan', olderThanDate.toISOString());
+    return this.http.delete<{ deletedCount: number }>(`${this.apiBase}/dmarc-reports/old-reports`, { params });
+  }
 }

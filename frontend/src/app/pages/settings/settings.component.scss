@@ -264,3 +264,63 @@ mat-chip {
 mat-slide-toggle {
   margin: 0;
 }
+
+// Utilities Section
+.utilities-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  .warning-box {
+    border-left-color: var(--custom-warning-color);
+    background-color: var(--custom-warning-bg-color);
+
+    mat-icon {
+      color: var(--custom-warning-color);
+    }
+  }
+
+  .delete-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+
+    .delete-date-field {
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .quick-date-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+
+      button {
+        min-width: 120px;
+      }
+    }
+
+    .selected-date-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background-color: var(--custom-info-bg-color);
+      border-radius: 8px;
+      border-left: 4px solid var(--mat-sys-primary);
+
+      mat-icon {
+        flex-shrink: 0;
+      }
+
+      strong {
+        color: var(--mat-sys-primary);
+      }
+    }
+
+    .delete-progress {
+      margin-top: 1rem;
+    }
+  }
+}

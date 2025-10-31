@@ -231,6 +231,57 @@ export class DmarcReportService {
     await this.dmarcReportRepository.delete(id);
   }
 
+  async deleteOldReports(
+    olderThanDate: Date,
+  ): Promise<{ deletedCount: number }> {
+    this.logger.log(
+      `Deleting reports older than ${olderThanDate.toISOString()}`,
+    );
+
+    // Delete in batches to avoid memory issues with large datasets
+    // We use raw SQL with LIMIT for better performance and memory efficiency
+    const batchSize = 500;
+    let totalDeleted = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      // Delete a batch of reports (and their related records via CASCADE)
+      // Using a subquery with LIMIT to control batch size
+      // Use endDate to ensure multi-day reports are only deleted when fully old
+      const result = await this.dmarcReportRepository.query(
+        `
+        DELETE FROM dmarc_reports 
+        WHERE id IN (
+          SELECT id FROM dmarc_reports 
+          WHERE "endDate" < $1 
+          LIMIT $2
+        )
+        `,
+        [olderThanDate, batchSize],
+      );
+
+      // result is an array, the second element contains the row count for DELETE
+      const deletedInBatch =
+        Array.isArray(result) && result.length > 1 ? result[1] : 0;
+      totalDeleted += deletedInBatch;
+
+      if (deletedInBatch > 0) {
+        this.logger.log(
+          `Deleted batch: ${deletedInBatch} reports (total so far: ${totalDeleted})`,
+        );
+      }
+
+      // If we deleted fewer than batchSize, we're done
+      if (deletedInBatch < batchSize) {
+        hasMore = false;
+      }
+    }
+
+    this.logger.log(`Deleted ${totalDeleted} old reports in total`);
+
+    return { deletedCount: totalDeleted };
+  }
+
   async getRecordById(recordId: string) {
     return this.dmarcRecordRepository.findOne({
       where: { id: recordId },

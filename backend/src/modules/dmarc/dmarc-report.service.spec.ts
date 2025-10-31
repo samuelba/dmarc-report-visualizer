@@ -26,6 +26,7 @@ describe('DmarcReportService', () => {
     update: jest.fn(),
     count: jest.fn(),
     createQueryBuilder: jest.fn(),
+    query: jest.fn(),
   };
 
   const mockDmarcRecordRepository = {
@@ -207,6 +208,37 @@ describe('DmarcReportService', () => {
       await service.remove('123');
 
       expect(mockDmarcReportRepository.delete).toHaveBeenCalledWith('123');
+    });
+
+    it('should delete old reports in batches', async () => {
+      const olderThanDate = new Date('2023-01-01');
+
+      // Mock query to return different results for each batch
+      // The function stops when deletedInBatch < batchSize
+      mockDmarcReportRepository.query
+        .mockResolvedValueOnce([[], 500]) // First batch: 500 deleted (full batch)
+        .mockResolvedValueOnce([[], 500]) // Second batch: 500 deleted (full batch)
+        .mockResolvedValueOnce([[], 230]); // Third batch: 230 deleted (less than batch size, stops)
+
+      const result = await service.deleteOldReports(olderThanDate);
+
+      expect(result.deletedCount).toBe(1230);
+      expect(mockDmarcReportRepository.query).toHaveBeenCalledTimes(3);
+      expect(mockDmarcReportRepository.query).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM dmarc_reports'),
+        [olderThanDate, 500],
+      );
+    });
+
+    it('should handle empty delete when no old reports exist', async () => {
+      const olderThanDate = new Date('2023-01-01');
+
+      // Mock query to return 0 deletions
+      mockDmarcReportRepository.query.mockResolvedValueOnce([[], 0]);
+
+      const result = await service.deleteOldReports(olderThanDate);
+
+      expect(result.deletedCount).toBe(0);
     });
 
     it('should update a report', async () => {

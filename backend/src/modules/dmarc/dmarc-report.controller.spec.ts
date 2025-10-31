@@ -15,6 +15,7 @@ describe('DmarcReportController', () => {
     create: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    deleteOldReports: jest.fn(),
     createOrUpdateByReportId: jest.fn(),
     parseXmlReport: jest.fn(),
     unzipReport: jest.fn(),
@@ -213,6 +214,50 @@ describe('DmarcReportController', () => {
         await controller.remove('uuid-123');
 
         expect(mockDmarcReportService.remove).toHaveBeenCalledWith('uuid-123');
+      });
+    });
+
+    describe('deleteOldReports', () => {
+      it('should delete old reports and return deleted count', async () => {
+        const mockResult = { deletedCount: 150 };
+        mockDmarcReportService.deleteOldReports.mockResolvedValue(mockResult);
+
+        const result = await controller.deleteOldReports('2023-01-01');
+
+        expect(result).toEqual(mockResult);
+        expect(mockDmarcReportService.deleteOldReports).toHaveBeenCalledWith(
+          new Date('2023-01-01'),
+        );
+      });
+
+      it('should throw BadRequestException if olderThan is missing', async () => {
+        await expect(controller.deleteOldReports('')).rejects.toThrow(
+          BadRequestException,
+        );
+        await expect(controller.deleteOldReports('')).rejects.toThrow(
+          'olderThan query parameter is required',
+        );
+      });
+
+      it('should throw BadRequestException if date format is invalid', async () => {
+        await expect(
+          controller.deleteOldReports('invalid-date'),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          controller.deleteOldReports('invalid-date'),
+        ).rejects.toThrow('Invalid date format');
+      });
+
+      it('should parse date string correctly', async () => {
+        const mockResult = { deletedCount: 50 };
+        mockDmarcReportService.deleteOldReports.mockResolvedValue(mockResult);
+
+        await controller.deleteOldReports('2024-06-15T12:30:00Z');
+
+        const expectedDate = new Date('2024-06-15T12:30:00Z');
+        expect(mockDmarcReportService.deleteOldReports).toHaveBeenCalledWith(
+          expectedDate,
+        );
       });
     });
   });
