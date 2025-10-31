@@ -202,6 +202,97 @@ describe('DmarcReportService', () => {
       });
     });
 
+    it('should find report by composite key', async () => {
+      const mockReport = {
+        id: '123',
+        reportId: 'example.com:123456',
+        orgName: 'Google',
+        email: 'noreply@google.com',
+      } as DmarcReport;
+      mockDmarcReportRepository.findOne.mockResolvedValue(mockReport);
+
+      const result = await service.findByCompositeKey(
+        'example.com:123456',
+        'Google',
+        'noreply@google.com',
+      );
+
+      expect(result).toEqual(mockReport);
+      expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          reportId: 'example.com:123456',
+          orgName: 'Google',
+          email: 'noreply@google.com',
+        },
+        relations: {
+          records: {
+            dkimResults: true,
+            spfResults: true,
+            policyOverrideReasons: true,
+          },
+        },
+      });
+    });
+
+    it('should handle undefined orgName and email in composite key', async () => {
+      const mockReport = {
+        id: '123',
+        reportId: 'example.com:123456',
+      } as DmarcReport;
+      mockDmarcReportRepository.findOne.mockResolvedValue(mockReport);
+
+      const result = await service.findByCompositeKey('example.com:123456');
+
+      expect(result).toEqual(mockReport);
+      expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          reportId: 'example.com:123456',
+          orgName: undefined,
+          email: undefined,
+        },
+        relations: {
+          records: {
+            dkimResults: true,
+            spfResults: true,
+            policyOverrideReasons: true,
+          },
+        },
+      });
+    });
+
+    it('should preserve empty strings in composite key (not convert to undefined)', async () => {
+      const mockReport = {
+        id: '123',
+        reportId: 'example.com:123456',
+        orgName: '',
+        email: '',
+      } as DmarcReport;
+      mockDmarcReportRepository.findOne.mockResolvedValue(mockReport);
+
+      const result = await service.findByCompositeKey(
+        'example.com:123456',
+        '',
+        '',
+      );
+
+      expect(result).toEqual(mockReport);
+      // Empty strings should be preserved, not converted to undefined
+      expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          reportId: 'example.com:123456',
+          orgName: '',
+          email: '',
+        },
+        relations: {
+          records: {
+            dkimResults: true,
+            spfResults: true,
+            policyOverrideReasons: true,
+          },
+        },
+      });
+    });
+
     it('should delete a report by ID', async () => {
       mockDmarcReportRepository.delete.mockResolvedValue({ affected: 1 });
 
@@ -437,12 +528,13 @@ describe('DmarcReportService', () => {
       const reportData = {
         reportId: 'new-report-id',
         orgName: 'Test Org',
+        email: 'test@example.com',
         domain: 'example.com',
       };
 
       const createdReport = { id: '123', ...reportData } as DmarcReport;
 
-      // First findOne returns null (report doesn't exist)
+      // First findOne returns null (report doesn't exist with composite key)
       mockDmarcReportRepository.findOne
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(createdReport);
@@ -451,8 +543,13 @@ describe('DmarcReportService', () => {
 
       const result = await service.createOrUpdateByReportId(reportData);
 
+      // Should use composite key lookup
       expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
-        where: { reportId: 'new-report-id' },
+        where: {
+          reportId: 'new-report-id',
+          orgName: 'Test Org',
+          email: 'test@example.com',
+        },
         relations: {
           records: {
             dkimResults: true,
@@ -470,19 +567,20 @@ describe('DmarcReportService', () => {
         id: '123',
         reportId: 'existing-report-id',
         orgName: 'Old Org',
+        email: 'old@example.com',
         records: [],
       } as any;
 
       const reportData = {
         reportId: 'existing-report-id',
-        orgName: 'New Org',
+        orgName: 'Old Org',
+        email: 'old@example.com',
         domain: 'example.com',
         records: [{ sourceIp: '1.2.3.4', count: 1 } as any],
       };
 
       const updatedReport = {
         ...existingReport,
-        orgName: 'New Org',
         domain: 'example.com',
         records: [{ sourceIp: '1.2.3.4', count: 1 }],
       };
@@ -514,11 +612,14 @@ describe('DmarcReportService', () => {
       const existingReport = {
         id: '123',
         reportId: 'existing-report-id',
+        orgName: 'Test Org',
+        email: 'test@example.com',
       } as any;
 
       const reportData = {
         reportId: 'existing-report-id',
-        orgName: 'New Org',
+        orgName: 'Test Org',
+        email: 'test@example.com',
       };
 
       mockDmarcReportRepository.findOne

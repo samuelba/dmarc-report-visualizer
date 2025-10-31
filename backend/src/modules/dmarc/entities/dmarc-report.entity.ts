@@ -5,12 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-  Unique,
   OneToMany,
 } from 'typeorm';
 import { DmarcRecord } from './dmarc-record.entity';
 
-@Unique('uq_dmarc_report_report_id', ['reportId'])
+// Composite unique constraint handled by migration with COALESCE for NULL handling
 @Index('idx_dmarc_report_domain', ['domain'])
 @Index('idx_dmarc_report_begin_date', ['beginDate'])
 @Index('idx_dmarc_report_end_date', ['endDate'])
