@@ -54,24 +54,28 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    // Wait for DOM to be ready, then highlight with Prism
-    setTimeout(() => {
-      if (this.xmlContent?.nativeElement) {
-        const pre = this.xmlContent.nativeElement;
+    // Only highlight if we already have XML data (not lazy-loading via reportId)
+    // If lazy-loading, setXml() will handle the highlighting when data arrives
+    if (this.highlightedXml) {
+      // Use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        if (this.xmlContent?.nativeElement) {
+          const pre = this.xmlContent.nativeElement;
 
-        // PrismJS will automatically apply plugins if:
-        // 1. The pre element has the class "line-numbers"
-        // 2. The data-line attribute is set before highlighting
-        // 3. We call Prism.highlightAllUnder() on the container
+          // PrismJS will automatically apply plugins if:
+          // 1. The pre element has the class "line-numbers"
+          // 2. The data-line attribute is set before highlighting
+          // 3. We call Prism.highlightAllUnder() on the container
 
-        Prism.highlightAllUnder(pre.parentElement);
-      }
+          Prism.highlightAllUnder(pre.parentElement);
+        }
 
-      // Scroll to highlighted lines after highlighting is complete
-      if (this.highlightedLines) {
-        setTimeout(() => this.scrollToHighlight(), 500);
-      }
-    }, 50);
+        // Scroll to highlighted lines after highlighting is complete
+        if (this.highlightedLines) {
+          this.scrollToHighlightWhenReady();
+        }
+      }, 0);
+    }
   }
 
   private processXml() {
@@ -100,6 +104,11 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
       if (this.xmlContent?.nativeElement) {
         const pre = this.xmlContent.nativeElement;
         Prism.highlightAllUnder(pre.parentElement);
+      }
+
+      // Scroll to highlighted lines after highlighting and layout are complete
+      if (this.highlightedLines) {
+        this.scrollToHighlightWhenReady();
       }
     }, 0);
   }
@@ -318,7 +327,8 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  scrollToHighlight() {
+  // Wait for the highlight element to be ready in the DOM, then scroll
+  private scrollToHighlightWhenReady() {
     if (!this.highlightedLines) {
       return;
     }
@@ -328,17 +338,29 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    // Find the highlighted line element
-    const highlightedElement = document.querySelector('.line-highlight');
-    if (highlightedElement) {
-      highlightedElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      // Fallback: calculate position
-      const lineNumber = parseInt(this.highlightedLines.split('-')[0], 10);
-      const lineHeight = 24; // approximate line height
-      const scrollPosition = Math.max(0, (lineNumber - 5) * lineHeight);
-      container.scrollTop = scrollPosition;
-    }
+    // Simple timeout approach - wait for Prism to finish
+    setTimeout(() => {
+      const element = document.querySelector('.line-highlight') as HTMLElement;
+      if (element && container) {
+        // Calculate scroll position to center the element
+        const elementTop = element.offsetTop;
+        const containerHeight = container.clientHeight;
+        const elementHeight = element.offsetHeight;
+
+        const scrollTo = elementTop - containerHeight / 2 + elementHeight / 2;
+        container.scrollTop = Math.max(0, scrollTo);
+      } else {
+        // Fallback: calculate position based on line number
+        const lineNumber = parseInt(this.highlightedLines!.split('-')[0], 10);
+        const lineHeight = 24;
+        const scrollPosition = Math.max(0, (lineNumber - 5) * lineHeight);
+        container.scrollTop = scrollPosition;
+      }
+    }, 500);
+  }
+
+  scrollToHighlight() {
+    this.scrollToHighlightWhenReady();
   }
 
   copyToClipboard() {

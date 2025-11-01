@@ -199,7 +199,8 @@ export class RecordDetailsDialogComponent {
     // Forward exit: rotate 0 -> 180deg
     this.dialogRef.addPanelClass('flip-exit');
 
-    // Open the XML dialog immediately with flip-enter; fill XML when loaded
+    // Open the XML dialog immediately with flip-enter
+    // The XML viewer will lazy-load the XML via reportId in its ngOnInit
     const { XmlViewerDialogComponent } = await import('../xml-viewer-dialog/xml-viewer-dialog.component');
     const xmlRef = this.dialog.open(XmlViewerDialogComponent, {
       data: {
@@ -219,20 +220,6 @@ export class RecordDetailsDialogComponent {
 
     // After flip-in completes, clear flip-enter class on the new dialog
     setTimeout(() => xmlRef.removePanelClass('flip-enter'), 650);
-
-    // Fetch XML and inject into the opened dialog
-    if (reportId) {
-      this.api.getReportXml(reportId).subscribe({
-        next: (xml) => {
-          if (xmlRef?.componentInstance && typeof (xmlRef.componentInstance as any).setXml === 'function') {
-            (xmlRef.componentInstance as any).setXml(xml);
-          }
-        },
-        error: () => {
-          // Leave XML dialog open; caller can retry or close.
-        },
-      });
-    }
 
     // Close the current dialog after the flip duration
     setTimeout(() => this.dialogRef.close({ action: 'flip' }), 600);
