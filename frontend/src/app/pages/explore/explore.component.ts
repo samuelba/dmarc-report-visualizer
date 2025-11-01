@@ -280,7 +280,8 @@ export class ExploreComponent implements OnInit {
     // Handle actions from the dialog (e.g., view XML)
     dialogRef.afterClosed().subscribe((result) => {
       if (result?.action === 'flip') {
-        // Flip handled internally; keep selection as is
+        // Dialog flipped to XML viewer - find and subscribe to it
+        this.findAndSubscribeToDialog('xml');
         return;
       }
       if (result?.action === 'viewXml') {
@@ -310,7 +311,8 @@ export class ExploreComponent implements OnInit {
     // Handle actions from the XML viewer (e.g., view record details)
     dialogRef.afterClosed().subscribe((result) => {
       if (result?.action === 'flip') {
-        // Flip handled internally; keep selection as is
+        // Dialog flipped to record details - find and subscribe to it
+        this.findAndSubscribeToDialog('details');
         return;
       }
       if (result?.action === 'viewRecordDetails' && result.record) {
@@ -812,6 +814,77 @@ export class ExploreComponent implements OnInit {
       relativeTo: this.route,
       queryParams,
       queryParamsHandling: 'replace',
+    });
+  }
+
+  // Helper method to find a newly opened dialog and subscribe to its flips
+  private findAndSubscribeToDialog(dialogType: 'xml' | 'details') {
+    setTimeout(() => {
+      const openDialogs = this.dialog.openDialogs;
+
+      let targetDialog;
+      if (dialogType === 'xml') {
+        // Looking for XML dialog
+        targetDialog = openDialogs.find(
+          (d) =>
+            d.componentInstance && 'data' in d.componentInstance && (d.componentInstance as any).data?.xml !== undefined
+        );
+      } else {
+        // Looking for Details dialog
+        targetDialog = openDialogs.find(
+          (d) =>
+            d.componentInstance &&
+            'data' in d.componentInstance &&
+            (d.componentInstance as any).data?.record !== undefined &&
+            (d.componentInstance as any).data?.getCountryName !== undefined
+        );
+      }
+
+      if (targetDialog) {
+        this.subscribeToDialogFlips(targetDialog, dialogType);
+      }
+    }, 50);
+  }
+
+  // Generic method to handle dialog flips for both XML and Details dialogs
+  private subscribeToDialogFlips(dialog: any, dialogType: 'xml' | 'details') {
+    dialog.afterClosed().subscribe((result: any) => {
+      if (result?.action === 'flip') {
+        // Dialog flipped - subscribe to the newly opened dialog
+        setTimeout(() => {
+          const openDialogs = this.dialog.openDialogs;
+
+          // Define what we're looking for based on the flipped type
+          const targetType = dialogType === 'xml' ? 'details' : 'xml';
+
+          let targetDialog;
+          if (targetType === 'xml') {
+            // Looking for XML dialog
+            targetDialog = openDialogs.find(
+              (d) =>
+                d.componentInstance &&
+                'data' in d.componentInstance &&
+                (d.componentInstance as any).data?.xml !== undefined
+            );
+          } else {
+            // Looking for Details dialog
+            targetDialog = openDialogs.find(
+              (d) =>
+                d.componentInstance &&
+                'data' in d.componentInstance &&
+                (d.componentInstance as any).data?.record !== undefined &&
+                (d.componentInstance as any).data?.getCountryName !== undefined
+            );
+          }
+
+          if (targetDialog) {
+            this.subscribeToDialogFlips(targetDialog, targetType);
+          }
+        }, 50);
+      } else {
+        // Dialog closed without flipping - clear selection
+        this.selectedRecordId = null;
+      }
     });
   }
 }
