@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   BadRequestException,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DmarcReportService } from './dmarc-report.service';
@@ -23,9 +24,11 @@ import {
   TopSourcesQueryDto,
 } from './dto/summary-stats.dto';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('DMARC Reports')
 @Controller('dmarc-reports')
+@UseGuards(JwtAuthGuard)
 export class DmarcReportController {
   constructor(private readonly dmarcReportService: DmarcReportService) {}
 

@@ -28,6 +28,7 @@ import { DmarcGeoAnalyticsService } from './services/dmarc-geo-analytics.service
 import { DmarcSearchService } from './services/dmarc-search.service';
 import { IpLookupInitService } from './services/ip-lookup-init.service';
 import { IpLookupQueueService } from './services/ip-lookup-queue.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { IpLookupQueueService } from './services/ip-lookup-queue.service';
       ReprocessingJob,
       Domain,
     ]),
+    AuthModule,
   ],
   controllers: [
     DmarcReportController,

@@ -22,6 +22,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatDividerModule } from '@angular/material/divider';
 
 const MaterialComponents = [
   MatButtonModule,
@@ -47,6 +48,7 @@ const MaterialComponents = [
   MatSlideToggleModule,
   MatProgressBarModule,
   MatRadioModule,
+  MatDividerModule,
 ];
 
 @NgModule({

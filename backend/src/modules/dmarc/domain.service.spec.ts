@@ -424,7 +424,6 @@ describe('DomainService', () => {
 
       await service.getDomainStatistics(7);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       const whereSpy = mockQueryBuilder.where;
       expect(whereSpy).toHaveBeenCalledWith(
         'report.beginDate >= :cutoffDate',

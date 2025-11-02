@@ -3,6 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 import { DmarcReportController } from './dmarc-report.controller';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 describe('DmarcReportController', () => {
   let controller: DmarcReportController;
@@ -52,7 +53,10 @@ describe('DmarcReportController', () => {
           useValue: mockDmarcReportService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DmarcReportController>(DmarcReportController);
     service = module.get<DmarcReportService>(DmarcReportService);

@@ -8,6 +8,7 @@ import {
   UpdateDomainDto,
   DomainStatisticsDto,
 } from './dto/domain.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 describe('DomainController', () => {
   let controller: DomainController;
@@ -46,7 +47,10 @@ describe('DomainController', () => {
           useValue: mockDomainService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<DomainController>(DomainController);
   });

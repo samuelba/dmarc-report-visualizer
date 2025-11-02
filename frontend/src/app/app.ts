@@ -1,4 +1,4 @@
-import { Component, signal, inject, ViewChild } from '@angular/core';
+import { Component, signal, inject, ViewChild, OnInit } from '@angular/core';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,7 +11,9 @@ import { RouterModule } from '@angular/router';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ThemeToggleComponent } from './components/theme-toggle/theme-toggle.component';
 import { ThemeService } from './services/theme.service';
-import { filter } from 'rxjs/operators';
+import { AuthService } from './services/auth.service';
+import { filter, take } from 'rxjs/operators';
+import { AsyncPipe, NgIf } from '@angular/common';
 
 @Component({
   selector: 'app-root',
@@ -26,16 +28,19 @@ import { filter } from 'rxjs/operators';
     MatTooltipModule,
     RouterModule,
     ThemeToggleComponent,
+    AsyncPipe,
+    NgIf,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
-export class App {
+export class App implements OnInit {
   protected readonly title = signal('DMARC Report Visualizer');
 
-  // Initialize theme service
+  // Initialize services
   private readonly themeService = inject(ThemeService);
   private readonly router = inject(Router);
+  protected readonly authService = inject(AuthService);
 
   // Collapsed state for the left nav
   protected readonly isCollapsed = signal<boolean>(true);
@@ -50,6 +55,9 @@ export class App {
     '/reports': 'Reports',
     '/upload': 'Upload',
     '/settings': 'Settings',
+    '/profile': 'Profile',
+    '/login': 'Login',
+    '/setup': 'Setup',
   };
 
   constructor() {
@@ -70,6 +78,60 @@ export class App {
     this.updateTitle(this.router.url);
   }
 
+  ngOnInit(): void {
+    // Handle initial app load authentication check
+    this.initializeAuth();
+  }
+
+  /**
+   * Initialize authentication state on app load.
+   * Checks if setup is needed or if user needs to login.
+   */
+  private initializeAuth(): void {
+    const currentUrl = this.router.url;
+
+    // Don't redirect if already on login or setup pages
+    if (currentUrl.startsWith('/login') || currentUrl.startsWith('/setup')) {
+      return;
+    }
+
+    // Check if setup is needed
+    this.authService
+      .checkSetup()
+      .pipe(take(1))
+      .subscribe({
+        next: (response) => {
+          if (response.needsSetup) {
+            // Setup is needed, redirect to setup page
+            this.router.navigate(['/setup']);
+          } else {
+            // Setup is complete, check if user is authenticated
+            this.authService
+              .isAuthenticated()
+              .pipe(take(1))
+              .subscribe({
+                next: (isAuthenticated) => {
+                  if (!isAuthenticated) {
+                    // User is not authenticated, redirect to login
+                    this.router.navigate(['/login']);
+                  }
+                  // If authenticated, allow normal navigation (guards will handle protected routes)
+                },
+                error: (error) => {
+                  console.error('Error checking authentication:', error);
+                  this.router.navigate(['/login']);
+                },
+              });
+          }
+        },
+        error: (error) => {
+          console.error('Error checking setup status:', error);
+          // On error, redirect to login as a safe fallback
+          this.router.navigate(['/login']);
+        },
+      });
+  }
+
   private updateTitle(url: string): void {
     // Remove query params and fragments
     const path = url.split('?')[0].split('#')[0];
@@ -82,5 +144,18 @@ export class App {
     // Ensure the content margins are recalculated when the drawer width changes
     // Use a microtask to wait for DOM to reflect the new width
     queueMicrotask(() => this.sidenavContainer?.updateContentMargins());
+  }
+
+  protected logout() {
+    this.authService.logout().subscribe({
+      next: () => {
+        this.router.navigate(['/login']);
+      },
+      error: (error) => {
+        console.error('Logout error:', error);
+        // Navigate to login even if logout fails
+        this.router.navigate(['/login']);
+      },
+    });
   }
 }

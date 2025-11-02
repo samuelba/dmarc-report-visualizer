@@ -95,6 +95,32 @@
             <mat-icon matListItemIcon>settings</mat-icon>
             <span class="label" matListItemTitle>Settings</span>
           </a>
+          <a
+            mat-list-item
+            routerLink="/profile"
+            routerLinkActive="active-link"
+            matTooltip="Profile"
+            matTooltipPosition="right"
+            *ngIf="authService.isAuthenticated() | async"
+          >
+            <mat-icon matListItemIcon>person</mat-icon>
+            <span class="label" matListItemTitle>Profile</span>
+          </a>
+          <a
+            mat-list-item
+            (click)="logout()"
+            (keydown.enter)="logout()"
+            (keydown.space)="logout()"
+            tabindex="0"
+            role="button"
+            matTooltip="Logout"
+            matTooltipPosition="right"
+            *ngIf="authService.isAuthenticated() | async"
+            style="cursor: pointer"
+          >
+            <mat-icon matListItemIcon>logout</mat-icon>
+            <span class="label" matListItemTitle>Logout</span>
+          </a>
         </mat-nav-list>
       </nav>
       <div class="sidenav-bottom-link">

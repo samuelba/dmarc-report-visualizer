@@ -10,6 +10,7 @@ import {
   HttpStatus,
   ValidationPipe,
   UsePipes,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ThirdPartySenderService,
@@ -17,12 +18,14 @@ import {
   UpdateThirdPartySenderDto,
 } from '../services/third-party-sender.service';
 import { ThirdPartySender } from '../entities/third-party-sender.entity';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 /**
  * Controller for managing third-party sender configurations.
  * Provides endpoints for CRUD operations on third-party sender patterns.
  */
 @Controller('settings/third-party-senders')
+@UseGuards(JwtAuthGuard)
 export class ThirdPartySenderController {
   constructor(
     private readonly thirdPartySenderService: ThirdPartySenderService,

@@ -1,5 +1,5 @@
 // Use require here because the TypeScript types don't include the minify function
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const xmlFormatter = require('xml-formatter');
 
 /**
