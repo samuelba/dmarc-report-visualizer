@@ -18,7 +18,7 @@ import { IpLookupQueueService } from '../services/ip-lookup-queue.service';
 import { DmarcParserService } from '../services/dmarc-parser.service';
 
 @ApiTags('ip-lookup')
-@Controller('api/ip-lookup')
+@Controller('ip-lookup')
 // @UseGuards(JwtAuthGuard) // Uncomment if you have authentication
 export class IpLookupController {
   constructor(
