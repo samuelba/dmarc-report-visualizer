@@ -38,9 +38,9 @@ export class IpLookupInitService implements OnModuleInit {
       const ipapicoApiKey = this.configService.get<string>('IPAPICO_API_KEY');
       const ipwhoisApiKey = this.configService.get<string>('IPWHOIS_API_KEY');
 
-      const cacheExpirationDays = this.configService.get<number>(
-        'IP_LOOKUP_CACHE_DAYS',
-        30,
+      const cacheExpirationDays = parseInt(
+        this.configService.get<string>('IP_LOOKUP_CACHE_DAYS', '30'),
+        10,
       );
 
       const useCache = this.configService.get<boolean>(
