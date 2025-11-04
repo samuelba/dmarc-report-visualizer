@@ -1,0 +1,149 @@
+<div class="profile-container">
+  <mat-card class="profile-card">
+    <mat-card-header>
+      <mat-card-title><mat-icon>person</mat-icon></mat-card-title>
+      <mat-card-subtitle>Manage your account settings</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Current User Information -->
+      <div class="user-info-section">
+        <h3>Account Information</h3>
+        <div class="user-info">
+          <mat-icon>email</mat-icon>
+          <span class="user-email">{{ currentUserEmail }}</span>
+        </div>
+      </div>
+
+      <mat-divider></mat-divider>
+
+      <!-- Password Change Form -->
+      <div class="password-change-section">
+        <h3>Change Password</h3>
+
+        <form [formGroup]="passwordForm" (ngSubmit)="onSubmit()">
+          <!-- Current Password Field -->
+          <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+            <mat-label>Current Password</mat-label>
+            <input
+              matInput
+              [type]="hideCurrentPassword ? 'password' : 'text'"
+              formControlName="currentPassword"
+              placeholder="Enter current password"
+              autocomplete="current-password"
+            />
+            <mat-icon matPrefix>lock</mat-icon>
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="hideCurrentPassword = !hideCurrentPassword"
+              [attr.aria-label]="'Hide password'"
+              [attr.aria-pressed]="hideCurrentPassword"
+            >
+              <mat-icon>{{ hideCurrentPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-error *ngIf="passwordForm.get('currentPassword')?.hasError('required')">
+              Current password is required
+            </mat-error>
+          </mat-form-field>
+
+          <!-- New Password Field -->
+          <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+            <mat-label>New Password</mat-label>
+            <input
+              matInput
+              [type]="hideNewPassword ? 'password' : 'text'"
+              formControlName="newPassword"
+              placeholder="Enter new password"
+              autocomplete="new-password"
+            />
+            <mat-icon matPrefix>lock</mat-icon>
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="hideNewPassword = !hideNewPassword"
+              [attr.aria-label]="'Hide password'"
+              [attr.aria-pressed]="hideNewPassword"
+            >
+              <mat-icon>{{ hideNewPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-error *ngIf="passwordForm.get('newPassword')?.hasError('required')">
+              New password is required
+            </mat-error>
+            <mat-error *ngIf="passwordForm.get('newPassword')?.hasError('minlength')">
+              Password must be at least 12 characters
+            </mat-error>
+            <mat-error *ngIf="passwordForm.get('newPassword')?.hasError('passwordStrength')">
+              Password does not meet strength requirements
+            </mat-error>
+            <mat-error *ngIf="passwordForm.get('newPassword')?.hasError('passwordEqual')">
+              New password must be different from current password
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Password Strength Indicator -->
+          <app-password-strength [password]="newPasswordValue"></app-password-strength>
+
+          <!-- New Password Confirmation Field -->
+          <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+            <mat-label>Confirm New Password</mat-label>
+            <input
+              matInput
+              [type]="hideNewPasswordConfirmation ? 'password' : 'text'"
+              formControlName="newPasswordConfirmation"
+              placeholder="Confirm new password"
+              autocomplete="new-password"
+            />
+            <mat-icon matPrefix>lock</mat-icon>
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="hideNewPasswordConfirmation = !hideNewPasswordConfirmation"
+              [attr.aria-label]="'Hide password'"
+              [attr.aria-pressed]="hideNewPasswordConfirmation"
+            >
+              <mat-icon>{{ hideNewPasswordConfirmation ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-error *ngIf="passwordForm.get('newPasswordConfirmation')?.hasError('required')">
+              Password confirmation is required
+            </mat-error>
+            <mat-error *ngIf="passwordForm.get('newPasswordConfirmation')?.hasError('passwordMismatch')">
+              Passwords do not match
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Success Message -->
+          <div *ngIf="successMessage" class="success-message">
+            <mat-icon>check_circle</mat-icon>
+            <div class="message-content">
+              <strong>Success!</strong>
+              <p>{{ successMessage }}</p>
+            </div>
+          </div>
+
+          <!-- Error Message -->
+          <mat-error *ngIf="errorMessage" class="error-message">
+            {{ errorMessage }}
+          </mat-error>
+
+          <!-- Submit Button -->
+          <div class="submit-button-container">
+            <button
+              matButton="filled"
+              color="primary"
+              type="submit"
+              class="submit-button"
+              [disabled]="passwordForm.invalid || isSubmitting"
+            >
+              <mat-spinner *ngIf="isSubmitting" diameter="20" class="button-spinner"></mat-spinner>
+              <span *ngIf="!isSubmitting">Change Password</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -7,6 +7,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GeolocationService } from '../services/geolocation.service';
@@ -16,10 +17,11 @@ import {
 } from '../dto/ip-lookup-config.dto';
 import { IpLookupQueueService } from '../services/ip-lookup-queue.service';
 import { DmarcParserService } from '../services/dmarc-parser.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('ip-lookup')
 @Controller('ip-lookup')
-// @UseGuards(JwtAuthGuard) // Uncomment if you have authentication
+@UseGuards(JwtAuthGuard)
 export class IpLookupController {
   constructor(
     private readonly geolocationService: GeolocationService,

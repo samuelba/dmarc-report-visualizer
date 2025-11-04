@@ -61,7 +61,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.GEOIP_LITE,
         fallbackProviders: undefined,
@@ -87,7 +86,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IP_API,
         fallbackProviders: undefined,
@@ -113,7 +111,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IP_API,
         fallbackProviders: [
@@ -144,7 +141,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IPLOCATE,
         fallbackProviders: undefined,
@@ -171,7 +167,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IPAPI_CO,
         fallbackProviders: undefined,
@@ -198,7 +193,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IPWHOIS,
         fallbackProviders: undefined,
@@ -227,7 +221,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IP_API,
         fallbackProviders: [
@@ -260,7 +253,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.GEOIP_LITE,
         fallbackProviders: undefined,
@@ -287,7 +279,7 @@ describe('IpLookupInitService', () => {
       service.onModuleInit();
 
       // Whitespace-only string should be filtered out
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IP_API,
         fallbackProviders: undefined,
@@ -313,7 +305,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.IP_API,
         fallbackProviders: [
@@ -336,7 +327,7 @@ describe('IpLookupInitService', () => {
       expect(() => service.onModuleInit()).not.toThrow();
 
       // Should not have called setConfig
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.setConfig).not.toHaveBeenCalled();
     });
 
@@ -350,7 +341,6 @@ describe('IpLookupInitService', () => {
 
       service.onModuleInit();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith({
         provider: IpLookupProviderType.GEOIP_LITE,
         fallbackProviders: undefined,

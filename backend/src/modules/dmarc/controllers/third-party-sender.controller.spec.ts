@@ -6,6 +6,7 @@ import {
   UpdateThirdPartySenderDto,
 } from '../services/third-party-sender.service';
 import { ThirdPartySender } from '../entities/third-party-sender.entity';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 describe('ThirdPartySenderController', () => {
   let controller: ThirdPartySenderController;
@@ -53,7 +54,10 @@ describe('ThirdPartySenderController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<ThirdPartySenderController>(
       ThirdPartySenderController,

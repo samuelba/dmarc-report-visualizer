@@ -6,6 +6,7 @@ import {
   ReprocessingJobStatus,
 } from '../entities/reprocessing-job.entity';
 import { StartReprocessingDto } from '../dto/start-reprocessing.dto';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 describe('ReprocessingController', () => {
   let controller: ReprocessingController;
@@ -98,7 +99,10 @@ describe('ReprocessingController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<ReprocessingController>(ReprocessingController);
     service = module.get<ReprocessingService>(ReprocessingService);

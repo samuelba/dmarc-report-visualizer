@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // Import xml-formatter at module level for better performance
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const xmlFormatter = require('xml-formatter');
 
 export class MinifyExistingXml1739900000000 implements MigrationInterface {

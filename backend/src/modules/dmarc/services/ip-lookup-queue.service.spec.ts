@@ -253,7 +253,6 @@ describe('IpLookupQueueService', () => {
       await service.processPendingLookups(500);
 
       expect(
-        // eslint-disable-next-line @typescript-eslint/unbound-method
         dmarcRecordRepository.createQueryBuilder().limit,
       ).toHaveBeenCalledWith(500);
     });
@@ -369,11 +368,10 @@ describe('IpLookupQueueService', () => {
       // Wait for setImmediate and promises
       await jest.runAllTimersAsync();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).toHaveBeenCalledWith(
         '1.2.3.4',
       );
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(dmarcRecordRepository.update).toHaveBeenCalledWith(
         ['record1'],
         expect.objectContaining({
@@ -402,7 +400,6 @@ describe('IpLookupQueueService', () => {
 
       await jest.runAllTimersAsync();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(dmarcRecordRepository.update).toHaveBeenCalledWith(
         ['record1'],
         expect.objectContaining({
@@ -460,7 +457,7 @@ describe('IpLookupQueueService', () => {
       await jest.runAllTimersAsync();
 
       // Should not process due to rate limit
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getLocationForIp).not.toHaveBeenCalled();
       expect(service.getQueueStats().queueSize).toBe(1);
     }, 10000);
@@ -491,7 +488,7 @@ describe('IpLookupQueueService', () => {
       await jest.advanceTimersByTimeAsync(0);
 
       // Only one call should have been made (second is blocked by processing flag)
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(1);
 
       // Resolve first lookup
@@ -499,7 +496,7 @@ describe('IpLookupQueueService', () => {
       await jest.runAllTimersAsync();
 
       // Now second should be processed
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(2);
     }, 10000);
 
@@ -507,7 +504,6 @@ describe('IpLookupQueueService', () => {
       service['triggerProcessing']();
       await jest.runAllTimersAsync();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).not.toHaveBeenCalled();
     }, 10000);
 
@@ -539,7 +535,7 @@ describe('IpLookupQueueService', () => {
       await jest.runAllTimersAsync();
 
       // Both should be processed (cache hits don't wait)
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(2);
       expect(service.getQueueStats().queueSize).toBe(0);
     }, 10000);
@@ -571,7 +567,7 @@ describe('IpLookupQueueService', () => {
       await jest.advanceTimersByTimeAsync(0);
 
       // Should have processed first item
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getLocationForIp).toHaveBeenCalledTimes(1);
 
       // Queue should be empty after processing
@@ -612,7 +608,7 @@ describe('IpLookupQueueService', () => {
       // Should mark as failed and requeue
       const stats = service.getQueueStats();
       expect(stats.queueSize).toBe(1);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(dmarcRecordRepository.update).toHaveBeenCalledWith(
         ['record1'],
         expect.objectContaining({
@@ -645,7 +641,7 @@ describe('IpLookupQueueService', () => {
       }
 
       // Should try geoip-lite as last resort
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.setConfig).toHaveBeenCalled();
     }, 15000);
   });

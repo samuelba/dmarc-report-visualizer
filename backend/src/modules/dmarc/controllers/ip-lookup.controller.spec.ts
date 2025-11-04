@@ -4,6 +4,7 @@ import { GeolocationService } from '../services/geolocation.service';
 import { IpLookupQueueService } from '../services/ip-lookup-queue.service';
 import { DmarcParserService } from '../services/dmarc-parser.service';
 import { IpLookupProviderType } from '../config/ip-lookup.config';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 describe('IpLookupController', () => {
   let controller: IpLookupController;
@@ -95,7 +96,10 @@ describe('IpLookupController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<IpLookupController>(IpLookupController);
     geolocationService = module.get(GeolocationService);
@@ -116,7 +120,7 @@ describe('IpLookupController', () => {
       const result = controller.getConfig();
 
       expect(result).toEqual(mockConfig);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getConfig).toHaveBeenCalledTimes(1);
     });
   });
@@ -136,9 +140,8 @@ describe('IpLookupController', () => {
 
       const result = controller.updateConfig(configDto);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith(configDto);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getConfig).toHaveBeenCalledTimes(1);
 
       expect(result).toEqual({
@@ -161,7 +164,6 @@ describe('IpLookupController', () => {
 
       const result = controller.updateConfig(partialConfig as any);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.setConfig).toHaveBeenCalledWith(partialConfig);
 
       expect(result.message).toBe('Configuration updated successfully');
@@ -176,7 +178,7 @@ describe('IpLookupController', () => {
       const result = controller.getProviders();
 
       expect(result).toEqual(mockProviderStats);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getProviderStats).toHaveBeenCalledTimes(1);
     });
 
@@ -197,7 +199,6 @@ describe('IpLookupController', () => {
 
       const result = await controller.testLookup(testDto);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).toHaveBeenCalledWith(
         '8.8.8.8',
       );
@@ -234,7 +235,6 @@ describe('IpLookupController', () => {
 
       const result = await controller.testLookup(testDto);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(geolocationService.getLocationForIp).toHaveBeenCalledWith(
         '2001:4860:4860::8888',
       );
@@ -253,9 +253,9 @@ describe('IpLookupController', () => {
         providers: mockProviderStats,
         config: mockConfig,
       });
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getProviderStats).toHaveBeenCalledTimes(1);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(geolocationService.getConfig).toHaveBeenCalledTimes(1);
     });
   });
@@ -267,7 +267,7 @@ describe('IpLookupController', () => {
       const result = controller.getQueueStatus();
 
       expect(result).toEqual(mockQueueStats);
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(ipLookupQueueService.getQueueStats).toHaveBeenCalledTimes(1);
     });
 
@@ -293,7 +293,6 @@ describe('IpLookupController', () => {
 
       const result = await controller.processPending();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(ipLookupQueueService.processPendingLookups).toHaveBeenCalledWith(
         1000,
       );
@@ -319,7 +318,6 @@ describe('IpLookupController', () => {
 
       await controller.processPending();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(ipLookupQueueService.processPendingLookups).toHaveBeenCalledWith(
         1000,
       );
@@ -330,7 +328,6 @@ describe('IpLookupController', () => {
     it('should clear the queue and return success message', () => {
       const result = controller.clearQueue();
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(ipLookupQueueService.clearQueue).toHaveBeenCalledTimes(1);
 
       expect(result).toEqual({
@@ -345,7 +342,6 @@ describe('IpLookupController', () => {
 
       const result = controller.setMode(body);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(dmarcParserService.setAsyncIpLookup).toHaveBeenCalledWith(true);
 
       expect(result).toEqual({
@@ -359,7 +355,6 @@ describe('IpLookupController', () => {
 
       const result = controller.setMode(body);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(dmarcParserService.setAsyncIpLookup).toHaveBeenCalledWith(false);
 
       expect(result).toEqual({
@@ -379,7 +374,7 @@ describe('IpLookupController', () => {
         queue: mockQueueStats,
         message: 'Use SQL queries to get detailed status breakdown',
       });
-      // eslint-disable-next-line @typescript-eslint/unbound-method
+
       expect(ipLookupQueueService.getQueueStats).toHaveBeenCalledTimes(1);
     });
   });
