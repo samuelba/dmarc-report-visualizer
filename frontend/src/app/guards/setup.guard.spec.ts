@@ -27,7 +27,7 @@ describe('setupGuard', () => {
     authService.checkSetup.and.returnValue(of({ needsSetup: true }));
 
     TestBed.runInInjectionContext(() => {
-      const result = setupGuard();
+      const result = setupGuard({} as any, {} as any);
 
       if (typeof result === 'boolean') {
         expect(result).toBe(true);
