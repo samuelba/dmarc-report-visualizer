@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { AuthController } from './auth.controller';
@@ -228,7 +228,12 @@ describe('AuthController', () => {
 
   describe('refresh', () => {
     it('should return new tokens with rotated refresh token', async () => {
-      const request = { cookies: { refreshToken: 'old-refresh-token' } } as any;
+      const request = {
+        cookies: { refreshToken: 'old-refresh-token' },
+        ip: '192.168.1.1',
+        socket: {},
+        headers: {},
+      } as any;
 
       mockAuthService.refreshTokens.mockResolvedValue({
         accessToken: 'new-access-token',
@@ -240,6 +245,7 @@ describe('AuthController', () => {
 
       expect(authService.refreshTokens).toHaveBeenCalledWith(
         'old-refresh-token',
+        '192.168.1.1',
       );
       expect(response.cookie).toHaveBeenCalledWith(
         'refreshToken',
@@ -247,6 +253,72 @@ describe('AuthController', () => {
         expect.any(Object),
       );
       expect(result).toEqual({ accessToken: 'new-access-token' });
+    });
+
+    it('should extract IP from x-forwarded-for header when request.ip is not available', async () => {
+      const request = {
+        cookies: { refreshToken: 'old-refresh-token' },
+        ip: undefined,
+        headers: { 'x-forwarded-for': '10.0.0.1, 192.168.1.1' },
+        socket: {},
+      } as any;
+
+      mockAuthService.refreshTokens.mockResolvedValue({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+
+      const response = mockResponse();
+      await controller.refresh(request, response);
+
+      expect(authService.refreshTokens).toHaveBeenCalledWith(
+        'old-refresh-token',
+        '10.0.0.1',
+      );
+    });
+
+    it('should extract IP from socket.remoteAddress when other sources are not available', async () => {
+      const request = {
+        cookies: { refreshToken: 'old-refresh-token' },
+        ip: undefined,
+        headers: {},
+        socket: { remoteAddress: '172.16.0.1' },
+      } as any;
+
+      mockAuthService.refreshTokens.mockResolvedValue({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+
+      const response = mockResponse();
+      await controller.refresh(request, response);
+
+      expect(authService.refreshTokens).toHaveBeenCalledWith(
+        'old-refresh-token',
+        '172.16.0.1',
+      );
+    });
+
+    it('should use "unknown" when IP cannot be determined', async () => {
+      const request = {
+        cookies: { refreshToken: 'old-refresh-token' },
+        ip: undefined,
+        headers: {},
+        socket: {},
+      } as any;
+
+      mockAuthService.refreshTokens.mockResolvedValue({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+
+      const response = mockResponse();
+      await controller.refresh(request, response);
+
+      expect(authService.refreshTokens).toHaveBeenCalledWith(
+        'old-refresh-token',
+        'unknown',
+      );
     });
 
     it('should throw error when refresh token is missing', async () => {
@@ -257,6 +329,58 @@ describe('AuthController', () => {
         BadRequestException,
       );
       expect(authService.refreshTokens).not.toHaveBeenCalled();
+    });
+
+    it('should clear refresh token cookie when token refresh fails with UnauthorizedException', async () => {
+      const request = {
+        cookies: { refreshToken: 'compromised-token' },
+        ip: '192.168.1.1',
+        socket: {},
+        headers: {},
+      } as any;
+
+      // Simulate authentication error (e.g., theft detection, expired token, invalid token)
+      mockAuthService.refreshTokens.mockRejectedValue(
+        new UnauthorizedException('Token theft detected'),
+      );
+
+      const response = mockResponse();
+
+      await expect(controller.refresh(request, response)).rejects.toThrow(
+        UnauthorizedException,
+      );
+
+      // Verify the cookie was cleared for authentication errors
+      expect(response.clearCookie).toHaveBeenCalledWith(
+        'refreshToken',
+        expect.objectContaining({
+          httpOnly: true,
+          path: '/',
+        }),
+      );
+    });
+
+    it('should NOT clear refresh token cookie for non-authentication errors', async () => {
+      const request = {
+        cookies: { refreshToken: 'valid-token' },
+        ip: '192.168.1.1',
+        socket: {},
+        headers: {},
+      } as any;
+
+      // Simulate a transient error (e.g., database connection issue)
+      mockAuthService.refreshTokens.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
+
+      const response = mockResponse();
+
+      await expect(controller.refresh(request, response)).rejects.toThrow(
+        'Database connection failed',
+      );
+
+      // Verify the cookie was NOT cleared for transient errors
+      expect(response.clearCookie).not.toHaveBeenCalled();
     });
   });
 

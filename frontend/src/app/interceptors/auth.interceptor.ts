@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, switchMap, filter, take } from 'rxjs/operators';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { AuthService } from '../services/auth.service';
 
 // Track if a token refresh is in progress to prevent multiple simultaneous refresh requests
@@ -19,38 +20,55 @@ export const authInterceptor: HttpInterceptorFn = (
 ): Observable<HttpEvent<unknown>> => {
   const authService = inject(AuthService);
   const router = inject(Router);
+  const snackBar = inject(MatSnackBar);
 
   // Skip adding auth header for these endpoints (they don't need or provide their own auth)
   const skipAuthUrls = ['/auth/login', '/auth/setup', '/auth/refresh', '/auth/check-setup'];
   const shouldSkipAuth = skipAuthUrls.some((url) => req.url.includes(url));
 
-  if (shouldSkipAuth) {
-    return next(req);
-  }
+  // Determine which request to send (with or without auth header)
+  const clonedReq = shouldSkipAuth
+    ? req
+    : authService.getAccessToken()
+      ? req.clone({
+          setHeaders: {
+            Authorization: `Bearer ${authService.getAccessToken()}`,
+          },
+        })
+      : req;
 
-  // Get the access token
-  const accessToken = authService.getAccessToken();
-
-  // Clone request with auth header if token exists
-  const clonedReq = accessToken
-    ? req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-    : req;
-
-  // Handle the request and catch 401 errors
+  // Handle the request and catch 401 errors for ALL requests
   return next(clonedReq).pipe(
     catchError((error: HttpErrorResponse) => {
       // Only handle 401 Unauthorized errors
-      // Skip auto-refresh for these endpoints to prevent infinite loops or let components handle errors
-      const skipAutoRefresh = ['/auth/change-password', '/auth/me', '/auth/refresh'].some((url) =>
-        req.url.includes(url)
-      );
+      if (error.status === 401) {
+        const errorBody = error.error;
 
-      if (error.status === 401 && !skipAutoRefresh) {
-        return handle401Error(req, next, authService, router);
+        // Check for session compromise (token theft detected)
+        // This must be checked FIRST, before any skipAutoRefresh logic
+        if (errorBody?.errorCode === 'SESSION_COMPROMISED') {
+          // Show user-friendly notification
+          snackBar.open('Your session was terminated for security reasons. Please log in again.', 'Close', {
+            duration: 8000,
+          });
+
+          // Clear tokens from memory
+          authService.clearTokens();
+
+          // Redirect to login
+          router.navigate(['/login']);
+
+          return throwError(() => error);
+        }
+
+        // Skip auto-refresh for these endpoints to prevent infinite loops or let components handle errors
+        const skipAutoRefresh = ['/auth/change-password', '/auth/me', '/auth/refresh'].some((url) =>
+          req.url.includes(url)
+        );
+
+        if (!skipAutoRefresh) {
+          return handle401Error(req, next, authService, router);
+        }
       }
       return throwError(() => error);
     })
@@ -88,15 +106,13 @@ function handle401Error(
       catchError((error) => {
         // Refresh failed, redirect to login
         isRefreshing = false;
-        authService.logout().subscribe({
-          complete: () => {
-            router.navigate(['/login']);
-          },
-          error: () => {
-            // Even if logout fails, navigate to login
-            router.navigate(['/login']);
-          },
-        });
+
+        // Note: If this is a SESSION_COMPROMISED error, it will be caught
+        // by the main interceptor's catchError block above, which will
+        // show the snackbar and redirect. We just need to clean up here.
+        authService.clearTokens();
+        router.navigate(['/login']);
+
         return throwError(() => error);
       })
     );

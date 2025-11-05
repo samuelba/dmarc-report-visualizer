@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
 import { of, throwError } from 'rxjs';
@@ -11,10 +12,17 @@ describe('authInterceptor', () => {
   let httpClient: HttpClient;
   let authService: jasmine.SpyObj<AuthService>;
   let router: jasmine.SpyObj<Router>;
+  let snackBar: jasmine.SpyObj<MatSnackBar>;
 
   beforeEach(() => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['getAccessToken', 'refreshToken', 'logout']);
+    const authServiceSpy = jasmine.createSpyObj('AuthService', [
+      'getAccessToken',
+      'refreshToken',
+      'logout',
+      'clearTokens',
+    ]);
     const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -22,6 +30,7 @@ describe('authInterceptor', () => {
         provideHttpClientTesting(),
         { provide: AuthService, useValue: authServiceSpy },
         { provide: Router, useValue: routerSpy },
+        { provide: MatSnackBar, useValue: snackBarSpy },
       ],
     });
 
@@ -29,6 +38,7 @@ describe('authInterceptor', () => {
     httpClient = TestBed.inject(HttpClient);
     authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
     router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    snackBar = TestBed.inject(MatSnackBar) as jasmine.SpyObj<MatSnackBar>;
   });
 
   afterEach(() => {
@@ -153,5 +163,50 @@ describe('authInterceptor', () => {
 
     const req = httpMock.expectOne('/api/test');
     req.flush({ message: 'Server error' }, { status: 500, statusText: 'Internal Server Error' });
+  });
+
+  it('should handle SESSION_COMPROMISED error by showing notification and redirecting to login', (done) => {
+    authService.getAccessToken.and.returnValue('test-access-token');
+
+    httpClient.get('/api/test').subscribe({
+      next: () => done.fail('Should not succeed'),
+      error: (error) => {
+        expect(error.status).toBe(401);
+        expect(snackBar.open).toHaveBeenCalledWith(
+          'Your session was terminated for security reasons. Please log in again.',
+          'Close',
+          { duration: 8000 }
+        );
+        expect(authService.clearTokens).toHaveBeenCalled();
+        expect(router.navigate).toHaveBeenCalledWith(['/login']);
+        expect(authService.refreshToken).not.toHaveBeenCalled();
+        done();
+      },
+    });
+
+    const req = httpMock.expectOne('/api/test');
+    req.flush(
+      {
+        message: 'Your session has been terminated for security reasons. Please log in again.',
+        errorCode: 'SESSION_COMPROMISED',
+      },
+      { status: 401, statusText: 'Unauthorized' }
+    );
+  });
+
+  it('should not attempt token refresh for SESSION_COMPROMISED error', (done) => {
+    authService.getAccessToken.and.returnValue('test-access-token');
+
+    httpClient.get('/api/test').subscribe({
+      next: () => done.fail('Should not succeed'),
+      error: () => {
+        expect(authService.refreshToken).not.toHaveBeenCalled();
+        expect(authService.clearTokens).toHaveBeenCalled();
+        done();
+      },
+    });
+
+    const req = httpMock.expectOne('/api/test');
+    req.flush({ errorCode: 'SESSION_COMPROMISED' }, { status: 401, statusText: 'Unauthorized' });
   });
 });
