@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import {
   ConflictException,
@@ -70,6 +71,20 @@ describe('AuthService', () => {
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string, defaultValue?: any) => {
+              if (key === 'THEFT_DETECTION_ENABLED') {
+                return 'true';
+              }
+              if (key === 'THEFT_DETECTION_INVALIDATE_FAMILY') {
+                return 'true';
+              }
+              return defaultValue;
+            }),
           },
         },
       ],
@@ -290,6 +305,7 @@ describe('AuthService', () => {
         id: 'token-uuid-123',
         token: hashedToken,
         userId: mockUser.id,
+        familyId: 'family-uuid-123',
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         revoked: false,
         user: mockUser,
@@ -299,6 +315,7 @@ describe('AuthService', () => {
       const newRefreshTokenEntity = {
         id: 'new-token-uuid-456',
         userId: mockUser.id,
+        familyId: 'family-uuid-123',
         token: '',
         expiresAt: new Date(),
         revoked: false,
@@ -311,6 +328,9 @@ describe('AuthService', () => {
       jest
         .spyOn(refreshTokenRepository, 'findOne')
         .mockResolvedValue(storedToken);
+      jest
+        .spyOn(refreshTokenRepository, 'update')
+        .mockResolvedValue({ affected: 1 } as any);
       jest.spyOn(refreshTokenRepository, 'save').mockResolvedValue(storedToken);
       jest
         .spyOn(jwtService, 'generateAccessToken')
@@ -326,9 +346,9 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBe('new-access-token');
       expect(result.refreshToken).toBe('new-refresh-token');
-      expect(storedToken.revoked).toBe(true);
-      expect(refreshTokenRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ revoked: true }),
+      expect(refreshTokenRepository.update).toHaveBeenCalledWith(
+        { id: storedToken.id, revoked: false },
+        { revoked: true, revocationReason: 'rotation' },
       );
     });
 
@@ -351,8 +371,10 @@ describe('AuthService', () => {
         id: 'token-uuid-123',
         token: hashedToken,
         userId: mockUser.id,
+        familyId: 'family-uuid-123',
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         revoked: true,
+        revocationReason: 'rotation',
         user: mockUser,
         createdAt: new Date(),
       } as RefreshToken;
@@ -363,12 +385,15 @@ describe('AuthService', () => {
       jest
         .spyOn(refreshTokenRepository, 'findOne')
         .mockResolvedValue(revokedToken);
+      jest
+        .spyOn(refreshTokenRepository, 'update')
+        .mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
 
       await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
         UnauthorizedException,
       );
       await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        'Refresh token has been revoked',
+        'Your session has been terminated for security reasons',
       );
     });
 
@@ -495,7 +520,7 @@ describe('AuthService', () => {
       );
       expect(refreshTokenRepository.update).toHaveBeenCalledWith(
         { userId: mockUser.id, revoked: false },
-        { revoked: true },
+        { revoked: true, revocationReason: 'password_change' },
       );
     });
 

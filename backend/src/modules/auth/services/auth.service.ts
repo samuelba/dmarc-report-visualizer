@@ -3,17 +3,24 @@ import {
   ConflictException,
   UnauthorizedException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { RefreshToken } from '../entities/refresh-token.entity';
+import {
+  RefreshToken,
+  RevocationReason,
+} from '../entities/refresh-token.entity';
 import { PasswordService } from './password.service';
 import { JwtService } from './jwt.service';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -21,6 +28,7 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly passwordService: PasswordService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -101,14 +109,19 @@ export class AuthService {
       user.organizationId,
     );
 
+    // Generate a new family ID for this login session
+    const familyId = crypto.randomUUID();
+
     // Create refresh token entity
     const refreshTokenEntity = this.refreshTokenRepository.create({
       userId: user.id,
+      familyId: familyId,
       token: '', // Will be set after generating JWT
       expiresAt: new Date(
         Date.now() + this.jwtService.getRefreshTokenExpiryMs(),
       ),
       revoked: false,
+      revocationReason: null,
     });
 
     // Save to get the ID
@@ -144,11 +157,13 @@ export class AuthService {
   /**
    * Refresh access token using a valid refresh token (with token rotation)
    * @param refreshToken Refresh token JWT string
+   * @param ipAddress Optional IP address for theft detection logging
    * @returns Object containing new access token and new refresh token
    * @throws UnauthorizedException if refresh token is invalid or revoked
    */
   async refreshTokens(
     refreshToken: string,
+    ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     // Verify the refresh token JWT
     const payload = this.jwtService.verifyRefreshToken(refreshToken);
@@ -168,39 +183,80 @@ export class AuthService {
       relations: ['user'],
     });
 
+    // Case 1: Token not found - invalid token
     if (!storedToken) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Check if token is revoked
-    if (storedToken.revoked) {
-      throw new UnauthorizedException('Refresh token has been revoked');
-    }
-
-    // Check if token is expired
+    // Case 2: Token expired - check this FIRST before revocation
+    // An expired token is naturally invalid and doesn't indicate theft
+    // This prevents false positives when expired tokens are reused
     if (storedToken.expiresAt < new Date()) {
       throw new UnauthorizedException('Refresh token has expired');
     }
 
-    // Revoke the old refresh token (token rotation security)
-    storedToken.revoked = true;
-    await this.refreshTokenRepository.save(storedToken);
+    // Case 3: Token revoked (but not expired) - THEFT DETECTED
+    // This applies to ANY revoked token, regardless of revocation_reason
+    // We only reach here if the token is NOT expired, so reuse indicates theft
+    if (storedToken.revoked) {
+      await this.handleTokenTheft(storedToken, ipAddress);
+      throw new UnauthorizedException({
+        message:
+          'Your session has been terminated for security reasons. Please log in again.',
+        errorCode: 'SESSION_COMPROMISED',
+      });
+    }
 
-    // Generate new access token
+    // Case 4: Token valid and not revoked - proceed with normal rotation
+    // Atomically revoke the old refresh token (token rotation security)
+    // Use conditional UPDATE to prevent race conditions
+    const updateResult = await this.refreshTokenRepository.update(
+      {
+        id: storedToken.id,
+        revoked: false, // Only update if still not revoked
+      },
+      {
+        revoked: true,
+        revocationReason: RevocationReason.ROTATION,
+      },
+    );
+
+    // If affected is 0, another request already revoked this token (concurrent use)
+    // This is also a theft scenario - the "race condition" detected token reuse
+    if (updateResult.affected === 0) {
+      // Reload the token from database to get the accurate revocationReason
+      // The in-memory storedToken still has revoked: false, but the DB has the updated state
+      const reloadedToken = await this.refreshTokenRepository.findOne({
+        where: { id: storedToken.id },
+        relations: ['user'],
+      });
+
+      // Use reloaded token for accurate logging, fallback to storedToken if reload fails
+      await this.handleTokenTheft(reloadedToken || storedToken, ipAddress);
+      throw new UnauthorizedException({
+        message:
+          'Your session has been terminated for security reasons. Please log in again.',
+        errorCode: 'SESSION_COMPROMISED',
+      });
+    }
+
+    // Successfully revoked the token - proceed with generating new tokens
     const newAccessToken = this.jwtService.generateAccessToken(
       storedToken.user.id,
       storedToken.user.email,
       storedToken.user.organizationId,
     );
 
-    // Create new refresh token entity
+    // Create new refresh token entity with SAME familyId
     const newRefreshTokenEntity = this.refreshTokenRepository.create({
       userId: storedToken.user.id,
+      familyId: storedToken.familyId, // Preserve family ID
       token: '', // Will be set after generating JWT
       expiresAt: new Date(
         Date.now() + this.jwtService.getRefreshTokenExpiryMs(),
       ),
       revoked: false,
+      revocationReason: null,
     });
 
     // Save to get the ID
@@ -262,8 +318,69 @@ export class AuthService {
 
     if (storedToken) {
       storedToken.revoked = true;
+      storedToken.revocationReason = RevocationReason.LOGOUT;
       await this.refreshTokenRepository.save(storedToken);
     }
+  }
+
+  /**
+   * Handle detected token theft by invalidating entire token family
+   * @param revokedToken The revoked token that was reused (regardless of revocation_reason)
+   * @param ipAddress IP address of the request (for logging)
+   *
+   * Design Decision: This method is called for ANY revoked token reuse, regardless of the
+   * original revocation_reason (rotation, logout, password_change). This ensures comprehensive
+   * theft detection - if an attacker has a token that was revoked for any reason and tries to
+   * use it, we treat it as a potential security incident.
+   */
+  private async handleTokenTheft(
+    revokedToken: RefreshToken,
+    ipAddress?: string,
+  ): Promise<void> {
+    // Get theft detection configuration
+    const config = this.configService.get('auth.theftDetection', {
+      enabled: true,
+      invalidateFamily: true,
+    });
+
+    // If theft detection is disabled, do NOT log or invalidate
+    // Just return silently - the caller will throw a standard 401
+    if (!config.enabled) {
+      return;
+    }
+
+    // Log security alert (async, non-blocking)
+    this.logger.error('Token theft detected', {
+      userId: revokedToken.userId,
+      familyId: revokedToken.familyId,
+      tokenId: revokedToken.id,
+      originalRevocationReason: revokedToken.revocationReason,
+      ipAddress: ipAddress || 'unknown',
+      timestamp: new Date().toISOString(),
+    });
+
+    // If configured to only log (not invalidate), return
+    if (!config.invalidateFamily) {
+      return;
+    }
+
+    // Invalidate all tokens in the family (implemented in subtask 3.4)
+    const result = await this.refreshTokenRepository.update(
+      {
+        familyId: revokedToken.familyId,
+        revoked: false,
+      },
+      {
+        revoked: true,
+        revocationReason: RevocationReason.THEFT_DETECTED,
+      },
+    );
+
+    // Log family invalidation (async, non-blocking)
+    this.logger.warn('Token family invalidated due to theft detection', {
+      familyId: revokedToken.familyId,
+      tokensInvalidated: result.affected,
+    });
   }
 
   /**
@@ -307,7 +424,7 @@ export class AuthService {
     // Invalidate all refresh tokens for this user (force re-authentication on all devices)
     await this.refreshTokenRepository.update(
       { userId, revoked: false },
-      { revoked: true },
+      { revoked: true, revocationReason: RevocationReason.PASSWORD_CHANGE },
     );
 
     // Return the user for generating new tokens

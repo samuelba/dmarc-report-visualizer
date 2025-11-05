@@ -6,12 +6,13 @@ import { AppService } from './app.service';
 import { DmarcModule } from './modules/dmarc/dmarc.module';
 import { AuthModule } from './modules/auth/auth.module';
 import databaseConfig from './config/database.config';
+import authConfig from './config/auth.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, authConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

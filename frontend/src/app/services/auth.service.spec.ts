@@ -190,4 +190,31 @@ describe('AuthService', () => {
       req.flush(mockResponse);
     });
   });
+
+  describe('clearTokens', () => {
+    it('should clear access token and current user', (done) => {
+      const mockResponse: AuthResponse = {
+        accessToken: 'test-access-token',
+        user: { id: 'user-123', email: 'test@example.com' },
+      };
+
+      // First login to set tokens
+      service.login('test@example.com', 'password').subscribe(() => {
+        expect(service.getAccessToken()).toBe('test-access-token');
+
+        // Clear tokens
+        service.clearTokens();
+
+        // Verify tokens are cleared
+        expect(service.getAccessToken()).toBeNull();
+        service.getCurrentUser().subscribe((user) => {
+          expect(user).toBeNull();
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne(`${apiBase}/auth/login`);
+      req.flush(mockResponse);
+    });
+  });
 });

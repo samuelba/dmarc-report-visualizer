@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -148,10 +149,18 @@ export class AuthController {
       throw new BadRequestException('Refresh token not found');
     }
 
+    // Extract IP address from request for theft detection logging
+    const ipAddress =
+      request.ip ||
+      (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      request.socket?.remoteAddress ||
+      'unknown';
+
     try {
       // Refresh tokens (with rotation - old token revoked, new tokens generated)
+      // Pass IP address for theft detection logging
       const { accessToken, refreshToken: newRefreshToken } =
-        await this.authService.refreshTokens(refreshToken);
+        await this.authService.refreshTokens(refreshToken, ipAddress);
 
       // Set new refresh token cookie
       this.setRefreshTokenCookie(response, newRefreshToken);
@@ -159,7 +168,12 @@ export class AuthController {
       // Return new access token
       return { accessToken };
     } catch (error) {
-      console.log('[AUTH] ERROR: Token refresh failed:', error.message);
+      // Only clear the cookie for authentication-related errors
+      // Don't clear for transient errors (database issues, etc.) that might resolve
+      if (error instanceof UnauthorizedException) {
+        this.clearRefreshTokenCookie(response);
+      }
+
       throw error;
     }
   }

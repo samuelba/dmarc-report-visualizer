@@ -179,4 +179,12 @@ export class AuthService {
   isAuthenticated(): Observable<boolean> {
     return this.accessToken$.pipe(map((token) => token !== null));
   }
+
+  /**
+   * Clear tokens from memory (used when session is compromised)
+   */
+  clearTokens(): void {
+    this.accessToken$.next(null);
+    this.currentUser$.next(null);
+  }
 }
