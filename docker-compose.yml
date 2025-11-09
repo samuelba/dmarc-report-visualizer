@@ -108,6 +108,11 @@ services:
       # Cookie Configuration
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+
+      # SAML Configuration
+      #SAML_ENTITY_ID: ${SAML_ENTITY_ID}
+      #SAML_ACS_URL: ${SAML_ACS_URL}
+      #FRONTEND_URL: ${FRONTEND_URL}
     depends_on:
       - postgres
     volumes:

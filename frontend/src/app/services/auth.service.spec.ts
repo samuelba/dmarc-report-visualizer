@@ -45,7 +45,7 @@ describe('AuthService', () => {
       const passwordConfirmation = 'SecurePass123!';
       const mockResponse: AuthResponse = {
         accessToken: 'test-access-token',
-        user: { id: 'user-123', email },
+        user: { id: 'user-123', email, authProvider: 'local' },
       };
 
       service.setup(email, password, passwordConfirmation).subscribe((response) => {
@@ -66,7 +66,7 @@ describe('AuthService', () => {
       const password = 'SecurePass123!';
       const mockResponse: AuthResponse = {
         accessToken: 'test-access-token',
-        user: { id: 'user-123', email },
+        user: { id: 'user-123', email, authProvider: 'local' },
       };
 
       service.login(email, password).subscribe((response) => {
@@ -86,7 +86,7 @@ describe('AuthService', () => {
       // First set a token
       const mockLoginResponse: AuthResponse = {
         accessToken: 'test-access-token',
-        user: { id: 'user-123', email: 'test@example.com' },
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
 
       service.login('test@example.com', 'password').subscribe();
@@ -149,7 +149,7 @@ describe('AuthService', () => {
     it('should return true when token is set', (done) => {
       const mockResponse: AuthResponse = {
         accessToken: 'test-access-token',
-        user: { id: 'user-123', email: 'test@example.com' },
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
 
       service.login('test@example.com', 'password').subscribe(() => {
@@ -173,7 +173,7 @@ describe('AuthService', () => {
     });
 
     it('should return user after login', (done) => {
-      const mockUser: User = { id: 'user-123', email: 'test@example.com' };
+      const mockUser: User = { id: 'user-123', email: 'test@example.com', authProvider: 'local' };
       const mockResponse: AuthResponse = {
         accessToken: 'test-access-token',
         user: mockUser,
@@ -195,7 +195,7 @@ describe('AuthService', () => {
     it('should clear access token and current user', (done) => {
       const mockResponse: AuthResponse = {
         accessToken: 'test-access-token',
-        user: { id: 'user-123', email: 'test@example.com' },
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
 
       // First login to set tokens

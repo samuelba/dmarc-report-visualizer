@@ -18,6 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/api.service';
 import { ThirdPartySenderDialogComponent } from './third-party-sender-dialog.component';
+import { SamlSettingsComponent } from './saml-settings/saml-settings.component';
 import { timer, takeWhile } from 'rxjs';
 
 @Component({
@@ -41,6 +42,7 @@ import { timer, takeWhile } from 'rxjs';
     MatDatepickerModule,
     MatInputModule,
     MatNativeDateModule,
+    SamlSettingsComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
@@ -65,6 +67,7 @@ export class SettingsComponent implements OnInit {
   selectedTabIndex = signal(0);
   private readonly REPROCESSING_TAB_INDEX = 1;
   private readonly UTILITIES_TAB_INDEX = 2;
+  private readonly SAML_TAB_INDEX = 3;
 
   // Date range for reprocessing
   dateFrom = signal<Date | null>(null);

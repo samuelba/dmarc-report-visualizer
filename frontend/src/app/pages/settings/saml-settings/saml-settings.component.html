@@ -1,0 +1,324 @@
+<div class="saml-settings-container">
+  @if (loading()) {
+    <div class="loading-container">
+      <mat-spinner></mat-spinner>
+    </div>
+  } @else {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>SAML/SSO Configuration</mat-card-title>
+        <mat-card-subtitle>
+          Configure Single Sign-On integration with your Identity Provider (Google Workspace, Azure AD, Okta, etc.)
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <!-- Configuration Status -->
+        @if (config()) {
+          <div class="status-section">
+            <h3>Configuration Status</h3>
+            <div class="status-badges">
+              <span [class]="config()!.configured ? 'status-configured' : 'status-not-configured'">
+                <mat-icon class="status-icon">{{ config()!.configured ? 'check_circle' : 'cancel' }}</mat-icon>
+                {{ config()!.configured ? 'Configured' : 'Not Configured' }}
+              </span>
+              <span [class]="config()!.enabled ? 'status-enabled' : 'status-disabled'">
+                <mat-icon class="status-icon">{{ config()!.enabled ? 'check_circle' : 'cancel' }}</mat-icon>
+                {{ config()!.enabled ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
+          </div>
+        }
+
+        <!-- SP Configuration Display -->
+        <div class="sp-config-section">
+          <h3>Service Provider Configuration</h3>
+          <p class="section-description">
+            Provide these details to your Identity Provider administrator when setting up the SAML integration.
+          </p>
+
+          @if (config()) {
+            <div class="sp-config-fields">
+              <!-- SP Entity ID -->
+              <mat-form-field appearance="outline" class="sp-field" subscriptSizing="dynamic">
+                <mat-label>SP Entity ID</mat-label>
+                <input matInput [value]="config()!.spEntityId" readonly />
+                <button
+                  mat-icon-button
+                  matSuffix
+                  (click)="copyToClipboard(config()!.spEntityId, 'SP Entity ID')"
+                  matTooltip="Copy to clipboard"
+                >
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </mat-form-field>
+
+              <!-- ACS URL -->
+              <mat-form-field appearance="outline" class="sp-field" subscriptSizing="dynamic">
+                <mat-label>Assertion Consumer Service (ACS) URL</mat-label>
+                <input matInput [value]="config()!.spAcsUrl" readonly />
+                <button
+                  mat-icon-button
+                  matSuffix
+                  (click)="copyToClipboard(config()!.spAcsUrl, 'ACS URL')"
+                  matTooltip="Copy to clipboard"
+                >
+                  <mat-icon>content_copy</mat-icon>
+                </button>
+              </mat-form-field>
+
+              <!-- Download Metadata Button -->
+              <div class="metadata-download">
+                <button matButton="outlined" color="primary" (click)="downloadMetadata()" [disabled]="loading()">
+                  <mat-icon>download</mat-icon>
+                  Download SP Metadata XML
+                </button>
+                <p class="help-text">
+                  Download the Service Provider metadata XML file to upload to your Identity Provider.
+                </p>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Placeholder for IdP Configuration (Subtasks 8.3 & 8.4) -->
+        <div class="idp-config-section">
+          <h3>Identity Provider Configuration</h3>
+
+          <!-- Upload Mode Toggle -->
+          <mat-radio-group [value]="uploadMode()" (change)="setUploadMode($event.value)" class="upload-mode-toggle">
+            <mat-radio-button value="metadata">Upload IdP Metadata XML</mat-radio-button>
+            <mat-radio-button value="manual">Enter Configuration Manually</mat-radio-button>
+          </mat-radio-group>
+
+          <!-- Metadata Upload Form -->
+          @if (uploadMode() === 'metadata') {
+            <div class="metadata-upload-form">
+              <form [formGroup]="metadataForm" (ngSubmit)="submitMetadata()">
+                <div class="upload-instructions">
+                  <mat-icon color="primary">info</mat-icon>
+                  <p>
+                    Upload the IdP metadata XML file provided by your Identity Provider. This file contains all
+                    necessary configuration including Entity ID, SSO URL, and signing certificate.
+                  </p>
+                </div>
+
+                <div class="file-upload-section">
+                  <input
+                    type="file"
+                    accept=".xml,text/xml,application/xml"
+                    (change)="onMetadataFileSelected($event)"
+                    #fileInput
+                    style="display: none"
+                  />
+                  <button
+                    type="button"
+                    matButton="outlined"
+                    color="primary"
+                    (click)="fileInput.click()"
+                    [disabled]="loading()"
+                  >
+                    <mat-icon>upload_file</mat-icon>
+                    Choose IdP Metadata File
+                  </button>
+
+                  @if (metadataForm.value.idpMetadataXml) {
+                    <div class="file-selected">
+                      <mat-icon color="accent">check_circle</mat-icon>
+                      <span>Metadata file loaded</span>
+                    </div>
+                  }
+                </div>
+
+                @if (config() && config()!.configured) {
+                  <div class="current-config">
+                    <h4>Current IdP Configuration</h4>
+                    <div class="config-details">
+                      <div class="config-item">
+                        <span class="label">Entity ID:</span>
+                        <span class="value">{{ config()!.idpEntityId || 'Not set' }}</span>
+                      </div>
+                      <div class="config-item">
+                        <span class="label">SSO URL:</span>
+                        <span class="value">{{ config()!.idpSsoUrl || 'Not set' }}</span>
+                      </div>
+                      <div class="config-item">
+                        <span class="label">Certificate:</span>
+                        <span class="value">{{ config()!.hasIdpCertificate ? 'Configured' : 'Not set' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+
+                <div class="form-actions">
+                  <button
+                    type="submit"
+                    matButton="filled"
+                    color="primary"
+                    [disabled]="metadataForm.invalid || loading()"
+                  >
+                    <mat-icon>save</mat-icon>
+                    Save Configuration
+                  </button>
+                </div>
+              </form>
+            </div>
+          }
+
+          <!-- Manual Configuration Form -->
+          @if (uploadMode() === 'manual') {
+            <div class="manual-config-form">
+              <form [formGroup]="manualForm" (ngSubmit)="submitManualConfig()">
+                <div class="upload-instructions">
+                  <mat-icon color="primary">info</mat-icon>
+                  <p>
+                    Manually enter the Identity Provider configuration details. You can find these values in your IdP's
+                    SAML application settings.
+                  </p>
+                </div>
+
+                <!-- IdP Entity ID -->
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>IdP Entity ID</mat-label>
+                  <input matInput formControlName="idpEntityId" placeholder="https://idp.example.com/entityid" />
+                  <mat-hint>The unique identifier for your Identity Provider</mat-hint>
+                  @if (manualForm.get('idpEntityId')?.invalid && manualForm.get('idpEntityId')?.touched) {
+                    <mat-error>IdP Entity ID is required</mat-error>
+                  }
+                </mat-form-field>
+
+                <!-- IdP SSO URL -->
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>IdP Single Sign-On URL</mat-label>
+                  <input
+                    matInput
+                    formControlName="idpSsoUrl"
+                    placeholder="https://idp.example.com/sso/saml"
+                    type="url"
+                  />
+                  <mat-hint>The SAML 2.0 endpoint where authentication requests are sent</mat-hint>
+                  @if (manualForm.get('idpSsoUrl')?.invalid && manualForm.get('idpSsoUrl')?.touched) {
+                    <mat-error>
+                      @if (manualForm.get('idpSsoUrl')?.hasError('required')) {
+                        IdP SSO URL is required
+                      }
+                      @if (manualForm.get('idpSsoUrl')?.hasError('pattern')) {
+                        Please enter a valid URL starting with http:// or https://
+                      }
+                    </mat-error>
+                  }
+                </mat-form-field>
+
+                <!-- IdP X.509 Certificate -->
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>IdP X.509 Certificate</mat-label>
+                  <textarea
+                    matInput
+                    formControlName="idpCertificate"
+                    rows="8"
+                    placeholder="-----BEGIN CERTIFICATE-----&#10;MIIDdDCCAlygAwIBAgIGAXoTl...&#10;-----END CERTIFICATE-----"
+                  ></textarea>
+                  <mat-hint>
+                    The public certificate used to verify SAML assertions. Include the BEGIN and END lines.
+                  </mat-hint>
+                  @if (manualForm.get('idpCertificate')?.invalid && manualForm.get('idpCertificate')?.touched) {
+                    <mat-error>IdP Certificate is required</mat-error>
+                  }
+                </mat-form-field>
+
+                @if (config() && config()!.configured) {
+                  <div class="current-config">
+                    <h4>Current IdP Configuration</h4>
+                    <div class="config-details">
+                      <div class="config-item">
+                        <span class="label">Entity ID:</span>
+                        <span class="value">{{ config()!.idpEntityId || 'Not set' }}</span>
+                      </div>
+                      <div class="config-item">
+                        <span class="label">SSO URL:</span>
+                        <span class="value">{{ config()!.idpSsoUrl || 'Not set' }}</span>
+                      </div>
+                      <div class="config-item">
+                        <span class="label">Certificate:</span>
+                        <span class="value">{{ config()!.hasIdpCertificate ? 'Configured' : 'Not set' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+
+                <div class="form-actions">
+                  <button type="submit" mat-raised-button color="primary" [disabled]="manualForm.invalid || loading()">
+                    <mat-icon>save</mat-icon>
+                    Save Configuration
+                  </button>
+                </div>
+              </form>
+            </div>
+          }
+        </div>
+
+        <!-- Enable/Disable Toggle -->
+        @if (config() && config()!.configured) {
+          <div class="saml-toggle-section">
+            <h3>SAML Authentication Status</h3>
+            <div class="toggle-container">
+              <mat-slide-toggle
+                [checked]="config()!.enabled"
+                (change)="toggleSaml($event)"
+                color="primary"
+                [disabled]="loading()"
+              >
+                <span class="toggle-label">
+                  {{ config()!.enabled ? 'SAML authentication is enabled' : 'SAML authentication is disabled' }}
+                </span>
+              </mat-slide-toggle>
+
+              <div class="toggle-description">
+                @if (config()!.enabled) {
+                  <mat-icon color="accent">info</mat-icon>
+                  <p>
+                    Users can sign in using the "Sign in with SSO" button on the login page. SAML users will be
+                    authenticated through your Identity Provider.
+                  </p>
+                } @else {
+                  <mat-icon color="warn">warning</mat-icon>
+                  <p>
+                    SAML authentication is currently disabled. Users will not see the SSO login option and cannot
+                    authenticate through your Identity Provider.
+                  </p>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Test SAML Login -->
+        @if (config() && config()!.configured) {
+          <div class="test-section">
+            <h3>Test SAML Configuration</h3>
+            <div class="test-container">
+              <div class="test-info">
+                <mat-icon color="primary">science</mat-icon>
+                <div>
+                  <p>
+                    Test your SAML configuration by initiating a login flow. This will open a new window and redirect
+                    you to your Identity Provider for authentication.
+                  </p>
+                  <p class="note">
+                    <strong>Note:</strong> Testing works even when SAML is disabled for regular users. This allows you
+                    to verify the configuration before enabling it for everyone.
+                  </p>
+                </div>
+              </div>
+
+              <button matButton="outlined" color="accent" (click)="testSamlLogin()" [disabled]="loading()">
+                <mat-icon>open_in_new</mat-icon>
+                Test SAML Login
+              </button>
+            </div>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

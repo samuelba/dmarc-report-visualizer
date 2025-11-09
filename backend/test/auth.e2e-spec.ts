@@ -4,6 +4,7 @@ import * as request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { DataSource } from 'typeorm';
+import { JwtService } from '../src/modules/auth/services/jwt.service';
 
 // Helper function to extract cookies
 function getCookies(response: request.Response): string[] {
@@ -879,6 +880,214 @@ describe('Authentication (e2e)', () => {
 
         // The originalRevocationReason would be 'rotation' in the security log
         // (verified through the database state transition)
+      });
+    });
+  });
+
+  describe('SAML User Restrictions', () => {
+    describe('SAML user cannot login with password', () => {
+      it('should reject password login for SAML users', async () => {
+        // Create a SAML user directly in the database
+        await dataSource.query(
+          `INSERT INTO users (id, email, password_hash, auth_provider, created_at, updated_at) 
+           VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+          [
+            'saml-user-id',
+            'saml.user@example.com',
+            'dummy-hash', // SAML users shouldn't have valid password hashes
+            'saml',
+          ],
+        );
+
+        // Attempt to login with password
+        const loginDto = {
+          email: 'saml.user@example.com',
+          password: 'AnyPassword123!',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/auth/login')
+          .send(loginDto)
+          .expect(401);
+
+        expect(response.body.message).toContain('SSO authentication');
+        expect(response.body.message).toContain('Sign in with SSO');
+      });
+    });
+
+    describe('SAML user cannot change password', () => {
+      it('should reject password change for SAML users', async () => {
+        // Create a SAML user directly in the database
+        await dataSource.query(
+          `INSERT INTO users (id, email, password_hash, auth_provider, created_at, updated_at) 
+           VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+          ['saml-user-id', 'saml.user@example.com', 'dummy-hash', 'saml'],
+        );
+
+        // Generate a valid access token for the SAML user
+        const jwtService = app.get(JwtService);
+        const accessToken = jwtService.generateAccessToken(
+          'saml-user-id',
+          'saml.user@example.com',
+          null,
+        );
+
+        // Attempt to change password
+        const changePasswordDto = {
+          currentPassword: 'OldPassword123!',
+          newPassword: 'NewPassword456!',
+          newPasswordConfirmation: 'NewPassword456!',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/auth/change-password')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send(changePasswordDto)
+          .expect(401);
+
+        expect(response.body.message).toContain('Identity Provider');
+        expect(response.body.message).toContain('IT administrator');
+      });
+    });
+
+    describe('Local user can still login with password', () => {
+      it('should allow password login for local users', async () => {
+        // Create a local user through setup
+        const setupDto = {
+          email: 'local.user@example.com',
+          password: 'SecurePass123!',
+          passwordConfirmation: 'SecurePass123!',
+        };
+        await request(app.getHttpServer())
+          .post('/auth/setup')
+          .send(setupDto)
+          .expect(201);
+
+        // Login with password should work
+        const loginDto = {
+          email: 'local.user@example.com',
+          password: 'SecurePass123!',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/auth/login')
+          .send(loginDto)
+          .expect(200);
+
+        expect(response.body).toHaveProperty('accessToken');
+        expect(response.body.user.email).toBe('local.user@example.com');
+        expect(response.body.user.authProvider).toBe('local');
+      });
+    });
+
+    describe('Local user can still change password', () => {
+      it('should allow password change for local users', async () => {
+        // Create a local user through setup
+        const setupDto = {
+          email: 'local.user@example.com',
+          password: 'SecurePass123!',
+          passwordConfirmation: 'SecurePass123!',
+        };
+        const setupResponse = await request(app.getHttpServer())
+          .post('/auth/setup')
+          .send(setupDto)
+          .expect(201);
+
+        const accessToken = setupResponse.body.accessToken;
+
+        // Change password should work
+        const changePasswordDto = {
+          currentPassword: 'SecurePass123!',
+          newPassword: 'NewSecurePass456!',
+          newPasswordConfirmation: 'NewSecurePass456!',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/auth/change-password')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send(changePasswordDto)
+          .expect(200);
+
+        expect(response.body.message).toContain(
+          'Password changed successfully',
+        );
+        expect(response.body).toHaveProperty('accessToken');
+
+        // Verify can login with new password
+        const loginDto = {
+          email: 'local.user@example.com',
+          password: 'NewSecurePass456!',
+        };
+
+        await request(app.getHttpServer())
+          .post('/auth/login')
+          .send(loginDto)
+          .expect(200);
+      });
+    });
+
+    describe('User responses include authProvider', () => {
+      it('should include authProvider in setup response', async () => {
+        const setupDto = {
+          email: 'user@example.com',
+          password: 'SecurePass123!',
+          passwordConfirmation: 'SecurePass123!',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/auth/setup')
+          .send(setupDto)
+          .expect(201);
+
+        expect(response.body.user).toHaveProperty('authProvider');
+        expect(response.body.user.authProvider).toBe('local');
+      });
+
+      it('should include authProvider in login response', async () => {
+        // Create user
+        const setupDto = {
+          email: 'user@example.com',
+          password: 'SecurePass123!',
+          passwordConfirmation: 'SecurePass123!',
+        };
+        await request(app.getHttpServer()).post('/auth/setup').send(setupDto);
+
+        // Login
+        const loginDto = {
+          email: 'user@example.com',
+          password: 'SecurePass123!',
+        };
+
+        const response = await request(app.getHttpServer())
+          .post('/auth/login')
+          .send(loginDto)
+          .expect(200);
+
+        expect(response.body.user).toHaveProperty('authProvider');
+        expect(response.body.user.authProvider).toBe('local');
+      });
+
+      it('should include authProvider in /me endpoint', async () => {
+        // Create user
+        const setupDto = {
+          email: 'user@example.com',
+          password: 'SecurePass123!',
+          passwordConfirmation: 'SecurePass123!',
+        };
+        const setupResponse = await request(app.getHttpServer())
+          .post('/auth/setup')
+          .send(setupDto);
+
+        const accessToken = setupResponse.body.accessToken;
+
+        // Get current user
+        const response = await request(app.getHttpServer())
+          .get('/auth/me')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+
+        expect(response.body).toHaveProperty('authProvider');
+        expect(response.body.authProvider).toBe('local');
       });
     });
   });

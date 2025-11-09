@@ -99,12 +99,16 @@ export class ProfileComponent implements OnInit {
   errorMessage = '';
   successMessage = '';
   currentUserEmail = '';
+  authProvider = '';
+  isSamlUser = false;
 
   ngOnInit(): void {
-    // Get current user email
+    // Get current user email and auth provider
     this.authService.getCurrentUser().subscribe((user) => {
       if (user) {
         this.currentUserEmail = user.email;
+        this.authProvider = user.authProvider;
+        this.isSamlUser = user.authProvider === 'saml';
       }
     });
 

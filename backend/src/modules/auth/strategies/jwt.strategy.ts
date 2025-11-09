@@ -38,6 +38,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     id: string;
     email: string;
     organizationId?: string;
+    authProvider: string;
   }> {
     // Verify user still exists in database
     const user = await this.userRepository.findOne({
@@ -53,6 +54,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: user.id,
       email: user.email,
       organizationId: user.organizationId ?? undefined,
+      authProvider: user.authProvider,
     };
   }
 }

@@ -8,7 +8,6 @@ import {
   Put,
   Query,
   ParseUUIDPipe,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DomainService } from './domain.service';
@@ -19,11 +18,9 @@ import {
   DomainStatisticsDto,
 } from './dto/domain.dto';
 import { Domain } from './entities/domain.entity';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Domains')
 @Controller('domains')
-@UseGuards(JwtAuthGuard)
 export class DomainController {
   constructor(private readonly domainService: DomainService) {}
 

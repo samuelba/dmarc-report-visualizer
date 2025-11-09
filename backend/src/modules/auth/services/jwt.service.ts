@@ -1,10 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import {
-  JwtPayload,
-  RefreshTokenPayload,
-} from '../interfaces/jwt-payload.interface';
+import { RefreshTokenPayload } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
 export class JwtService {
@@ -23,11 +20,13 @@ export class JwtService {
   generateAccessToken(
     userId: string,
     email: string,
+    authProvider: string,
     organizationId?: string | null,
   ): string {
     const payload: any = {
       sub: userId,
       email,
+      authProvider,
       organizationId,
     };
 
@@ -61,20 +60,6 @@ export class JwtService {
     return this.nestJwtService.sign(payload, {
       expiresIn: expiresIn as any,
     });
-  }
-
-  /**
-   * Verify and decode an access token
-   * @param token JWT access token string
-   * @returns Decoded JWT payload
-   * @throws UnauthorizedException if token is invalid or expired
-   */
-  verifyAccessToken(token: string): JwtPayload {
-    try {
-      return this.nestJwtService.verify<JwtPayload>(token);
-    } catch (_error) {
-      throw new UnauthorizedException('Invalid or expired access token');
-    }
   }
 
   /**

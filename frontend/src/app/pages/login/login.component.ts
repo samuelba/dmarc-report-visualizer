@@ -23,11 +23,23 @@ export class LoginComponent implements OnInit {
   errorMessage = '';
   retryAfter = 0;
   countdownInterval?: number;
+  showSsoButton = false;
 
   ngOnInit(): void {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required]],
+    });
+
+    // Check if SAML SSO is enabled
+    this.authService.checkSamlEnabled().subscribe({
+      next: (enabled) => {
+        this.showSsoButton = enabled;
+      },
+      error: () => {
+        // Silently fail - SSO button won't be shown
+        this.showSsoButton = false;
+      },
     });
 
     // Redirect if already logged in
@@ -137,5 +149,10 @@ export class LoginComponent implements OnInit {
 
   get isRateLimited(): boolean {
     return this.retryAfter > 0;
+  }
+
+  loginWithSso(): void {
+    // Redirect to SAML login endpoint
+    window.location.href = this.authService.getSamlLoginUrl();
   }
 }

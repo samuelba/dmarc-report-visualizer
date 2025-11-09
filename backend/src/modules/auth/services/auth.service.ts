@@ -72,12 +72,20 @@ export class AuthService {
    * @param email User email address
    * @param password User password
    * @returns User entity if credentials are valid, null otherwise
+   * @throws UnauthorizedException if user uses SAML authentication
    */
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepository.findOne({ where: { email } });
 
     if (!user) {
       return null;
+    }
+
+    // Check if user uses SAML authentication
+    if (user.authProvider === 'saml') {
+      throw new UnauthorizedException(
+        "This account uses SSO authentication. Please click 'Sign in with SSO' to log in.",
+      );
     }
 
     const isPasswordValid = await this.passwordService.validatePassword(
@@ -100,12 +108,13 @@ export class AuthService {
   async login(user: User): Promise<{
     accessToken: string;
     refreshToken: string;
-    user: { id: string; email: string };
+    user: { id: string; email: string; authProvider: string };
   }> {
     // Generate access token
     const accessToken = this.jwtService.generateAccessToken(
       user.id,
       user.email,
+      user.authProvider,
       user.organizationId,
     );
 
@@ -150,6 +159,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        authProvider: user.authProvider,
       },
     };
   }
@@ -244,6 +254,7 @@ export class AuthService {
     const newAccessToken = this.jwtService.generateAccessToken(
       storedToken.user.id,
       storedToken.user.email,
+      storedToken.user.authProvider,
       storedToken.user.organizationId,
     );
 
@@ -388,7 +399,7 @@ export class AuthService {
    * @param userId User ID
    * @param currentPassword Current password
    * @param newPassword New password
-   * @throws UnauthorizedException if current password is incorrect
+   * @throws UnauthorizedException if current password is incorrect or user uses SAML
    * @throws NotFoundException if user not found
    */
   async changePassword(
@@ -401,6 +412,13 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Check if user uses SAML authentication
+    if (user.authProvider === 'saml') {
+      throw new UnauthorizedException(
+        "Password management is handled by your organization's Identity Provider.",
+      );
     }
 
     // Validate current password

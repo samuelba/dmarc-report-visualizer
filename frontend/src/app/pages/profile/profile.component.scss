@@ -55,6 +55,26 @@ mat-card-header {
     .user-email {
       font-size: 16px;
     }
+
+    &.auth-method {
+      margin-top: 12px;
+
+      .auth-method-content {
+        display: flex;
+        flex-direction: column;
+
+        .auth-method-label {
+          font-size: 12px;
+          opacity: 0.7;
+          margin-bottom: 2px;
+        }
+
+        .auth-method-value {
+          font-size: 16px;
+          font-weight: 500;
+        }
+      }
+    }
   }
 }
 
@@ -67,6 +87,31 @@ mat-divider {
     font-size: 18px;
     font-weight: 500;
     margin-bottom: 16px;
+  }
+
+  .saml-user-message {
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+    background-color: var(--custom-info-bg-color);
+    border-left: 4px solid var(--custom-info-color);
+    border-radius: 8px;
+
+    mat-icon {
+      color: var(--custom-info-color);
+      margin-right: 12px;
+      margin-top: 2px;
+    }
+
+    .message-content {
+      flex: 1;
+
+      p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+    }
   }
 }
 
