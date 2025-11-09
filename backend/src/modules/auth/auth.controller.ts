@@ -13,22 +13,28 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './services/auth.service';
+import { SamlService } from './services/saml.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { JwtService } from './services/jwt.service';
 import { SetupDto } from './dto/setup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { SamlConfigDto, SamlConfigResponse } from './dto/saml-config.dto';
 import { SetupGuard } from './guards/setup.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { SamlEnabledGuard } from './guards/saml-enabled.guard';
+import { Public } from './decorators/public.decorator';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { TokenResponse } from './interfaces/token-response.interface';
+import { User } from './entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly samlService: SamlService,
     private readonly rateLimiterService: RateLimiterService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -38,6 +44,7 @@ export class AuthController {
    * Check if initial setup is needed
    * Public endpoint - no authentication required
    */
+  @Public()
   @Get('check-setup')
   async checkSetup(): Promise<{ needsSetup: boolean }> {
     const needsSetup = await this.authService.needsSetup();
@@ -48,6 +55,7 @@ export class AuthController {
    * Initial setup endpoint - creates the first user account
    * Protected by SetupGuard - only accessible when no users exist
    */
+  @Public()
   @Post('setup')
   @UseGuards(SetupGuard)
   @HttpCode(HttpStatus.CREATED)
@@ -87,6 +95,7 @@ export class AuthController {
    * Login endpoint - authenticates user and returns tokens
    * Protected by RateLimitGuard - prevents brute-force attacks
    */
+  @Public()
   @Post('login')
   @UseGuards(RateLimitGuard)
   @HttpCode(HttpStatus.OK)
@@ -136,6 +145,7 @@ export class AuthController {
    * Reads refresh token from HttpOnly cookie
    * Implements token rotation for security
    */
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -180,10 +190,8 @@ export class AuthController {
 
   /**
    * Logout endpoint - revokes refresh token and clears cookie
-   * Protected by JwtAuthGuard - requires valid access token
    */
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async logout(
     @Req() request: Request & { user: { id: string } },
@@ -205,26 +213,26 @@ export class AuthController {
 
   /**
    * Get current user endpoint - returns authenticated user information
-   * Protected by JwtAuthGuard - requires valid access token
    */
   @Get('me')
-  @UseGuards(JwtAuthGuard)
   async getCurrentUser(
-    @Req() request: Request & { user: { id: string; email: string } },
-  ): Promise<{ id: string; email: string }> {
+    @Req()
+    request: Request & {
+      user: { id: string; email: string; authProvider: string };
+    },
+  ): Promise<{ id: string; email: string; authProvider: string }> {
     return {
       id: request.user.id,
       email: request.user.email,
+      authProvider: request.user.authProvider,
     };
   }
 
   /**
    * Change password endpoint - updates user password and invalidates all other sessions
    * Issues a new refresh token for the current session
-   * Protected by JwtAuthGuard - requires valid access token
    */
   @Post('change-password')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async changePassword(
     @Body() changePasswordDto: ChangePasswordDto,
@@ -315,5 +323,226 @@ export class AuthController {
     }
 
     response.clearCookie('refreshToken', cookieOptions);
+  }
+
+  /**
+   * SAML login initiation endpoint
+   * Redirects to IdP for authentication
+   * Protected by SamlEnabledGuard - only accessible when SAML is configured and enabled
+   */
+  @Public()
+  @Get('saml/login')
+  @UseGuards(SamlEnabledGuard, AuthGuard('saml'))
+  async samlLogin(): Promise<void> {
+    // This endpoint is handled by Passport SAML strategy
+    // It will redirect to the IdP SSO URL
+    // No implementation needed - Passport handles the redirect
+  }
+
+  /**
+   * SAML callback endpoint ACS (Assertion Consumer Service)
+   * Receives SAML assertion from IdP and completes authentication
+   * Supports both SP-initiated and IdP-initiated flows
+   * Protected by AuthGuard('saml') - validates SAML assertion
+   */
+  @Public()
+  @Post('saml/callback')
+  @UseGuards(AuthGuard('saml'))
+  @HttpCode(HttpStatus.OK)
+  async samlCallback(
+    @Req() req: Request & { user: User },
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    // User is attached to request by SAML strategy after successful validation
+    const user = req.user;
+
+    // Generate JWT refresh token
+    const { refreshToken } = await this.authService.login(user);
+
+    // Set refresh token as HttpOnly cookie
+    this.setRefreshTokenCookie(response, refreshToken);
+
+    // Redirect to callback page without exposing tokens in URL
+    // Frontend will use the refresh token cookie to obtain an access token
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:4200',
+    );
+    const redirectUrl = `${frontendUrl}/auth/callback`;
+
+    response.redirect(redirectUrl);
+  }
+
+  /**
+   * SAML Service Provider metadata endpoint
+   * Returns SP metadata XML for IdP configuration
+   * Public endpoint - no authentication required
+   */
+  @Public()
+  @Get('saml/metadata')
+  async getSamlMetadata(@Res() response: Response): Promise<void> {
+    const metadata = await this.samlService.generateSpMetadata();
+
+    response.set('Content-Type', 'application/xml');
+    response.send(metadata);
+  }
+
+  /**
+   * Check SAML status endpoint (public)
+   * Returns whether SAML is enabled and configured
+   * Used by login page to show/hide SSO button
+   */
+  @Public()
+  @Get('saml/status')
+  async getSamlStatus(): Promise<{ enabled: boolean; configured: boolean }> {
+    const config = await this.samlService.getConfig();
+
+    if (!config) {
+      return { enabled: false, configured: false };
+    }
+
+    return {
+      enabled: config.enabled,
+      configured: !!(
+        config.idpEntityId &&
+        config.idpSsoUrl &&
+        config.idpCertificate
+      ),
+    };
+  }
+
+  /**
+   * Get SAML configuration endpoint
+   * Returns current SAML configuration status and SP details
+   */
+  @Get('saml/config')
+  async getSamlConfig(): Promise<SamlConfigResponse> {
+    const config = await this.samlService.getConfig();
+    const spEntityId = this.configService.get<string>('SAML_ENTITY_ID', '');
+    const spAcsUrl = this.configService.get<string>('SAML_ACS_URL', '');
+
+    if (!config) {
+      // No configuration exists yet
+      return {
+        enabled: false,
+        configured: false,
+        spEntityId,
+        spAcsUrl,
+        hasIdpCertificate: false,
+      };
+    }
+
+    // Configuration exists
+    return {
+      enabled: config.enabled,
+      configured: !!(
+        config.idpEntityId &&
+        config.idpSsoUrl &&
+        config.idpCertificate
+      ),
+      spEntityId: config.spEntityId,
+      spAcsUrl: config.spAcsUrl,
+      idpEntityId: config.idpEntityId || undefined,
+      idpSsoUrl: config.idpSsoUrl || undefined,
+      hasIdpCertificate: !!config.idpCertificate,
+    };
+  }
+
+  /**
+   * Update SAML configuration endpoint
+   * Accepts metadata XML or manual field entry
+   */
+  @Post('saml/config')
+  @HttpCode(HttpStatus.OK)
+  async updateSamlConfig(
+    @Body() dto: SamlConfigDto,
+    @Req() request: Request & { user: { id: string } },
+  ): Promise<SamlConfigResponse> {
+    // Update configuration
+    const config = await this.samlService.createOrUpdateConfig(
+      dto,
+      request.user.id,
+    );
+
+    // Return updated configuration response
+    return {
+      enabled: config.enabled,
+      configured: !!(
+        config.idpEntityId &&
+        config.idpSsoUrl &&
+        config.idpCertificate
+      ),
+      spEntityId: config.spEntityId,
+      spAcsUrl: config.spAcsUrl,
+      idpEntityId: config.idpEntityId || undefined,
+      idpSsoUrl: config.idpSsoUrl || undefined,
+      hasIdpCertificate: !!config.idpCertificate,
+    };
+  }
+
+  /**
+   * Enable SAML authentication endpoint
+   */
+  @Post('saml/config/enable')
+  @HttpCode(HttpStatus.OK)
+  async enableSaml(): Promise<{ message: string }> {
+    await this.samlService.enableSaml();
+    return { message: 'SAML authentication enabled successfully' };
+  }
+
+  /**
+   * Disable SAML authentication endpoint
+   */
+  @Post('saml/config/disable')
+  @HttpCode(HttpStatus.OK)
+  async disableSaml(): Promise<{ message: string }> {
+    await this.samlService.disableSaml();
+    return { message: 'SAML authentication disabled successfully' };
+  }
+
+  /**
+   * Test SAML configuration endpoint
+   * Initiates a test SAML login flow
+   * Allows testing even when SAML is disabled for regular users
+   */
+  @Post('saml/config/test')
+  @HttpCode(HttpStatus.OK)
+  async testSamlConfig(): Promise<{
+    success: boolean;
+    message: string;
+    loginUrl?: string;
+  }> {
+    // Check if SAML is configured
+    const config = await this.samlService.getConfig();
+
+    if (!config) {
+      return {
+        success: false,
+        message:
+          'SAML is not configured. Please configure SAML settings first.',
+      };
+    }
+
+    if (!config.idpEntityId || !config.idpSsoUrl || !config.idpCertificate) {
+      return {
+        success: false,
+        message:
+          'SAML configuration is incomplete. Please ensure all IdP settings are configured.',
+      };
+    }
+
+    // Return the SAML login URL for testing
+    const apiUrl = this.configService.get<string>(
+      'API_URL',
+      'http://localhost:3000',
+    );
+    const loginUrl = `${apiUrl}/auth/saml/login`;
+
+    return {
+      success: true,
+      message:
+        'SAML configuration is valid. You can test the login flow using the provided URL.',
+      loginUrl,
+    };
   }
 }

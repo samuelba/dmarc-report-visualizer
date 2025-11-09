@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: dmarc-postgres-dev
+    container_name: dmarc-postgres
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     environment:
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-dmarc}
     volumes:
-      - dmarc_postgres_data_dev:/var/lib/postgresql/data
+      - dmarc_postgres_data:/var/lib/postgresql/data
     networks:
       - dmarc-network
     restart: unless-stopped
@@ -19,13 +19,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: development
-    container_name: dmarc-backend-dev
+    container_name: dmarc-backend
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
     environment:
       # Application Configuration
-      NODE_ENV: development
-      PORT: ${PORT:-3000}
+      NODE_ENV: production
+      PORT: 3000
 
       # Database Configuration
       DATABASE_HOST: ${DATABASE_HOST:-postgres}
@@ -36,8 +36,16 @@ services:
       DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
       DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
 
+      # Backup Configuration
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      BACKUP_MANDATORY: ${BACKUP_MANDATORY:-true}
+      BACKUP_KEEP_COUNT: ${BACKUP_KEEP_COUNT:-10}
+
       # CORS Configuration
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+
+      # Reprocessing Configuration
+      REPROCESSING_WORKERS: ${REPROCESSING_WORKERS:-}
 
       # File Watcher Configuration
       ENABLE_FILE_WATCHER: ${ENABLE_FILE_WATCHER:-false}
@@ -74,14 +82,44 @@ services:
       GMAIL_SAVE_ORIGINAL: ${GMAIL_SAVE_ORIGINAL:-false}
       GMAIL_REMOVE_SOURCE_LABEL: ${GMAIL_REMOVE_SOURCE_LABEL:-true}
       GMAIL_FAILURE_THRESHOLD: ${GMAIL_FAILURE_THRESHOLD:-3}
+
+      # IP Lookup Configuration
+      IP_LOOKUP_PROVIDER: ${IP_LOOKUP_PROVIDER:-ip-api}
+      IPLOCATE_API_KEY: ${IPLOCATE_API_KEY}
+      # IPAPICO_API_KEY: ${IPAPICO_API_KEY}
+      # IPWHOIS_API_KEY: ${IPWHOIS_API_KEY}
+      IP_LOOKUP_FALLBACK_PROVIDERS: ${IP_LOOKUP_FALLBACK_PROVIDERS:-ipwhois,ip-api,ipapi-co,geoip-lite}
+      IP_LOOKUP_CACHE_DAYS: ${IP_LOOKUP_CACHE_DAYS:-14}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-30d}
+
+      # Password Configuration
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+
+      # Rate Limiting Configuration
+      RATE_LIMIT_IP_MAX_ATTEMPTS: ${RATE_LIMIT_IP_MAX_ATTEMPTS:-10}
+      RATE_LIMIT_IP_WINDOW_MS: ${RATE_LIMIT_IP_WINDOW_MS:-300000}
+      RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS: ${RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS:-5}
+      RATE_LIMIT_ACCOUNT_WINDOW_MS: ${RATE_LIMIT_ACCOUNT_WINDOW_MS:-300000}
+      RATE_LIMIT_LOCK_DURATION_MS: ${RATE_LIMIT_LOCK_DURATION_MS:-900000}
+
+      # Cookie Configuration
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
     depends_on:
       - postgres
     volumes:
       - ./backend:/app
       - /app/node_modules
       - ./reports:/app/reports  # Mount reports directory for file watching
+      - ./logs:/app/logs
+      - ./backups:/app/backups
     networks:
       - dmarc-network
+    restart: unless-stopped
     command: npm run start:dev
 
   frontend:
@@ -89,7 +127,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
-    container_name: dmarc-frontend-dev
+    container_name: dmarc-frontend
     ports:
       - "4200:4200"
     environment:
@@ -97,13 +135,16 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    depends_on:
+      - backend
     networks:
       - dmarc-network
-    command: npm run start
+    restart: unless-stopped
+    command: npm run start:docker
 
 networks:
   dmarc-network:
     driver: bridge
 
 volumes:
-  dmarc_postgres_data_dev:
+  dmarc_postgres_data:

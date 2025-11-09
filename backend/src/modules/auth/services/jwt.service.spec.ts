@@ -49,18 +49,25 @@ describe('JwtService', () => {
     it('should generate access token with correct payload', () => {
       const userId = 'user-123';
       const email = 'test@example.com';
+      const authProvider = 'local';
       const organizationId = 'org-456';
       const expectedToken = 'access-token-string';
 
       jest.spyOn(nestJwtService, 'sign').mockReturnValue(expectedToken);
 
-      const token = service.generateAccessToken(userId, email, organizationId);
+      const token = service.generateAccessToken(
+        userId,
+        email,
+        authProvider,
+        organizationId,
+      );
 
       expect(token).toBe(expectedToken);
       expect(nestJwtService.sign).toHaveBeenCalledWith(
         {
           sub: userId,
           email,
+          authProvider,
           organizationId,
         },
         { expiresIn: '15m' },
@@ -70,17 +77,19 @@ describe('JwtService', () => {
     it('should generate access token without organizationId', () => {
       const userId = 'user-123';
       const email = 'test@example.com';
+      const authProvider = 'local';
       const expectedToken = 'access-token-string';
 
       jest.spyOn(nestJwtService, 'sign').mockReturnValue(expectedToken);
 
-      const token = service.generateAccessToken(userId, email);
+      const token = service.generateAccessToken(userId, email, authProvider);
 
       expect(token).toBe(expectedToken);
       expect(nestJwtService.sign).toHaveBeenCalledWith(
         {
           sub: userId,
           email,
+          authProvider,
           organizationId: undefined,
         },
         { expiresIn: '15m' },
@@ -90,11 +99,12 @@ describe('JwtService', () => {
     it('should use configured expiration time', () => {
       const userId = 'user-123';
       const email = 'test@example.com';
+      const authProvider = 'local';
 
       jest.spyOn(nestJwtService, 'sign').mockReturnValue('token');
       jest.spyOn(configService, 'get').mockReturnValue('30m');
 
-      service.generateAccessToken(userId, email);
+      service.generateAccessToken(userId, email, authProvider);
 
       expect(configService.get).toHaveBeenCalledWith(
         'JWT_ACCESS_EXPIRATION',
@@ -135,53 +145,6 @@ describe('JwtService', () => {
       expect(configService.get).toHaveBeenCalledWith(
         'JWT_REFRESH_EXPIRATION',
         '7d',
-      );
-    });
-  });
-
-  describe('verifyAccessToken', () => {
-    it('should verify and return valid access token payload', () => {
-      const token = 'valid-access-token';
-      const expectedPayload = {
-        sub: 'user-123',
-        email: 'test@example.com',
-        organizationId: 'org-456',
-        iat: 1234567890,
-        exp: 1234568790,
-      };
-
-      jest.spyOn(nestJwtService, 'verify').mockReturnValue(expectedPayload);
-
-      const payload = service.verifyAccessToken(token);
-
-      expect(payload).toEqual(expectedPayload);
-      expect(nestJwtService.verify).toHaveBeenCalledWith(token);
-    });
-
-    it('should throw UnauthorizedException for invalid token', () => {
-      const token = 'invalid-token';
-
-      jest.spyOn(nestJwtService, 'verify').mockImplementation(() => {
-        throw new Error('Invalid token');
-      });
-
-      expect(() => service.verifyAccessToken(token)).toThrow(
-        UnauthorizedException,
-      );
-      expect(() => service.verifyAccessToken(token)).toThrow(
-        'Invalid or expired access token',
-      );
-    });
-
-    it('should throw UnauthorizedException for expired token', () => {
-      const token = 'expired-token';
-
-      jest.spyOn(nestJwtService, 'verify').mockImplementation(() => {
-        throw new Error('Token expired');
-      });
-
-      expect(() => service.verifyAccessToken(token)).toThrow(
-        UnauthorizedException,
       );
     });
   });

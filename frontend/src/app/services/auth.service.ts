@@ -5,6 +5,7 @@ import { BehaviorSubject, Observable, tap, map } from 'rxjs';
 export interface User {
   id: string;
   email: string;
+  authProvider: string;
 }
 
 export interface AuthResponse {
@@ -167,6 +168,13 @@ export class AuthService {
   }
 
   /**
+   * Set the access token (used for external authentication flows like SAML)
+   */
+  setAccessToken(token: string): void {
+    this.accessToken$.next(token);
+  }
+
+  /**
    * Get the current user as an observable
    */
   getCurrentUser(): Observable<User | null> {
@@ -186,5 +194,60 @@ export class AuthService {
   clearTokens(): void {
     this.accessToken$.next(null);
     this.currentUser$.next(null);
+  }
+
+  // SAML Configuration Methods
+
+  /**
+   * Check if SAML is enabled and configured (public endpoint)
+   */
+  checkSamlEnabled(): Observable<boolean> {
+    return this.http
+      .get<{ enabled: boolean; configured: boolean }>(`${this.apiBase}/auth/saml/status`)
+      .pipe(map((status) => status.enabled && status.configured));
+  }
+
+  /**
+   * Get SAML configuration
+   */
+  getSamlConfig(): Observable<any> {
+    return this.http.get<any>(`${this.apiBase}/auth/saml/config`);
+  }
+
+  /**
+   * Update SAML configuration
+   */
+  updateSamlConfig(config: any): Observable<any> {
+    return this.http.post<any>(`${this.apiBase}/auth/saml/config`, config);
+  }
+
+  /**
+   * Enable SAML authentication
+   */
+  enableSaml(): Observable<void> {
+    return this.http.post<void>(`${this.apiBase}/auth/saml/config/enable`, {});
+  }
+
+  /**
+   * Disable SAML authentication
+   */
+  disableSaml(): Observable<void> {
+    return this.http.post<void>(`${this.apiBase}/auth/saml/config/disable`, {});
+  }
+
+  /**
+   * Download SP metadata XML
+   */
+  downloadSamlMetadata(): Observable<Blob> {
+    return this.http.get(`${this.apiBase}/auth/saml/metadata`, {
+      responseType: 'blob',
+    });
+  }
+
+  /**
+   * Get the SAML login URL
+   */
+  getSamlLoginUrl(): string {
+    return `${this.apiBase}/auth/saml/login`;
   }
 }

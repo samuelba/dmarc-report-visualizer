@@ -12,18 +12,33 @@ node_modules
 .env.test.local
 .env.production.local
 
+# IDE
+/.idea
+/.kiro
+/.vscode
+
 # Working docs
-TASKS.md
-TODOs.md
-TASKS_GMAIL_ATTACHEMENT_DOWNLOAD.md
-DATABASE_NORMALIZATION.md
-FRONTEND_ENHANCEMENTS.md
+/*IP_LOOKUP*.md
+/AUTHENTICATION*.md
+/backend/*IP_LOOKUP*.md
+/COMPOSITE_UNIQUE_CONSTRAINT.md
+/DATABASE_NORMALIZATION.md
+/DOMAINS*.md
+/FRONTEND_ENHANCEMENTS.md
+/SMART_FALLBACK_STRATEGY.md
+/TASKS_GMAIL_ATTACHEMENT_DOWNLOAD.md
+/TASKS.md
+/TODOs.md
 
 # Other stuff
-client_*.json
-/scripts/dmarc_reports
 /backend/reports
+/bump-version.sh
+/deploy.sh
 /material/data
+/scripts
+/scripts/dmarc_reports
+/verify-backup-system.sh
+client_*.json
 
 # Backups
 *.sql

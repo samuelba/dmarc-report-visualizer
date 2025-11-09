@@ -236,10 +236,12 @@ describe('AuthService', () => {
       expect(result.user).toEqual({
         id: mockUser.id,
         email: mockUser.email,
+        authProvider: mockUser.authProvider,
       });
       expect(jwtService.generateAccessToken).toHaveBeenCalledWith(
         mockUser.id,
         mockUser.email,
+        mockUser.authProvider,
         mockUser.organizationId,
       );
       expect(jwtService.generateRefreshToken).toHaveBeenCalledWith(

@@ -59,6 +59,19 @@
           </button>
         </div>
       </form>
+
+      <!-- SSO Button -->
+      @if (showSsoButton) {
+        <div class="sso-section">
+          <div class="divider">
+            <span>OR</span>
+          </div>
+          <button matButton="outlined" color="primary" type="button" class="sso-button" (click)="loginWithSso()">
+            <mat-icon>business</mat-icon>
+            <span>Sign in with SSO</span>
+          </button>
+        </div>
+      }
     </mat-card-content>
   </mat-card>
 </div>

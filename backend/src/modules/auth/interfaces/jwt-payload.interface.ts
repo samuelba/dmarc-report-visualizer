@@ -1,6 +1,7 @@
 export interface JwtPayload {
   sub: string; // user id
   email: string;
+  authProvider: string;
   organizationId?: string;
   iat?: number;
   exp?: number;

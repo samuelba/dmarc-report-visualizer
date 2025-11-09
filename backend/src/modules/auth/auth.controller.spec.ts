@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './services/auth.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { JwtService } from './services/jwt.service';
+import { SamlService } from './services/saml.service';
 import { User } from './entities/user.entity';
 
 describe('AuthController', () => {
@@ -39,6 +40,15 @@ describe('AuthController', () => {
     resetAttempts: jest.fn(),
   };
 
+  const mockSamlService = {
+    isSamlEnabled: jest.fn().mockResolvedValue(false),
+    getSamlConfig: jest.fn(),
+    updateSamlConfig: jest.fn(),
+    enableSaml: jest.fn(),
+    disableSaml: jest.fn(),
+    testSamlConnection: jest.fn(),
+  };
+
   const mockResponse = () => {
     const res: Partial<Response> = {
       cookie: jest.fn(),
@@ -58,6 +68,10 @@ describe('AuthController', () => {
         {
           provide: RateLimiterService,
           useValue: mockRateLimiterService,
+        },
+        {
+          provide: SamlService,
+          useValue: mockSamlService,
         },
         {
           provide: JwtService,

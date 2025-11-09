@@ -73,3 +73,37 @@ mat-form-field {
   display: inline-block;
   margin-right: 8px;
 }
+
+.sso-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  .divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 24px 0;
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+    }
+
+    span {
+      padding: 0 16px;
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.6;
+    }
+  }
+
+  .sso-button {
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}

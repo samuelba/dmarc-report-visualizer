@@ -41,4 +41,24 @@ export default registerAs('auth', () => ({
       true,
     ),
   },
+
+  /**
+   * SAML configuration
+   */
+  saml: {
+    /**
+     * SAML Entity ID - unique identifier for this Service Provider
+     * Used in SAML metadata and authentication requests
+     */
+    entityId: process.env.SAML_ENTITY_ID || 'dmarc-app',
+
+    /**
+     * SAML Assertion Consumer Service URL
+     * The endpoint where the Identity Provider sends SAML assertions
+     * Must be HTTPS in production
+     */
+    acsUrl:
+      process.env.SAML_ACS_URL ||
+      'http://localhost:3000/api/auth/saml/callback',
+  },
 }));
