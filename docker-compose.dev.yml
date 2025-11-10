@@ -14,6 +14,21 @@ services:
       - dmarc-network
     restart: unless-stopped
 
+  # Enable Redis if using SAML/SSO features
+  redis:
+    image: redis:7-alpine
+    container_name: dmarc-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
+    volumes:
+      - dmarc_redis_data:/data
+    networks:
+      - dmarc-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-devpassword}"
+
   backend:
     build:
       context: ./backend
@@ -109,8 +124,14 @@ services:
       # Cookie Configuration
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+
+      # Redis Configuration
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-devpassword}
     depends_on:
       - postgres
+      - redis
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -148,3 +169,4 @@ networks:
 
 volumes:
   dmarc_postgres_data:
+  dmarc_redis_data:

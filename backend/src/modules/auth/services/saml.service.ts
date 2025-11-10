@@ -5,12 +5,16 @@ import {
   ConflictException,
   UnauthorizedException,
   OnModuleDestroy,
+  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { parseStringPromise } from 'xml2js';
 import { create } from 'xmlbuilder2';
+import { createHash } from 'crypto';
+import Redis from 'ioredis';
 import { SamlConfig } from '../entities/saml-config.entity';
 import { User } from '../entities/user.entity';
 
@@ -42,10 +46,11 @@ export interface SamlProfile {
 }
 
 @Injectable()
-export class SamlService implements OnModuleDestroy {
-  // TODO: In-memory cache for processed assertion IDs (use Redis in production)
-  private readonly processedAssertions = new Map<string, Date>();
-  private cleanupIntervalId: NodeJS.Timeout | null = null;
+export class SamlService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(SamlService.name);
+  private redis: Redis | null = null;
+  private readonly REDIS_KEY_PREFIX = 'saml:assertion:';
+  private readonly REDIS_TTL_SECONDS = 24 * 60 * 60; // 24 hours
 
   constructor(
     @InjectRepository(SamlConfig)
@@ -53,21 +58,62 @@ export class SamlService implements OnModuleDestroy {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly configService: ConfigService,
-  ) {
-    // Clean up expired assertions every 5 minutes
-    this.cleanupIntervalId = setInterval(
-      () => this.cleanupExpiredAssertions(),
-      5 * 60 * 1000,
-    );
+  ) {}
+
+  /**
+   * Initialize Redis connection on module initialization
+   */
+  async onModuleInit() {
+    const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
+    const redisPort = this.configService.get<number>('REDIS_PORT', 6379);
+    const redisPassword = this.configService.get<string>('REDIS_PASSWORD');
+
+    try {
+      this.redis = new Redis({
+        host: redisHost,
+        port: redisPort,
+        password: redisPassword,
+        retryStrategy: (times) => {
+          if (times > 50) {
+            // Stop after 50 attempts
+            this.logger.error('Max Redis retry attempts reached, giving up');
+            return null; // Returning null stops retrying
+          }
+          const delay = Math.min(times * 50, 2000);
+          return delay;
+        },
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        lazyConnect: false,
+      });
+
+      this.redis.on('error', (error) => {
+        this.logger.error(`Redis connection error: ${error.message}`);
+      });
+
+      this.redis.on('connect', () => {
+        this.logger.log(`Connected to Redis at ${redisHost}:${redisPort}`);
+      });
+
+      // Test connection
+      await this.redis.ping();
+      this.logger.log('Redis connection successful');
+    } catch (error) {
+      this.logger.error(
+        `Failed to connect to Redis: ${error.message}. SAML replay protection will be disabled.`,
+      );
+      this.redis = null;
+    }
   }
 
   /**
-   * Clean up interval on module destruction to prevent memory leaks
+   * Clean up Redis connection on module destruction
    */
-  onModuleDestroy() {
-    if (this.cleanupIntervalId) {
-      clearInterval(this.cleanupIntervalId);
-      this.cleanupIntervalId = null;
+  async onModuleDestroy() {
+    if (this.redis) {
+      await this.redis.quit();
+      this.redis = null;
+      this.logger.log('Redis connection closed');
     }
   }
 
@@ -415,12 +461,33 @@ export class SamlService implements OnModuleDestroy {
       return false;
     }
 
-    return this.processedAssertions.has(assertionId);
+    // If Redis is not available, skip replay detection
+    if (!this.redis) {
+      this.logger.warn(
+        'Redis not available - SAML replay attack protection disabled',
+      );
+      return false;
+    }
+
+    try {
+      const key = `${this.REDIS_KEY_PREFIX}${assertionId}`;
+      const exists = await this.redis.exists(key);
+      this.logger.debug(
+        `Checking Redis key ${key}: ${exists === 1 ? 'EXISTS (replay detected)' : 'NOT FOUND (new assertion)'}`,
+      );
+      return exists === 1;
+    } catch (error) {
+      this.logger.error(
+        `Redis error checking assertion replay: ${error.message}`,
+      );
+      // On error, allow the request to proceed (fail open)
+      return false;
+    }
   }
 
   /**
    * Mark assertion as processed to prevent replay attacks
-   * In production, use Redis with TTL for distributed systems
+   * Stores assertion ID in Redis with TTL based on expiration time
    * @param assertionId Unique assertion ID
    * @param expiresAt Expiration time (NotOnOrAfter from assertion)
    */
@@ -432,19 +499,32 @@ export class SamlService implements OnModuleDestroy {
       return;
     }
 
-    this.processedAssertions.set(assertionId, expiresAt);
-  }
+    // If Redis is not available, skip marking
+    if (!this.redis) {
+      return;
+    }
 
-  /**
-   * Clean up expired assertion IDs from cache
-   * Called periodically to prevent memory leaks
-   */
-  private cleanupExpiredAssertions(): void {
-    const now = new Date();
-    for (const [assertionId, expiresAt] of this.processedAssertions.entries()) {
-      if (now >= expiresAt) {
-        this.processedAssertions.delete(assertionId);
+    try {
+      const key = `${this.REDIS_KEY_PREFIX}${assertionId}`;
+      const now = Date.now();
+      const expiresAtMs = expiresAt.getTime();
+
+      // Calculate TTL in seconds, use default if expiration is in the past
+      let ttlSeconds = Math.ceil((expiresAtMs - now) / 1000);
+      if (ttlSeconds <= 0) {
+        ttlSeconds = this.REDIS_TTL_SECONDS;
       }
+
+      // Store assertion ID with expiration
+      await this.redis.setex(key, ttlSeconds, expiresAt.toISOString());
+      this.logger.debug(
+        `Marked assertion ${assertionId} as processed (TTL: ${ttlSeconds}s)`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Redis error marking assertion as processed: ${error.message}`,
+      );
+      // Continue even if Redis fails
     }
   }
 
@@ -454,6 +534,11 @@ export class SamlService implements OnModuleDestroy {
    * @returns User entity for token generation
    */
   async handleSamlLogin(profile: SamlProfile): Promise<User> {
+    // Log the full profile for debugging
+    this.logger.debug(
+      `SAML profile received: ${JSON.stringify(profile, null, 2)}`,
+    );
+
     // Extract email from NameID or email attribute
     const email = profile.nameID || profile.email;
 
@@ -463,8 +548,37 @@ export class SamlService implements OnModuleDestroy {
       );
     }
 
-    // Check for replay attack
-    const assertionId = profile['ID'] || profile['id'];
+    // Check for replay attack using assertion ID or composite identifier
+    // Many IdPs (like Google) don't expose the assertion ID in the profile,
+    // so we create a composite identifier from available unique fields
+    let assertionId = profile['ID'] || profile['id'];
+
+    if (!assertionId) {
+      // Create composite identifier from inResponseTo + sessionIndex + issuer
+      // This combination should be unique for each authentication attempt
+      const inResponseTo = profile['inResponseTo'];
+      const sessionIndex = profile['sessionIndex'];
+      const issuer = profile['issuer'];
+
+      if (inResponseTo && sessionIndex) {
+        // Use SHA-256 hash to prevent key collisions from delimiter ambiguity
+        // Using || as separator to avoid conflicts with field values
+        const compositeValue = `${inResponseTo}||${sessionIndex}||${issuer || 'unknown'}`;
+        const hash = createHash('sha256').update(compositeValue).digest('hex');
+        assertionId = `composite:${hash}`;
+
+        this.logger.debug(
+          `Using composite assertion ID hash: ${hash.substring(0, 16)}... (from inResponseTo, sessionIndex, issuer)`,
+        );
+      } else {
+        this.logger.warn(
+          `No assertion ID or sufficient fields for composite ID - replay attack protection is disabled for this login. Profile fields: inResponseTo=${inResponseTo}, sessionIndex=${sessionIndex}`,
+        );
+      }
+    } else {
+      this.logger.debug(`Using assertion ID from profile: ${assertionId}`);
+    }
+
     if (assertionId) {
       const isReplay = await this.checkAssertionReplay(assertionId);
       if (isReplay) {
