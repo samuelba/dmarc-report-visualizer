@@ -9,12 +9,8 @@ export interface User {
 }
 
 export interface AuthResponse {
-  accessToken: string;
+  // Note: Access token and refresh token are set in HttpOnly cookies
   user: User;
-}
-
-export interface TokenResponse {
-  accessToken: string;
 }
 
 export interface SetupDto {
@@ -39,7 +35,6 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly apiBase = '/api';
 
-  private accessToken$ = new BehaviorSubject<string | null>(null);
   private currentUser$ = new BehaviorSubject<User | null>(null);
 
   /**
@@ -56,7 +51,6 @@ export class AuthService {
     const dto: SetupDto = { email, password, passwordConfirmation };
     return this.http.post<AuthResponse>(`${this.apiBase}/auth/setup`, dto).pipe(
       tap((response) => {
-        this.accessToken$.next(response.accessToken);
         this.currentUser$.next(response.user);
       })
     );
@@ -69,7 +63,6 @@ export class AuthService {
     const dto: LoginDto = { email, password };
     return this.http.post<AuthResponse>(`${this.apiBase}/auth/login`, dto).pipe(
       tap((response) => {
-        this.accessToken$.next(response.accessToken);
         this.currentUser$.next(response.user);
       })
     );
@@ -81,21 +74,17 @@ export class AuthService {
   logout(): Observable<void> {
     return this.http.post<void>(`${this.apiBase}/auth/logout`, {}).pipe(
       tap(() => {
-        this.accessToken$.next(null);
         this.currentUser$.next(null);
       })
     );
   }
 
   /**
-   * Refresh the access token using the refresh token cookie
+   * Refresh the access/refresh token using the refresh and access token cookies
+   * Both new tokens are set in HttpOnly cookies
    */
-  refreshToken(): Observable<TokenResponse> {
-    return this.http.post<TokenResponse>(`${this.apiBase}/auth/refresh`, {}).pipe(
-      tap((response) => {
-        this.accessToken$.next(response.accessToken);
-      })
-    );
+  refreshToken(): Observable<void> {
+    return this.http.post<void>(`${this.apiBase}/auth/refresh`, {});
   }
 
   /**
@@ -112,31 +101,42 @@ export class AuthService {
   /**
    * Initialize authentication state by attempting to refresh token
    * Should be called on app initialization
-   * Silently fails if no refresh token exists (returns false)
+   * Tries to use existing access token to fetch user info, and if expired, attempts to refresh
    */
   initializeAuth(): Observable<boolean> {
     return new Observable((observer) => {
-      this.refreshToken().subscribe({
+      // Try to fetch user info using existing access token cookie
+      this.fetchCurrentUser().subscribe({
         next: () => {
-          // Token refreshed successfully, now fetch user info
-          this.fetchCurrentUser().subscribe({
+          // Valid access token exists
+          observer.next(true);
+          observer.complete();
+        },
+        error: (_error) => {
+          // Access token is invalid or expired
+          // Try to refresh the token using the refresh and access token cookies
+          this.refreshToken().subscribe({
             next: () => {
-              observer.next(true);
-              observer.complete();
+              // Token refreshed successfully, now fetch user info
+              this.fetchCurrentUser().subscribe({
+                next: () => {
+                  observer.next(true);
+                  observer.complete();
+                },
+                error: () => {
+                  // Still failed after refresh - user needs to log in
+                  observer.next(false);
+                  observer.complete();
+                },
+              });
             },
             error: () => {
-              // Failed to fetch user info, clear token
-              this.accessToken$.next(null);
+              // No valid refresh token - this is normal for first visit or after logout
+              // Silently fail and let the user proceed to login
               observer.next(false);
               observer.complete();
             },
           });
-        },
-        error: () => {
-          // No valid refresh token cookie - this is normal for first visit or after logout
-          // Silently fail and let the user proceed to login
-          observer.next(false);
-          observer.complete();
         },
       });
     });
@@ -144,34 +144,15 @@ export class AuthService {
 
   /**
    * Change the current user's password
-   * Returns new access token to maintain current session
+   * Returns message (new tokens are set in cookies)
    */
   changePassword(
     currentPassword: string,
     newPassword: string,
     newPasswordConfirmation: string
-  ): Observable<{ message: string; accessToken: string }> {
+  ): Observable<{ message: string }> {
     const dto: ChangePasswordDto = { currentPassword, newPassword, newPasswordConfirmation };
-    return this.http.post<{ message: string; accessToken: string }>(`${this.apiBase}/auth/change-password`, dto).pipe(
-      tap((response) => {
-        // Update the access token to maintain the current session
-        this.accessToken$.next(response.accessToken);
-      })
-    );
-  }
-
-  /**
-   * Get the current access token
-   */
-  getAccessToken(): string | null {
-    return this.accessToken$.value;
-  }
-
-  /**
-   * Set the access token (used for external authentication flows like SAML)
-   */
-  setAccessToken(token: string): void {
-    this.accessToken$.next(token);
+    return this.http.post<{ message: string }>(`${this.apiBase}/auth/change-password`, dto);
   }
 
   /**
@@ -182,17 +163,23 @@ export class AuthService {
   }
 
   /**
-   * Check if the user is authenticated
+   * Get the current user value
    */
-  isAuthenticated(): Observable<boolean> {
-    return this.accessToken$.pipe(map((token) => token !== null));
+  getCurrentUserValue(): User | null {
+    return this.currentUser$.value;
   }
 
   /**
-   * Clear tokens from memory (used when session is compromised)
+   * Check if user is authenticated (has valid user data)
+   */
+  isAuthenticated(): Observable<boolean> {
+    return this.currentUser$.pipe(map((user) => user !== null));
+  }
+
+  /**
+   * Clear user data (used on logout/session expiry)
    */
   clearTokens(): void {
-    this.accessToken$.next(null);
     this.currentUser$.next(null);
   }
 

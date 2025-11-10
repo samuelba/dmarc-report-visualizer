@@ -27,7 +27,6 @@ import { RateLimitGuard } from './guards/rate-limit.guard';
 import { SamlEnabledGuard } from './guards/saml-enabled.guard';
 import { Public } from './decorators/public.decorator';
 import { AuthResponse } from './interfaces/auth-response.interface';
-import { TokenResponse } from './interfaces/token-response.interface';
 import { User } from './entities/user.entity';
 
 @Controller('auth')
@@ -81,12 +80,17 @@ export class AuthController {
       user: userInfo,
     } = await this.authService.login(user);
 
-    // Set refresh token as HttpOnly, Secure, SameSite=Strict cookie
-    this.setRefreshTokenCookie(response, refreshToken);
+    // Get cookie expiry time (same for both tokens to ensure they persist together)
+    const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
 
-    // Return access token and user info in response body
+    // Set refresh token as HttpOnly, Secure, SameSite=Strict cookie
+    this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
+
+    // Set access token as HttpOnly, Secure, SameSite=Strict cookie
+    this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
+
+    // Return user info in response body (tokens are in cookies)
     return {
-      accessToken,
       user: userInfo,
     };
   }
@@ -130,19 +134,25 @@ export class AuthController {
       user: userInfo,
     } = await this.authService.login(user);
 
-    // Set refresh token as HttpOnly, Secure, SameSite=Strict cookie
-    this.setRefreshTokenCookie(response, refreshToken);
+    // Get cookie expiry time (same for both tokens to ensure they persist together)
+    const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
 
-    // Return access token and user info in response body
+    // Set refresh token as HttpOnly, Secure, SameSite=Strict cookie
+    this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
+
+    // Set access token as HttpOnly, Secure, SameSite=Strict cookie
+    this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
+
+    // Return user info in response body (tokens are in cookies)
     return {
-      accessToken,
       user: userInfo,
     };
   }
 
   /**
    * Token refresh endpoint - generates new access and refresh tokens
-   * Reads refresh token from HttpOnly cookie
+   * Requires BOTH refresh token AND access token (which may be expired)
+   * The access token is validated to ensure it matches the refresh token user
    * Implements token rotation for security
    */
   @Public()
@@ -151,12 +161,19 @@ export class AuthController {
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<TokenResponse> {
+  ): Promise<void> {
     // Get refresh token from cookie
     const refreshToken = request.cookies?.refreshToken;
 
     if (!refreshToken) {
       throw new BadRequestException('Refresh token not found');
+    }
+
+    // Get access token from cookie (may be expired, but required for validation)
+    const accessToken = request.cookies?.accessToken;
+
+    if (!accessToken) {
+      throw new BadRequestException('Access token not found');
     }
 
     // Extract IP address from request for theft detection logging
@@ -168,20 +185,30 @@ export class AuthController {
 
     try {
       // Refresh tokens (with rotation - old token revoked, new tokens generated)
-      // Pass IP address for theft detection logging
-      const { accessToken, refreshToken: newRefreshToken } =
-        await this.authService.refreshTokens(refreshToken, ipAddress);
+      // Pass both tokens for validation and IP address for theft detection logging
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+        await this.authService.refreshTokens(
+          refreshToken,
+          accessToken,
+          ipAddress,
+        );
+
+      // Get cookie expiry time (same for both tokens to ensure they persist together)
+      const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
 
       // Set new refresh token cookie
-      this.setRefreshTokenCookie(response, newRefreshToken);
+      this.setRefreshTokenCookie(response, newRefreshToken, cookieMaxAge);
 
-      // Return new access token
-      return { accessToken };
+      // Set new access token cookie
+      this.setAccessTokenCookie(response, newAccessToken, cookieMaxAge);
+
+      // Tokens are in cookies - no response body needed
     } catch (error) {
       // Only clear the cookie for authentication-related errors
       // Don't clear for transient errors (database issues, etc.) that might resolve
       if (error instanceof UnauthorizedException) {
         this.clearRefreshTokenCookie(response);
+        this.clearAccessTokenCookie(response);
       }
 
       throw error;
@@ -208,6 +235,9 @@ export class AuthController {
     // Clear refresh token cookie
     this.clearRefreshTokenCookie(response);
 
+    // Clear access token cookie
+    this.clearAccessTokenCookie(response);
+
     return { message: 'Logged out successfully' };
   }
 
@@ -230,7 +260,7 @@ export class AuthController {
 
   /**
    * Change password endpoint - updates user password and invalidates all other sessions
-   * Issues a new refresh token for the current session
+   * Issues new access and refresh tokens for the current session via cookies
    */
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
@@ -238,7 +268,7 @@ export class AuthController {
     @Body() changePasswordDto: ChangePasswordDto,
     @Req() request: Request & { user: { id: string; email: string } },
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ message: string; accessToken: string }> {
+  ): Promise<{ message: string }> {
     // Validate password confirmation matches
     if (
       changePasswordDto.newPassword !==
@@ -259,13 +289,18 @@ export class AuthController {
     // Generate new tokens for the current session
     const { accessToken, refreshToken } = await this.authService.login(user);
 
+    // Get cookie expiry time (same for both tokens to ensure they persist together)
+    const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
+
     // Set new refresh token cookie
-    this.setRefreshTokenCookie(response, refreshToken);
+    this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
+
+    // Set new access token cookie
+    this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
 
     return {
       message:
         'Password changed successfully. All other sessions have been invalidated.',
-      accessToken,
     };
   }
 
@@ -275,6 +310,7 @@ export class AuthController {
   private setRefreshTokenCookie(
     response: Response,
     refreshToken: string,
+    maxAge: number,
   ): void {
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieSecure =
@@ -284,19 +320,45 @@ export class AuthController {
       ) === 'true';
     const cookieDomain = this.configService.get<string>('COOKIE_DOMAIN');
 
-    const cookieOptions: any = {
+    response.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: cookieSecure,
       sameSite: isProduction ? 'strict' : 'lax',
-      maxAge: this.jwtService.getRefreshTokenExpiryMs(),
+      maxAge,
       path: '/',
-    };
+      ...(cookieDomain && { domain: cookieDomain }),
+    });
+  }
 
-    if (cookieDomain) {
-      cookieOptions.domain = cookieDomain;
-    }
+  /**
+   * Helper method to set access token cookie with security flags
+   * Note: The access token cookie has the SAME maxAge as the refresh token cookie.
+   * This ensures both cookies persist together (including across browser restarts)
+   * so they can be used together for refresh token rotation when the access JWT expires.
+   * The JWT itself has an expiration that the backend validates, but the cookie
+   * container must persist to enable automatic token refresh.
+   */
+  private setAccessTokenCookie(
+    response: Response,
+    accessToken: string,
+    maxAge: number,
+  ): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieSecure =
+      this.configService.get<string>(
+        'COOKIE_SECURE',
+        isProduction ? 'true' : 'false',
+      ) === 'true';
+    const cookieDomain = this.configService.get<string>('COOKIE_DOMAIN');
 
-    response.cookie('refreshToken', refreshToken, cookieOptions);
+    response.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: isProduction ? 'strict' : 'lax',
+      maxAge,
+      path: '/',
+      ...(cookieDomain && { domain: cookieDomain }),
+    });
   }
 
   /**
@@ -311,18 +373,34 @@ export class AuthController {
       ) === 'true';
     const cookieDomain = this.configService.get<string>('COOKIE_DOMAIN');
 
-    const cookieOptions: any = {
+    response.clearCookie('refreshToken', {
       httpOnly: true,
       secure: cookieSecure,
       sameSite: isProduction ? 'strict' : 'lax',
       path: '/',
-    };
+      ...(cookieDomain && { domain: cookieDomain }),
+    });
+  }
 
-    if (cookieDomain) {
-      cookieOptions.domain = cookieDomain;
-    }
+  /**
+   * Helper method to clear access token cookie
+   */
+  private clearAccessTokenCookie(response: Response): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieSecure =
+      this.configService.get<string>(
+        'COOKIE_SECURE',
+        isProduction ? 'true' : 'false',
+      ) === 'true';
+    const cookieDomain = this.configService.get<string>('COOKIE_DOMAIN');
 
-    response.clearCookie('refreshToken', cookieOptions);
+    response.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: isProduction ? 'strict' : 'lax',
+      path: '/',
+      ...(cookieDomain && { domain: cookieDomain }),
+    });
   }
 
   /**
@@ -356,14 +434,20 @@ export class AuthController {
     // User is attached to request by SAML strategy after successful validation
     const user = req.user;
 
-    // Generate JWT refresh token
-    const { refreshToken } = await this.authService.login(user);
+    // Generate JWT tokens
+    const { accessToken, refreshToken } = await this.authService.login(user);
+
+    // Get cookie expiry time (same for both tokens to ensure they persist together)
+    const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
 
     // Set refresh token as HttpOnly cookie
-    this.setRefreshTokenCookie(response, refreshToken);
+    this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
 
-    // Redirect to callback page without exposing tokens in URL
-    // Frontend will use the refresh token cookie to obtain an access token
+    // Set access token as HttpOnly cookie
+    this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
+
+    // Redirect to callback page
+    // Frontend will use the tokens from cookies
     const frontendUrl = this.configService.get<string>(
       'FRONTEND_URL',
       'http://localhost:4200',

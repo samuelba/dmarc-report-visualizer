@@ -77,6 +77,23 @@ export class JwtService {
   }
 
   /**
+   * Verify and decode an access token, ignoring expiration
+   * Used during token refresh to validate that the access token belongs to the user
+   * @param token JWT access token string
+   * @returns Decoded access token payload
+   * @throws UnauthorizedException if token is invalid (signature, structure, etc.)
+   */
+  verifyAccessTokenIgnoreExpiration(token: string): any {
+    try {
+      return this.nestJwtService.verify(token, {
+        ignoreExpiration: true, // Allow expired tokens
+      });
+    } catch (_error) {
+      throw new UnauthorizedException('Invalid access token');
+    }
+  }
+
+  /**
    * Parse JWT expiration string (e.g., '7d', '15m', '1h') to milliseconds
    * @param expiration Expiration string
    * @returns Expiration time in milliseconds
@@ -112,6 +129,18 @@ export class JwtService {
     const expiration = this.configService.get<string>(
       'JWT_REFRESH_EXPIRATION',
       '7d',
+    );
+    return this.parseExpirationToMs(expiration);
+  }
+
+  /**
+   * Get access token expiration time in milliseconds from config
+   * @returns Expiration time in milliseconds
+   */
+  getAccessTokenExpiryMs(): number {
+    const expiration = this.configService.get<string>(
+      'JWT_ACCESS_EXPIRATION',
+      '15m',
     );
     return this.parseExpirationToMs(expiration);
   }

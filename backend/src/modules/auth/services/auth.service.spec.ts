@@ -68,6 +68,7 @@ describe('AuthService', () => {
             generateAccessToken: jest.fn(),
             generateRefreshToken: jest.fn(),
             verifyRefreshToken: jest.fn(),
+            verifyAccessTokenIgnoreExpiration: jest.fn(),
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
@@ -291,6 +292,7 @@ describe('AuthService', () => {
 
   describe('refreshTokens', () => {
     const refreshToken = 'refresh-token-jwt';
+    const accessToken = 'access-token-jwt';
     const hashedToken = crypto
       .createHash('sha256')
       .update(refreshToken)
@@ -300,6 +302,13 @@ describe('AuthService', () => {
       tokenId: 'token-uuid-123',
       iat: Date.now(),
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    };
+    const accessTokenPayload = {
+      sub: mockUser.id,
+      email: mockUser.email,
+      authProvider: 'local',
+      iat: Date.now(),
+      exp: Date.now() - 1000, // Expired
     };
 
     it('should generate new access and refresh tokens with rotation', async () => {
@@ -343,8 +352,11 @@ describe('AuthService', () => {
       jest
         .spyOn(refreshTokenRepository, 'create')
         .mockReturnValue(newRefreshTokenEntity);
+      jest
+        .spyOn(jwtService, 'verifyAccessTokenIgnoreExpiration')
+        .mockReturnValue(accessTokenPayload);
 
-      const result = await service.refreshTokens(refreshToken);
+      const result = await service.refreshTokens(refreshToken, accessToken);
 
       expect(result.accessToken).toBe('new-access-token');
       expect(result.refreshToken).toBe('new-refresh-token');
@@ -354,18 +366,45 @@ describe('AuthService', () => {
       );
     });
 
+    it('should throw UnauthorizedException when access and refresh tokens have mismatched users', async () => {
+      const mismatchedAccessPayload = {
+        sub: 'different-user-id',
+        email: 'other@example.com',
+        authProvider: 'local',
+        iat: Date.now(),
+        exp: Date.now() - 1000,
+      };
+
+      jest
+        .spyOn(jwtService, 'verifyRefreshToken')
+        .mockReturnValue(tokenPayload);
+      jest
+        .spyOn(jwtService, 'verifyAccessTokenIgnoreExpiration')
+        .mockReturnValue(mismatchedAccessPayload);
+
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow('Access token does not match refresh token');
+    });
+
     it('should throw UnauthorizedException if token not found in database', async () => {
       jest
         .spyOn(jwtService, 'verifyRefreshToken')
         .mockReturnValue(tokenPayload);
+      jest
+        .spyOn(jwtService, 'verifyAccessTokenIgnoreExpiration')
+        .mockReturnValue(accessTokenPayload);
       jest.spyOn(refreshTokenRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        'Invalid refresh token',
-      );
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow('Invalid refresh token');
     });
 
     it('should throw UnauthorizedException if token is revoked', async () => {
@@ -385,16 +424,21 @@ describe('AuthService', () => {
         .spyOn(jwtService, 'verifyRefreshToken')
         .mockReturnValue(tokenPayload);
       jest
+        .spyOn(jwtService, 'verifyAccessTokenIgnoreExpiration')
+        .mockReturnValue(accessTokenPayload);
+      jest
         .spyOn(refreshTokenRepository, 'findOne')
         .mockResolvedValue(revokedToken);
       jest
         .spyOn(refreshTokenRepository, 'update')
         .mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] });
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow(
         'Your session has been terminated for security reasons',
       );
     });
@@ -414,15 +458,18 @@ describe('AuthService', () => {
         .spyOn(jwtService, 'verifyRefreshToken')
         .mockReturnValue(tokenPayload);
       jest
+        .spyOn(jwtService, 'verifyAccessTokenIgnoreExpiration')
+        .mockReturnValue(accessTokenPayload);
+      jest
         .spyOn(refreshTokenRepository, 'findOne')
         .mockResolvedValue(expiredToken);
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        'Refresh token has expired',
-      );
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshTokens(refreshToken, accessToken),
+      ).rejects.toThrow('Refresh token has expired');
     });
   });
 

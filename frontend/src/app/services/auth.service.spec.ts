@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { AuthService, AuthResponse, TokenResponse, User } from './auth.service';
+import { AuthService, AuthResponse, User } from './auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -39,18 +39,17 @@ describe('AuthService', () => {
   });
 
   describe('setup', () => {
-    it('should call correct endpoint and store access token', () => {
+    it('should call correct endpoint and store user', () => {
       const email = 'test@example.com';
       const password = 'SecurePass123!';
       const passwordConfirmation = 'SecurePass123!';
       const mockResponse: AuthResponse = {
-        accessToken: 'test-access-token',
         user: { id: 'user-123', email, authProvider: 'local' },
       };
 
       service.setup(email, password, passwordConfirmation).subscribe((response) => {
         expect(response).toEqual(mockResponse);
-        expect(service.getAccessToken()).toBe('test-access-token');
+        expect(service.getCurrentUserValue()).toEqual(mockResponse.user);
       });
 
       const req = httpMock.expectOne(`${apiBase}/auth/setup`);
@@ -61,17 +60,16 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should call correct endpoint and store access token', () => {
+    it('should call correct endpoint and store user', () => {
       const email = 'test@example.com';
       const password = 'SecurePass123!';
       const mockResponse: AuthResponse = {
-        accessToken: 'test-access-token',
         user: { id: 'user-123', email, authProvider: 'local' },
       };
 
       service.login(email, password).subscribe((response) => {
         expect(response).toEqual(mockResponse);
-        expect(service.getAccessToken()).toBe('test-access-token');
+        expect(service.getCurrentUserValue()).toEqual(mockResponse.user);
       });
 
       const req = httpMock.expectOne(`${apiBase}/auth/login`);
@@ -82,10 +80,9 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should call correct endpoint and clear access token', () => {
-      // First set a token
+    it('should call correct endpoint and clear user', () => {
+      // First set a user
       const mockLoginResponse: AuthResponse = {
-        accessToken: 'test-access-token',
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
 
@@ -93,11 +90,11 @@ describe('AuthService', () => {
       const loginReq = httpMock.expectOne(`${apiBase}/auth/login`);
       loginReq.flush(mockLoginResponse);
 
-      expect(service.getAccessToken()).toBe('test-access-token');
+      expect(service.getCurrentUserValue()).toEqual(mockLoginResponse.user);
 
       // Now logout
       service.logout().subscribe(() => {
-        expect(service.getAccessToken()).toBeNull();
+        expect(service.getCurrentUserValue()).toBeNull();
       });
 
       const logoutReq = httpMock.expectOne(`${apiBase}/auth/logout`);
@@ -107,19 +104,14 @@ describe('AuthService', () => {
   });
 
   describe('refreshToken', () => {
-    it('should call correct endpoint and update access token', () => {
-      const mockResponse: TokenResponse = {
-        accessToken: 'new-access-token',
-      };
-
-      service.refreshToken().subscribe((response) => {
-        expect(response).toEqual(mockResponse);
-        expect(service.getAccessToken()).toBe('new-access-token');
+    it('should call correct endpoint to refresh tokens in cookies', () => {
+      service.refreshToken().subscribe(() => {
+        // Tokens are now in HttpOnly cookies, nothing to check in service
       });
 
       const req = httpMock.expectOne(`${apiBase}/auth/refresh`);
       expect(req.request.method).toBe('POST');
-      req.flush(mockResponse);
+      req.flush(null);
     });
   });
 
@@ -139,16 +131,15 @@ describe('AuthService', () => {
   });
 
   describe('isAuthenticated', () => {
-    it('should return false when no token is set', (done) => {
+    it('should return false when no user is set', (done) => {
       service.isAuthenticated().subscribe((isAuth) => {
         expect(isAuth).toBe(false);
         done();
       });
     });
 
-    it('should return true when token is set', (done) => {
+    it('should return true when user is set', (done) => {
       const mockResponse: AuthResponse = {
-        accessToken: 'test-access-token',
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
 
@@ -175,7 +166,6 @@ describe('AuthService', () => {
     it('should return user after login', (done) => {
       const mockUser: User = { id: 'user-123', email: 'test@example.com', authProvider: 'local' };
       const mockResponse: AuthResponse = {
-        accessToken: 'test-access-token',
         user: mockUser,
       };
 
@@ -192,21 +182,20 @@ describe('AuthService', () => {
   });
 
   describe('clearTokens', () => {
-    it('should clear access token and current user', (done) => {
+    it('should clear current user', (done) => {
       const mockResponse: AuthResponse = {
-        accessToken: 'test-access-token',
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
 
-      // First login to set tokens
+      // First login to set user
       service.login('test@example.com', 'password').subscribe(() => {
-        expect(service.getAccessToken()).toBe('test-access-token');
+        expect(service.getCurrentUserValue()).toEqual(mockResponse.user);
 
         // Clear tokens
         service.clearTokens();
 
-        // Verify tokens are cleared
-        expect(service.getAccessToken()).toBeNull();
+        // Verify user is cleared
+        expect(service.getCurrentUserValue()).toBeNull();
         service.getCurrentUser().subscribe((user) => {
           expect(user).toBeNull();
           done();
