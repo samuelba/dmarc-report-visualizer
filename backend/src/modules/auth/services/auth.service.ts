@@ -165,18 +165,47 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token using a valid refresh token (with token rotation)
-   * @param refreshToken Refresh token JWT string
-   * @param ipAddress Optional IP address for theft detection logging
-   * @returns Object containing new access token and new refresh token
-   * @throws UnauthorizedException if refresh token is invalid or revoked
+   * Refresh access and refresh tokens with rotation
+   * Implements refresh token rotation for security
+   * Requires BOTH tokens for maximum security - the access token (possibly expired)
+   * is validated to ensure it matches the refresh token user
+   * @param refreshToken Current refresh token
+   * @param accessToken Current (possibly expired) access token - REQUIRED for validation
+   * @param ipAddress Client IP address for theft detection logging
+   * @returns New access and refresh tokens
+   * @throws UnauthorizedException if tokens are invalid, expired, or mismatched
    */
   async refreshTokens(
     refreshToken: string,
+    accessToken: string,
     ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     // Verify the refresh token JWT
     const payload = this.jwtService.verifyRefreshToken(refreshToken);
+
+    // Verify the access token belongs to the same user (ignoring expiration)
+    // This provides additional security by ensuring both tokens match
+    try {
+      const accessPayload =
+        this.jwtService.verifyAccessTokenIgnoreExpiration(accessToken);
+
+      // Verify the user ID matches between access and refresh tokens
+      if (accessPayload.sub !== payload.sub) {
+        this.logger.warn(
+          `Token mismatch detected: access token user ${accessPayload.sub} != refresh token user ${payload.sub}`,
+        );
+        throw new UnauthorizedException(
+          'Access token does not match refresh token',
+        );
+      }
+    } catch (error) {
+      // If it's already an UnauthorizedException, re-throw it
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      // Always throw UnauthorizedException, preserving original message if present
+      throw new UnauthorizedException(error?.message || 'Invalid access token');
+    }
 
     // Hash the provided refresh token to compare with stored hash
     const hashedRefreshToken = crypto

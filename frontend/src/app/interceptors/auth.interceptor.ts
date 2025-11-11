@@ -8,11 +8,11 @@ import { AuthService } from '../services/auth.service';
 
 // Track if a token refresh is in progress to prevent multiple simultaneous refresh requests
 let isRefreshing = false;
-const refreshTokenSubject = new BehaviorSubject<string | null>(null);
+const refreshTokenSubject = new BehaviorSubject<boolean | null>(null);
 
 /**
- * HTTP interceptor that adds the access token to outgoing requests
- * and handles automatic token refresh on 401 responses
+ * HTTP interceptor that handles automatic token refresh on 401 responses
+ * Note: Access token is now stored in HttpOnly cookie and sent automatically by browser
  */
 export const authInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
@@ -22,23 +22,11 @@ export const authInterceptor: HttpInterceptorFn = (
   const router = inject(Router);
   const snackBar = inject(MatSnackBar);
 
-  // Skip adding auth header for these endpoints (they don't need or provide their own auth)
-  const skipAuthUrls = ['/auth/login', '/auth/setup', '/auth/refresh', '/auth/check-setup'];
-  const shouldSkipAuth = skipAuthUrls.some((url) => req.url.includes(url));
+  // All requests now include cookies automatically (including accessToken cookie)
+  // No need to manually add Authorization header
 
-  // Determine which request to send (with or without auth header)
-  const clonedReq = shouldSkipAuth
-    ? req
-    : authService.getAccessToken()
-      ? req.clone({
-          setHeaders: {
-            Authorization: `Bearer ${authService.getAccessToken()}`,
-          },
-        })
-      : req;
-
-  // Handle the request and catch 401 errors for ALL requests
-  return next(clonedReq).pipe(
+  // Handle the request and catch 401 errors
+  return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
       // Only handle 401 Unauthorized errors
       if (error.status === 401) {
@@ -52,7 +40,7 @@ export const authInterceptor: HttpInterceptorFn = (
             duration: 8000,
           });
 
-          // Clear tokens from memory
+          // Clear user data from memory
           authService.clearTokens();
 
           // Redirect to login
@@ -90,18 +78,13 @@ function handle401Error(
     refreshTokenSubject.next(null);
 
     return authService.refreshToken().pipe(
-      switchMap((response) => {
-        // Refresh successful, update the token
+      switchMap(() => {
+        // Refresh successful - new access token is now in cookie
         isRefreshing = false;
-        refreshTokenSubject.next(response.accessToken);
+        refreshTokenSubject.next(true);
 
-        // Retry the original request with the new token
-        const clonedReq = req.clone({
-          setHeaders: {
-            Authorization: `Bearer ${response.accessToken}`,
-          },
-        });
-        return next(clonedReq);
+        // Retry the original request (cookie will be sent automatically)
+        return next(req);
       }),
       catchError((error) => {
         // Refresh failed, redirect to login
@@ -119,16 +102,11 @@ function handle401Error(
   } else {
     // A refresh is already in progress, wait for it to complete
     return refreshTokenSubject.pipe(
-      filter((token) => token !== null),
+      filter((result) => result !== null),
       take(1),
-      switchMap((token) => {
-        // Retry the original request with the new token
-        const clonedReq = req.clone({
-          setHeaders: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        return next(clonedReq);
+      switchMap(() => {
+        // Retry the original request (cookie will be sent automatically)
+        return next(req);
       })
     );
   }

@@ -19,29 +19,15 @@ export class AuthCallbackComponent implements OnInit {
   private readonly authService = inject(AuthService);
 
   ngOnInit(): void {
-    // After SAML callback, the refresh token is set as an HttpOnly cookie
-    // Use the refresh token to obtain an access token and fetch user info
-    this.authService.refreshToken().subscribe({
-      next: (tokenResponse) => {
-        // Access token obtained successfully, now fetch user info
-        this.authService.setAccessToken(tokenResponse.accessToken);
-
-        this.authService.fetchCurrentUser().subscribe({
-          next: () => {
-            // Redirect to dashboard on success
-            this.router.navigate(['/dashboard']);
-          },
-          error: (error) => {
-            console.error('Failed to fetch user info after SAML login:', error);
-            // Redirect to login on error with specific error message
-            this.router.navigate(['/login'], {
-              queryParams: { error: 'saml_user_fetch_failed' },
-            });
-          },
-        });
+    // After SAML callback, both access token and refresh token are set as HttpOnly cookies
+    // Fetch user info directly using the access token cookie
+    this.authService.fetchCurrentUser().subscribe({
+      next: () => {
+        // Redirect to dashboard on success
+        this.router.navigate(['/dashboard']);
       },
       error: (error) => {
-        console.error('Failed to refresh token after SAML callback:', error);
+        console.error('Failed to fetch user info after SAML login:', error);
         // Redirect to login on error with specific error message
         this.router.navigate(['/login'], {
           queryParams: { error: 'saml_callback_failed' },

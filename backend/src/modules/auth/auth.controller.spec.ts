@@ -79,6 +79,7 @@ describe('AuthController', () => {
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
+            getAccessTokenExpiryMs: jest.fn().mockReturnValue(15 * 60 * 1000), // 15 minutes
           },
         },
         {
@@ -160,8 +161,12 @@ describe('AuthController', () => {
         'refresh-token',
         expect.any(Object),
       );
+      expect(response.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        'access-token',
+        expect.any(Object),
+      );
       expect(result).toEqual({
-        accessToken: 'access-token',
         user: { id: mockUser.id, email: mockUser.email },
       });
     });
@@ -212,8 +217,12 @@ describe('AuthController', () => {
         'refresh-token',
         expect.any(Object),
       );
+      expect(response.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        'access-token',
+        expect.any(Object),
+      );
       expect(result).toEqual({
-        accessToken: 'access-token',
         user: { id: mockUser.id, email: mockUser.email },
       });
     });
@@ -243,7 +252,10 @@ describe('AuthController', () => {
   describe('refresh', () => {
     it('should return new tokens with rotated refresh token', async () => {
       const request = {
-        cookies: { refreshToken: 'old-refresh-token' },
+        cookies: {
+          refreshToken: 'old-refresh-token',
+          accessToken: 'old-access-token',
+        },
         ip: '192.168.1.1',
         socket: {},
         headers: {},
@@ -255,10 +267,11 @@ describe('AuthController', () => {
       });
 
       const response = mockResponse();
-      const result = await controller.refresh(request, response);
+      await controller.refresh(request, response);
 
       expect(authService.refreshTokens).toHaveBeenCalledWith(
         'old-refresh-token',
+        'old-access-token',
         '192.168.1.1',
       );
       expect(response.cookie).toHaveBeenCalledWith(
@@ -266,12 +279,19 @@ describe('AuthController', () => {
         'new-refresh-token',
         expect.any(Object),
       );
-      expect(result).toEqual({ accessToken: 'new-access-token' });
+      expect(response.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        'new-access-token',
+        expect.any(Object),
+      );
     });
 
     it('should extract IP from x-forwarded-for header when request.ip is not available', async () => {
       const request = {
-        cookies: { refreshToken: 'old-refresh-token' },
+        cookies: {
+          refreshToken: 'old-refresh-token',
+          accessToken: 'old-access-token',
+        },
         ip: undefined,
         headers: { 'x-forwarded-for': '10.0.0.1, 192.168.1.1' },
         socket: {},
@@ -287,13 +307,17 @@ describe('AuthController', () => {
 
       expect(authService.refreshTokens).toHaveBeenCalledWith(
         'old-refresh-token',
+        'old-access-token',
         '10.0.0.1',
       );
     });
 
     it('should extract IP from socket.remoteAddress when other sources are not available', async () => {
       const request = {
-        cookies: { refreshToken: 'old-refresh-token' },
+        cookies: {
+          refreshToken: 'old-refresh-token',
+          accessToken: 'old-access-token',
+        },
         ip: undefined,
         headers: {},
         socket: { remoteAddress: '172.16.0.1' },
@@ -309,13 +333,17 @@ describe('AuthController', () => {
 
       expect(authService.refreshTokens).toHaveBeenCalledWith(
         'old-refresh-token',
+        'old-access-token',
         '172.16.0.1',
       );
     });
 
     it('should use "unknown" when IP cannot be determined', async () => {
       const request = {
-        cookies: { refreshToken: 'old-refresh-token' },
+        cookies: {
+          refreshToken: 'old-refresh-token',
+          accessToken: 'old-access-token',
+        },
         ip: undefined,
         headers: {},
         socket: {},
@@ -331,6 +359,7 @@ describe('AuthController', () => {
 
       expect(authService.refreshTokens).toHaveBeenCalledWith(
         'old-refresh-token',
+        'old-access-token',
         'unknown',
       );
     });
@@ -345,9 +374,30 @@ describe('AuthController', () => {
       expect(authService.refreshTokens).not.toHaveBeenCalled();
     });
 
+    it('should throw error when access token is missing', async () => {
+      const request = {
+        cookies: {
+          refreshToken: 'old-refresh-token',
+          // No accessToken provided
+        },
+      } as any;
+      const response = mockResponse();
+
+      await expect(controller.refresh(request, response)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(controller.refresh(request, response)).rejects.toThrow(
+        'Access token not found',
+      );
+      expect(authService.refreshTokens).not.toHaveBeenCalled();
+    });
+
     it('should clear refresh token cookie when token refresh fails with UnauthorizedException', async () => {
       const request = {
-        cookies: { refreshToken: 'compromised-token' },
+        cookies: {
+          refreshToken: 'compromised-token',
+          accessToken: 'old-access-token',
+        },
         ip: '192.168.1.1',
         socket: {},
         headers: {},
@@ -372,11 +422,21 @@ describe('AuthController', () => {
           path: '/',
         }),
       );
+      expect(response.clearCookie).toHaveBeenCalledWith(
+        'accessToken',
+        expect.objectContaining({
+          httpOnly: true,
+          path: '/',
+        }),
+      );
     });
 
     it('should NOT clear refresh token cookie for non-authentication errors', async () => {
       const request = {
-        cookies: { refreshToken: 'valid-token' },
+        cookies: {
+          refreshToken: 'valid-token',
+          accessToken: 'access-token',
+        },
         ip: '192.168.1.1',
         socket: {},
         headers: {},
@@ -435,6 +495,10 @@ describe('AuthController', () => {
         'refreshToken',
         expect.any(Object),
       );
+      expect(response.clearCookie).toHaveBeenCalledWith(
+        'accessToken',
+        expect.any(Object),
+      );
       expect(result).toEqual({ message: 'Logged out successfully' });
     });
   });
@@ -468,6 +532,16 @@ describe('AuthController', () => {
         mockUser.id,
         changePasswordDto.currentPassword,
         changePasswordDto.newPassword,
+      );
+      expect(response.cookie).toHaveBeenCalledWith(
+        'refreshToken',
+        'new-refresh-token',
+        expect.any(Object),
+      );
+      expect(response.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        'new-access-token',
+        expect.any(Object),
       );
       expect(result.message).toContain('Password changed successfully');
     });

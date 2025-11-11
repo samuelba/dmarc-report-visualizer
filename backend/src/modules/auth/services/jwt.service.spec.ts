@@ -194,4 +194,54 @@ describe('JwtService', () => {
       );
     });
   });
+
+  describe('verifyAccessTokenIgnoreExpiration', () => {
+    it('should verify and return valid access token payload ignoring expiration', () => {
+      const token = 'expired-access-token';
+      const expectedPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        authProvider: 'local',
+        organizationId: 'org-456',
+        iat: 1234567890,
+        exp: 1234568790, // Expired
+      };
+
+      jest.spyOn(nestJwtService, 'verify').mockReturnValue(expectedPayload);
+
+      const payload = service.verifyAccessTokenIgnoreExpiration(token);
+
+      expect(payload).toEqual(expectedPayload);
+      expect(nestJwtService.verify).toHaveBeenCalledWith(token, {
+        ignoreExpiration: true,
+      });
+    });
+
+    it('should throw UnauthorizedException for invalid access token signature', () => {
+      const token = 'invalid-signature-token';
+
+      jest.spyOn(nestJwtService, 'verify').mockImplementation(() => {
+        throw new Error('Invalid signature');
+      });
+
+      expect(() => service.verifyAccessTokenIgnoreExpiration(token)).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => service.verifyAccessTokenIgnoreExpiration(token)).toThrow(
+        'Invalid access token',
+      );
+    });
+
+    it('should throw UnauthorizedException for malformed access token', () => {
+      const token = 'malformed-token';
+
+      jest.spyOn(nestJwtService, 'verify').mockImplementation(() => {
+        throw new Error('Malformed token');
+      });
+
+      expect(() => service.verifyAccessTokenIgnoreExpiration(token)).toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
 });

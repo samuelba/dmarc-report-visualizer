@@ -68,6 +68,11 @@ describe('AuthService - Theft Detection', () => {
             generateAccessToken: jest.fn(),
             generateRefreshToken: jest.fn(),
             verifyRefreshToken: jest.fn(),
+            verifyAccessTokenIgnoreExpiration: jest.fn().mockReturnValue({
+              sub: 'user-uuid-123',
+              email: 'test@example.com',
+              authProvider: 'local',
+            }),
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
@@ -191,7 +196,7 @@ describe('AuthService - Theft Detection', () => {
         .spyOn(jwtService, 'generateRefreshToken')
         .mockReturnValue('new-refresh-token');
 
-      await service.refreshTokens(refreshToken);
+      await service.refreshTokens(refreshToken, 'access-token');
 
       expect(refreshTokenRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -292,7 +297,7 @@ describe('AuthService - Theft Detection', () => {
         .spyOn(jwtService, 'generateRefreshToken')
         .mockReturnValue('new-refresh-token');
 
-      await service.refreshTokens(refreshToken);
+      await service.refreshTokens(refreshToken, 'access-token');
 
       expect(refreshTokenRepository.update).toHaveBeenCalledWith(
         { id: storedToken.id, revoked: false },
@@ -394,7 +399,7 @@ describe('AuthService - Theft Detection', () => {
         .mockResolvedValue({ affected: 2 } as any);
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
       } catch (_error) {
         // Expected to throw
       }
@@ -442,10 +447,12 @@ describe('AuthService - Theft Detection', () => {
         .spyOn(refreshTokenRepository, 'update')
         .mockResolvedValue({ affected: 2 } as any);
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
+      await expect(
+        service.refreshTokens(refreshToken, 'access-token'),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        service.refreshTokens(refreshToken, 'access-token'),
+      ).rejects.toThrow(
         'Your session has been terminated for security reasons',
       );
 
@@ -487,9 +494,9 @@ describe('AuthService - Theft Detection', () => {
         .mockResolvedValue(expiredToken);
       const updateSpy = jest.spyOn(refreshTokenRepository, 'update');
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        'Refresh token has expired',
-      );
+      await expect(
+        service.refreshTokens(refreshToken, 'access-token'),
+      ).rejects.toThrow('Refresh token has expired');
 
       // Verify family invalidation was NOT called
       expect(updateSpy).not.toHaveBeenCalled();
@@ -510,9 +517,9 @@ describe('AuthService - Theft Detection', () => {
       jest.spyOn(refreshTokenRepository, 'findOne').mockResolvedValue(null);
       const updateSpy = jest.spyOn(refreshTokenRepository, 'update');
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        'Invalid refresh token',
-      );
+      await expect(
+        service.refreshTokens(refreshToken, 'access-token'),
+      ).rejects.toThrow('Invalid refresh token');
 
       // Verify family invalidation was NOT called
       expect(updateSpy).not.toHaveBeenCalled();
@@ -574,7 +581,7 @@ describe('AuthService - Theft Detection', () => {
         .spyOn(jwtService, 'generateRefreshToken')
         .mockReturnValue('new-refresh-token');
 
-      const result = await service.refreshTokens(refreshToken);
+      const result = await service.refreshTokens(refreshToken, 'access-token');
 
       expect(result.accessToken).toBe('new-access-token');
       expect(result.refreshToken).toBe('new-refresh-token');
@@ -644,7 +651,7 @@ describe('AuthService - Theft Detection', () => {
         } as any);
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
         fail('Should have thrown UnauthorizedException');
       } catch (error) {
         expect(error).toBeInstanceOf(UnauthorizedException);
@@ -723,7 +730,7 @@ describe('AuthService - Theft Detection', () => {
         .spyOn(jwtService, 'generateRefreshToken')
         .mockReturnValue('new-refresh-token');
 
-      const result = await service.refreshTokens(refreshToken);
+      const result = await service.refreshTokens(refreshToken, 'access-token');
 
       expect(result.accessToken).toBe('new-access-token');
       expect(result.refreshToken).toBe('new-refresh-token');
@@ -769,7 +776,7 @@ describe('AuthService - Theft Detection', () => {
         .mockResolvedValue({ affected: 3 } as any);
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
       } catch (_error) {
         // Expected to throw
       }
@@ -816,7 +823,7 @@ describe('AuthService - Theft Detection', () => {
         .mockResolvedValue({ affected: 2 } as any);
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
       } catch (_error) {
         // Expected to throw
       }
@@ -864,7 +871,7 @@ describe('AuthService - Theft Detection', () => {
         .mockResolvedValue({ affected: 2 } as any);
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
       } catch (_error) {
         // Expected to throw
       }
@@ -918,7 +925,11 @@ describe('AuthService - Theft Detection', () => {
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
 
       try {
-        await service.refreshTokens(refreshToken, '192.168.1.1');
+        await service.refreshTokens(
+          refreshToken,
+          'access-token',
+          '192.168.1.1',
+        );
       } catch (_error) {
         // Expected to throw
       }
@@ -974,7 +985,7 @@ describe('AuthService - Theft Detection', () => {
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
 
       try {
-        await service.refreshTokens(refreshToken, '10.0.0.1');
+        await service.refreshTokens(refreshToken, 'access-token', '10.0.0.1');
       } catch (_error) {
         // Expected to throw
       }
@@ -1024,7 +1035,7 @@ describe('AuthService - Theft Detection', () => {
       const loggerWarnSpy = jest.spyOn(service['logger'], 'warn');
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
       } catch (_error) {
         // Expected to throw
       }
@@ -1081,9 +1092,9 @@ describe('AuthService - Theft Detection', () => {
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
       const loggerWarnSpy = jest.spyOn(service['logger'], 'warn');
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.refreshTokens(refreshToken, 'access-token'),
+      ).rejects.toThrow(UnauthorizedException);
 
       // Should NOT log or invalidate family
       expect(loggerErrorSpy).not.toHaveBeenCalled();
@@ -1132,9 +1143,9 @@ describe('AuthService - Theft Detection', () => {
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
       const loggerWarnSpy = jest.spyOn(service['logger'], 'warn');
 
-      await expect(service.refreshTokens(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.refreshTokens(refreshToken, 'access-token'),
+      ).rejects.toThrow(UnauthorizedException);
 
       // Should log but NOT invalidate family
       expect(loggerErrorSpy).toHaveBeenCalledWith(
@@ -1188,7 +1199,7 @@ describe('AuthService - Theft Detection', () => {
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
 
       try {
-        await service.refreshTokens(refreshToken);
+        await service.refreshTokens(refreshToken, 'access-token');
       } catch (_error) {
         // Expected to throw
       }
