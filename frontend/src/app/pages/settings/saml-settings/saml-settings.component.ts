@@ -22,6 +22,8 @@ export interface SamlConfigResponse {
   idpEntityId?: string;
   idpSsoUrl?: string;
   hasIdpCertificate: boolean;
+  disablePasswordLogin: boolean;
+  passwordLoginForceEnabled: boolean;
 }
 
 @Component({
@@ -283,5 +285,45 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
         this.snackBar.open('SAML test window closed', 'Close', { duration: 3000 });
       }
     }, 1000);
+  }
+
+  togglePasswordLogin(event: any): void {
+    const disabled = event.checked;
+    const currentConfig = this.config();
+
+    // Only prevent disabling password login when SAML is not enabled
+    // Allow enabling password login at any time (recovery scenario)
+    if (disabled && !currentConfig?.enabled) {
+      this.snackBar.open('SAML must be enabled before disabling password login', 'Close', { duration: 3000 });
+      event.source.checked = false;
+      return;
+    }
+
+    if (disabled) {
+      const confirmed = confirm(
+        'Warning: Disabling password login will require all users to authenticate via SSO. Ensure SAML is properly configured and tested before proceeding.\n\nAre you sure you want to continue?'
+      );
+      if (!confirmed) {
+        event.source.checked = false;
+        return;
+      }
+    }
+
+    this.loading.set(true);
+    const action = disabled ? this.authService.disablePasswordLogin() : this.authService.enablePasswordLogin();
+
+    action.subscribe({
+      next: () => {
+        this.snackBar.open(`Password login ${disabled ? 'disabled' : 'enabled'}`, 'Close', { duration: 3000 });
+        this.loadConfig();
+      },
+      error: (err) => {
+        console.error('Failed to toggle password login:', err);
+        const errorMessage = err.error?.message || 'Failed to update password login status';
+        this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+        event.source.checked = !disabled;
+        this.loading.set(false);
+      },
+    });
   }
 }

@@ -34,4 +34,6 @@ export interface SamlConfigResponse {
   idpEntityId?: string;
   idpSsoUrl?: string;
   hasIdpCertificate: boolean;
+  disablePasswordLogin: boolean;
+  passwordLoginForceEnabled: boolean;
 }

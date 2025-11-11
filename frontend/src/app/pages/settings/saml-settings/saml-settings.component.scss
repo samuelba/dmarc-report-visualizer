@@ -89,6 +89,7 @@ mat-card-header {
 .sp-config-section,
 .idp-config-section,
 .saml-toggle-section,
+.password-login-toggle-section,
 .test-section {
   margin-bottom: 2rem;
 
@@ -101,6 +102,40 @@ mat-card-header {
   .section-description {
     margin-bottom: 1rem;
     color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.force-enabled-warning {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  background-color: var(--custom-warning-bg-color);
+  border-left: 4px solid var(--custom-warning-color);
+  border-radius: 8px;
+
+  mat-icon {
+    flex-shrink: 0;
+    color: var(--custom-warning-color);
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  div {
+    flex: 1;
+
+    strong {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--custom-warning-color);
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--mat-sys-on-surface-variant);
+    }
   }
 }
 
@@ -271,6 +306,19 @@ mat-card-header {
     p {
       margin: 0;
       color: var(--mat-sys-on-surface-variant);
+    }
+
+    .recovery-note {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background-color: var(--custom-warning-bg-color);
+      border-left: 3px solid var(--custom-warning-color);
+      border-radius: 4px;
+      font-size: 0.875rem;
+
+      strong {
+        color: var(--custom-warning-color);
+      }
     }
   }
 }

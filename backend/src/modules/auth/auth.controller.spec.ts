@@ -42,11 +42,14 @@ describe('AuthController', () => {
 
   const mockSamlService = {
     isSamlEnabled: jest.fn().mockResolvedValue(false),
+    getConfig: jest.fn(),
     getSamlConfig: jest.fn(),
     updateSamlConfig: jest.fn(),
     enableSaml: jest.fn(),
     disableSaml: jest.fn(),
     testSamlConnection: jest.fn(),
+    isPasswordLoginAllowed: jest.fn().mockResolvedValue(true),
+    setPasswordLoginDisabled: jest.fn(),
   };
 
   const mockResponse = () => {
@@ -561,6 +564,94 @@ describe('AuthController', () => {
         controller.changePassword(changePasswordDto, request, response),
       ).rejects.toThrow(BadRequestException);
       expect(authService.changePassword).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Password Login Disable Feature', () => {
+    describe('login with password login disabled', () => {
+      it('should reject password login when disabled', async () => {
+        const loginDto = { email: 'test@example.com', password: 'password' };
+        const request = { ip: '127.0.0.1' } as any;
+        const response = mockResponse();
+
+        // Mock password login as disabled
+        mockSamlService.isPasswordLoginAllowed.mockResolvedValue(false);
+
+        await expect(
+          controller.login(loginDto, request, response),
+        ).rejects.toThrow(UnauthorizedException);
+        await expect(
+          controller.login(loginDto, request, response),
+        ).rejects.toThrow('Password login is disabled. Use SSO to sign in.');
+      });
+
+      it('should allow password login when password login is enabled', async () => {
+        const loginDto = { email: 'user@example.com', password: 'password' };
+        const request = { ip: '127.0.0.1' } as any;
+        const response = mockResponse();
+
+        // Mock password login as enabled
+        mockSamlService.isPasswordLoginAllowed.mockResolvedValue(true);
+        mockAuthService.validateUser.mockResolvedValue(mockUser);
+        mockAuthService.login.mockResolvedValue({
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          user: {
+            id: mockUser.id,
+            email: mockUser.email,
+            authProvider: 'local',
+          },
+        });
+
+        const result = await controller.login(loginDto, request, response);
+
+        expect(result).toHaveProperty('user');
+        expect(mockAuthService.login).toHaveBeenCalled();
+      });
+    });
+
+    describe('disablePasswordLogin endpoint', () => {
+      it('should disable password login when SAML is enabled', async () => {
+        mockSamlService.getConfig.mockResolvedValue({
+          enabled: true,
+          configured: true,
+        });
+        mockSamlService.setPasswordLoginDisabled.mockResolvedValue(undefined);
+
+        const result = await controller.disablePasswordLogin();
+
+        expect(result).toHaveProperty('message');
+        expect(mockSamlService.setPasswordLoginDisabled).toHaveBeenCalledWith(
+          true,
+        );
+      });
+
+      it('should throw error when SAML is not enabled', async () => {
+        mockSamlService.getConfig.mockResolvedValue({
+          enabled: false,
+          configured: true,
+        });
+
+        await expect(controller.disablePasswordLogin()).rejects.toThrow(
+          BadRequestException,
+        );
+        await expect(controller.disablePasswordLogin()).rejects.toThrow(
+          'SAML must be enabled before disabling password login.',
+        );
+      });
+    });
+
+    describe('enablePasswordLogin endpoint', () => {
+      it('should enable password login', async () => {
+        mockSamlService.setPasswordLoginDisabled.mockResolvedValue(undefined);
+
+        const result = await controller.enablePasswordLogin();
+
+        expect(result).toHaveProperty('message');
+        expect(mockSamlService.setPasswordLoginDisabled).toHaveBeenCalledWith(
+          false,
+        );
+      });
     });
   });
 });
