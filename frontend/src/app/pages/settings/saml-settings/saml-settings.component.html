@@ -290,6 +290,67 @@
               </div>
             </div>
           </div>
+
+          <!-- Password Login Disable Toggle -->
+          <div class="password-login-toggle-section">
+            <h3>Password Login Control</h3>
+
+            @if (config()!.passwordLoginForceEnabled) {
+              <div class="force-enabled-warning">
+                <mat-icon color="warn">warning</mat-icon>
+                <div>
+                  <strong>Password login is force-enabled via environment variable</strong>
+                  <p>
+                    The FORCE_ENABLE_PASSWORD_LOGIN environment variable is active. This overrides the database
+                    configuration and allows password login regardless of the setting below. This is intended for
+                    emergency access recovery.
+                  </p>
+                </div>
+              </div>
+            }
+
+            <div class="toggle-container">
+              <mat-slide-toggle
+                [checked]="config()!.disablePasswordLogin"
+                (change)="togglePasswordLogin($event)"
+                color="warn"
+                [disabled]="loading() || (!config()!.enabled && !config()!.disablePasswordLogin)"
+                [matTooltip]="
+                  !config()!.enabled && !config()!.disablePasswordLogin
+                    ? 'SAML must be enabled before disabling password login'
+                    : ''
+                "
+              >
+                <span class="toggle-label">
+                  {{ config()!.disablePasswordLogin ? 'Password login is disabled' : 'Password login is enabled' }}
+                </span>
+              </mat-slide-toggle>
+
+              <div class="toggle-description">
+                @if (config()!.disablePasswordLogin) {
+                  <mat-icon color="warn">lock</mat-icon>
+                  <div>
+                    <p>
+                      Password-based login is disabled. All users must authenticate via SSO. The password login form is
+                      hidden on the login page.
+                    </p>
+                    @if (!config()!.enabled) {
+                      <p class="recovery-note">
+                        <strong>Note:</strong> You can re-enable password login even though SAML is disabled. This
+                        allows recovery if SAML configuration needs to be fixed.
+                      </p>
+                    }
+                  </div>
+                } @else {
+                  <mat-icon color="accent">info</mat-icon>
+                  <p>
+                    Password-based login is enabled. Users can sign in with either their password or SSO (if SAML is
+                    enabled).
+                  </p>
+                }
+              </div>
+            </div>
+          </div>
         }
 
         <!-- Test SAML Login -->

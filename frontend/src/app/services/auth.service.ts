@@ -186,12 +186,25 @@ export class AuthService {
   // SAML Configuration Methods
 
   /**
-   * Check if SAML is enabled and configured (public endpoint)
+   * Get SAML and login status (public endpoint - no auth required)
+   * Returns SAML status and password login status in a single call
    */
-  checkSamlEnabled(): Observable<boolean> {
+  getSamlAndLoginStatus(): Observable<{
+    samlEnabled: boolean;
+    passwordLoginAllowed: boolean;
+  }> {
     return this.http
-      .get<{ enabled: boolean; configured: boolean }>(`${this.apiBase}/auth/saml/status`)
-      .pipe(map((status) => status.enabled && status.configured));
+      .get<{
+        enabled: boolean;
+        configured: boolean;
+        passwordLoginAllowed: boolean;
+      }>(`${this.apiBase}/auth/saml/status`)
+      .pipe(
+        map((status) => ({
+          samlEnabled: status.enabled && status.configured,
+          passwordLoginAllowed: status.passwordLoginAllowed,
+        }))
+      );
   }
 
   /**
@@ -236,5 +249,19 @@ export class AuthService {
    */
   getSamlLoginUrl(): string {
     return `${this.apiBase}/auth/saml/login`;
+  }
+
+  /**
+   * Disable password-based login
+   */
+  disablePasswordLogin(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBase}/auth/saml/config/disable-password-login`, {});
+  }
+
+  /**
+   * Enable password-based login
+   */
+  enablePasswordLogin(): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiBase}/auth/saml/config/enable-password-login`, {});
   }
 }

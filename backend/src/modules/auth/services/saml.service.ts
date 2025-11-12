@@ -104,6 +104,17 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       );
       this.redis = null;
     }
+
+    // Check if password login is force-enabled via environment variable
+    const forceEnablePasswordLogin = this.configService.get<string>(
+      'FORCE_ENABLE_PASSWORD_LOGIN',
+      'false',
+    );
+    if (forceEnablePasswordLogin === 'true') {
+      this.logger.warn(
+        'Password login is force-enabled via environment variable. This overrides database configuration.',
+      );
+    }
   }
 
   /**
@@ -630,5 +641,49 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
     });
 
     return await this.userRepository.save(newUser);
+  }
+
+  /**
+   * Enable or disable password-based login
+   * @param disabled True to disable password login, false to enable
+   */
+  async setPasswordLoginDisabled(disabled: boolean): Promise<void> {
+    const config = await this.getConfig();
+    if (!config) {
+      throw new NotFoundException('SAML configuration not found');
+    }
+
+    config.disablePasswordLogin = disabled;
+    await this.samlConfigRepository.save(config);
+  }
+
+  /**
+   * Check if password-based login is allowed
+   * Returns true if password login is allowed, false if disabled
+   * Respects FORCE_ENABLE_PASSWORD_LOGIN environment variable override
+   * @returns True if password login is allowed
+   */
+  async isPasswordLoginAllowed(): Promise<boolean> {
+    // Check environment variable override first
+    const forceEnablePasswordLogin = this.configService.get<string>(
+      'FORCE_ENABLE_PASSWORD_LOGIN',
+      'false',
+    );
+
+    if (forceEnablePasswordLogin === 'true') {
+      // Force-enable overrides database configuration
+      return true;
+    }
+
+    // Check database configuration
+    const config = await this.getConfig();
+
+    // If no SAML config exists, password login is allowed
+    if (!config) {
+      return true;
+    }
+
+    // Return opposite of disablePasswordLogin flag
+    return !config.disablePasswordLogin;
   }
 }

@@ -110,6 +110,16 @@ export class AuthController {
   ): Promise<AuthResponse> {
     const ip = request.ip || request.connection?.remoteAddress || 'unknown';
 
+    // Check if password login is allowed
+    const passwordLoginAllowed =
+      await this.samlService.isPasswordLoginAllowed();
+
+    if (!passwordLoginAllowed) {
+      throw new UnauthorizedException(
+        'Password login is disabled. Use SSO to sign in.',
+      );
+    }
+
     // Validate user credentials
     const user = await this.authService.validateUser(
       loginDto.email,
@@ -474,15 +484,27 @@ export class AuthController {
   /**
    * Check SAML status endpoint (public)
    * Returns whether SAML is enabled and configured
-   * Used by login page to show/hide SSO button
+   * Used by login page to show/hide SSO button and password form
    */
   @Public()
   @Get('saml/status')
-  async getSamlStatus(): Promise<{ enabled: boolean; configured: boolean }> {
+  async getSamlStatus(): Promise<{
+    enabled: boolean;
+    configured: boolean;
+    passwordLoginAllowed: boolean;
+  }> {
     const config = await this.samlService.getConfig();
 
+    // Check if password login is allowed
+    const passwordLoginAllowed =
+      await this.samlService.isPasswordLoginAllowed();
+
     if (!config) {
-      return { enabled: false, configured: false };
+      return {
+        enabled: false,
+        configured: false,
+        passwordLoginAllowed,
+      };
     }
 
     return {
@@ -492,6 +514,7 @@ export class AuthController {
         config.idpSsoUrl &&
         config.idpCertificate
       ),
+      passwordLoginAllowed,
     };
   }
 
@@ -505,6 +528,11 @@ export class AuthController {
     const spEntityId = this.configService.get<string>('SAML_ENTITY_ID', '');
     const spAcsUrl = this.configService.get<string>('SAML_ACS_URL', '');
 
+    // Check if password login is force-enabled via environment variable
+    const forceEnablePasswordLogin =
+      this.configService.get<string>('FORCE_ENABLE_PASSWORD_LOGIN', 'false') ===
+      'true';
+
     if (!config) {
       // No configuration exists yet
       return {
@@ -513,6 +541,8 @@ export class AuthController {
         spEntityId,
         spAcsUrl,
         hasIdpCertificate: false,
+        disablePasswordLogin: false,
+        passwordLoginForceEnabled: forceEnablePasswordLogin,
       };
     }
 
@@ -529,6 +559,8 @@ export class AuthController {
       idpEntityId: config.idpEntityId || undefined,
       idpSsoUrl: config.idpSsoUrl || undefined,
       hasIdpCertificate: !!config.idpCertificate,
+      disablePasswordLogin: config.disablePasswordLogin,
+      passwordLoginForceEnabled: forceEnablePasswordLogin,
     };
   }
 
@@ -548,6 +580,11 @@ export class AuthController {
       request.user.id,
     );
 
+    // Check if password login is force-enabled via environment variable
+    const forceEnablePasswordLogin =
+      this.configService.get<string>('FORCE_ENABLE_PASSWORD_LOGIN', 'false') ===
+      'true';
+
     // Return updated configuration response
     return {
       enabled: config.enabled,
@@ -561,6 +598,8 @@ export class AuthController {
       idpEntityId: config.idpEntityId || undefined,
       idpSsoUrl: config.idpSsoUrl || undefined,
       hasIdpCertificate: !!config.idpCertificate,
+      disablePasswordLogin: config.disablePasswordLogin,
+      passwordLoginForceEnabled: forceEnablePasswordLogin,
     };
   }
 
@@ -628,5 +667,38 @@ export class AuthController {
         'SAML configuration is valid. You can test the login flow using the provided URL.',
       loginUrl,
     };
+  }
+
+  /**
+   * Disable password-based login endpoint
+   * Requires SAML to be enabled before disabling password login
+   */
+  @Post('saml/config/disable-password-login')
+  @HttpCode(HttpStatus.OK)
+  async disablePasswordLogin(): Promise<{ message: string }> {
+    // Check if SAML is enabled
+    const config = await this.samlService.getConfig();
+
+    if (!config || !config.enabled) {
+      throw new BadRequestException(
+        'SAML must be enabled before disabling password login.',
+      );
+    }
+
+    await this.samlService.setPasswordLoginDisabled(true);
+    return {
+      message:
+        'Password login has been disabled. Users must authenticate via SSO.',
+    };
+  }
+
+  /**
+   * Enable password-based login endpoint
+   */
+  @Post('saml/config/enable-password-login')
+  @HttpCode(HttpStatus.OK)
+  async enablePasswordLogin(): Promise<{ message: string }> {
+    await this.samlService.setPasswordLoginDisabled(false);
+    return { message: 'Password login has been enabled.' };
   }
 }

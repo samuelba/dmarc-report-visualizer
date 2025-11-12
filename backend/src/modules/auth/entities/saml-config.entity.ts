@@ -48,4 +48,7 @@ export class SamlConfig {
 
   @Column({ name: 'updated_by', type: 'uuid', nullable: true })
   updatedBy: string | null;
+
+  @Column({ name: 'disable_password_login', type: 'boolean', default: false })
+  disablePasswordLogin: boolean;
 }

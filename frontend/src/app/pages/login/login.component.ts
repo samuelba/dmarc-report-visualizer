@@ -24,6 +24,8 @@ export class LoginComponent implements OnInit {
   retryAfter = 0;
   countdownInterval?: number;
   showSsoButton = false;
+  showPasswordForm = true;
+  passwordLoginDisabledMessage = '';
 
   ngOnInit(): void {
     this.loginForm = this.fb.group({
@@ -31,13 +33,19 @@ export class LoginComponent implements OnInit {
       password: ['', [Validators.required]],
     });
 
-    // Check if SAML SSO is enabled
-    this.authService.checkSamlEnabled().subscribe({
-      next: (enabled) => {
-        this.showSsoButton = enabled;
+    // Check SAML and password login status in a single API call
+    this.authService.getSamlAndLoginStatus().subscribe({
+      next: (status) => {
+        this.showSsoButton = status.samlEnabled;
+        this.showPasswordForm = status.passwordLoginAllowed;
+        if (!status.passwordLoginAllowed) {
+          this.passwordLoginDisabledMessage = 'Password login is disabled. Use SSO to sign in.';
+        }
       },
-      error: () => {
-        // Silently fail - SSO button won't be shown
+      error: (err) => {
+        console.error('Error checking login status:', err);
+        // Default to showing password form and hiding SSO button on error
+        this.showPasswordForm = true;
         this.showSsoButton = false;
       },
     });

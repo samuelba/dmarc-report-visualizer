@@ -22,6 +22,7 @@ describe('SamlStrategy', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     updatedBy: 'user-123',
+    disablePasswordLogin: false,
   };
 
   const mockUser: User = {

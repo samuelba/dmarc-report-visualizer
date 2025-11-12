@@ -29,6 +29,7 @@ describe('SamlService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     updatedBy: 'user-123',
+    disablePasswordLogin: false,
   };
 
   const validIdpMetadata = `<?xml version="1.0"?>
@@ -748,6 +749,89 @@ describe('SamlService', () => {
       const result = await service.handleSamlLogin(profileWithoutExpiration);
 
       expect(result).toEqual(newUser);
+    });
+  });
+
+  describe('Password Login Control', () => {
+    describe('setPasswordLoginDisabled', () => {
+      it('should disable password login', async () => {
+        const config = { ...mockSamlConfig, disablePasswordLogin: false };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(repository, 'save').mockResolvedValue({
+          ...config,
+          disablePasswordLogin: true,
+        });
+
+        await service.setPasswordLoginDisabled(true);
+
+        expect(repository.save).toHaveBeenCalledWith(
+          expect.objectContaining({ disablePasswordLogin: true }),
+        );
+      });
+
+      it('should enable password login', async () => {
+        const config = { ...mockSamlConfig, disablePasswordLogin: true };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(repository, 'save').mockResolvedValue({
+          ...config,
+          disablePasswordLogin: false,
+        });
+
+        await service.setPasswordLoginDisabled(false);
+
+        expect(repository.save).toHaveBeenCalledWith(
+          expect.objectContaining({ disablePasswordLogin: false }),
+        );
+      });
+
+      it('should throw NotFoundException if config does not exist', async () => {
+        jest.spyOn(repository, 'find').mockResolvedValue([]);
+
+        await expect(service.setPasswordLoginDisabled(true)).rejects.toThrow(
+          NotFoundException,
+        );
+      });
+    });
+
+    describe('isPasswordLoginAllowed', () => {
+      it('should return true when password login is not disabled', async () => {
+        const config = { ...mockSamlConfig, disablePasswordLogin: false };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(configService, 'get').mockReturnValue('false'); // FORCE_ENABLE_PASSWORD_LOGIN
+
+        const result = await service.isPasswordLoginAllowed();
+
+        expect(result).toBe(true);
+      });
+
+      it('should return false when password login is disabled', async () => {
+        const config = { ...mockSamlConfig, disablePasswordLogin: true };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(configService, 'get').mockReturnValue('false'); // FORCE_ENABLE_PASSWORD_LOGIN
+
+        const result = await service.isPasswordLoginAllowed();
+
+        expect(result).toBe(false);
+      });
+
+      it('should return true when FORCE_ENABLE_PASSWORD_LOGIN is set', async () => {
+        const config = { ...mockSamlConfig, disablePasswordLogin: true };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(configService, 'get').mockReturnValue('true'); // FORCE_ENABLE_PASSWORD_LOGIN
+
+        const result = await service.isPasswordLoginAllowed();
+
+        expect(result).toBe(true);
+      });
+
+      it('should return true when no SAML config exists', async () => {
+        jest.spyOn(repository, 'find').mockResolvedValue([]);
+        jest.spyOn(configService, 'get').mockReturnValue('false'); // FORCE_ENABLE_PASSWORD_LOGIN
+
+        const result = await service.isPasswordLoginAllowed();
+
+        expect(result).toBe(true);
+      });
     });
   });
 });

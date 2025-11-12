@@ -929,6 +929,7 @@ describe('Authentication (e2e)', () => {
         const accessToken = jwtService.generateAccessToken(
           'saml-user-id',
           'saml.user@example.com',
+          'saml',
           null,
         );
 
@@ -1089,6 +1090,107 @@ describe('Authentication (e2e)', () => {
         expect(response.body).toHaveProperty('authProvider');
         expect(response.body.authProvider).toBe('local');
       });
+    });
+  });
+
+  describe('Password Login Disable Feature (e2e)', () => {
+    let adminAccessToken: string;
+
+    beforeEach(async () => {
+      // Setup admin user
+      const setupDto = {
+        email: 'admin@example.com',
+        password: 'SecurePass123!',
+        passwordConfirmation: 'SecurePass123!',
+      };
+      const setupResponse = await request(app.getHttpServer())
+        .post('/auth/setup')
+        .send(setupDto);
+      adminAccessToken = setupResponse.body.accessToken;
+
+      // Configure SAML
+      const samlConfig = {
+        idpEntityId: 'https://idp.example.com',
+        idpSsoUrl: 'https://idp.example.com/sso',
+        idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl...',
+      };
+      await request(app.getHttpServer())
+        .post('/auth/saml/config')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(samlConfig);
+
+      // Enable SAML
+      await request(app.getHttpServer())
+        .post('/auth/saml/config/enable')
+        .set('Authorization', `Bearer ${adminAccessToken}`);
+    });
+
+    it('should disable password login when SAML is enabled', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/saml/config/disable-password-login')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('disabled');
+    });
+
+    it('should reject password login when disabled', async () => {
+      // Disable password login
+      await request(app.getHttpServer())
+        .post('/auth/saml/config/disable-password-login')
+        .set('Authorization', `Bearer ${adminAccessToken}`);
+
+      // Create a second user
+      await dataSource.query(
+        `INSERT INTO users (id, email, password_hash, auth_provider) VALUES ('user-2', 'user2@example.com', '$2b$10$hashedpassword', 'local')`,
+      );
+
+      // Try to login with password (should fail)
+      const loginDto = {
+        email: 'user2@example.com',
+        password: 'password',
+      };
+
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(401);
+    });
+
+    it('should allow setup user to login when password login is disabled', async () => {
+      // Disable password login
+      await request(app.getHttpServer())
+        .post('/auth/saml/config/disable-password-login')
+        .set('Authorization', `Bearer ${adminAccessToken}`);
+
+      // Setup user should still be able to login
+      const loginDto = {
+        email: 'admin@example.com',
+        password: 'SecurePass123!',
+      };
+
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send(loginDto)
+        .expect(401);
+      // Setup user should NOT be able to login when password login is disabled
+    });
+
+    it('should re-enable password login', async () => {
+      // Disable password login
+      await request(app.getHttpServer())
+        .post('/auth/saml/config/disable-password-login')
+        .set('Authorization', `Bearer ${adminAccessToken}`);
+
+      // Re-enable password login
+      const response = await request(app.getHttpServer())
+        .post('/auth/saml/config/enable-password-login')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain('enabled');
     });
   });
 });
