@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap, map } from 'rxjs';
+import { clearReturnUrl } from '../utils/url-validation.utils';
 
 export interface User {
   id: string;
@@ -75,6 +76,8 @@ export class AuthService {
     return this.http.post<void>(`${this.apiBase}/auth/logout`, {}).pipe(
       tap(() => {
         this.currentUser$.next(null);
+        // Clear any stored return URL on logout
+        clearReturnUrl();
       })
     );
   }
