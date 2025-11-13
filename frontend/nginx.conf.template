@@ -17,10 +17,10 @@ http {
         index index.html;
 
         # Security Headers
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
-        add_header Permissions-Policy "autoplay=(), fullscreen=(self), accelerometer=(), camera=(), cross-origin-isolated=(), display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), keyboard-map=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), xr-spatial-tracking=()" always;
-        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Strict-Transport-Security "max-age=${HSTS_MAX_AGE}; includeSubDomains; preload" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src ${CSP_SCRIPT_SRC}; style-src ${CSP_STYLE_SRC}; img-src ${CSP_IMG_SRC}; font-src ${CSP_FONT_SRC}; connect-src ${CSP_CONNECT_SRC}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+        add_header Permissions-Policy "${PERMISSIONS_POLICY}" always;
+        add_header Referrer-Policy "${REFERRER_POLICY}" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
 
