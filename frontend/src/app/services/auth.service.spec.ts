@@ -101,6 +101,54 @@ describe('AuthService', () => {
       expect(logoutReq.request.method).toBe('POST');
       logoutReq.flush({});
     });
+
+    it('should clear return URL from sessionStorage on logout', () => {
+      // Set up a user and return URL
+      const mockLoginResponse: AuthResponse = {
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
+      };
+
+      service.login('test@example.com', 'password').subscribe();
+      const loginReq = httpMock.expectOne(`${apiBase}/auth/login`);
+      loginReq.flush(mockLoginResponse);
+
+      // Store a return URL
+      sessionStorage.setItem('returnUrl', '/explore?recordId=123');
+      expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=123');
+
+      // Logout
+      service.logout().subscribe(() => {
+        // Verify return URL is cleared
+        expect(sessionStorage.getItem('returnUrl')).toBeNull();
+      });
+
+      const logoutReq = httpMock.expectOne(`${apiBase}/auth/logout`);
+      logoutReq.flush({});
+    });
+
+    it('should still work correctly when no return URL exists', () => {
+      // Set up a user
+      const mockLoginResponse: AuthResponse = {
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
+      };
+
+      service.login('test@example.com', 'password').subscribe();
+      const loginReq = httpMock.expectOne(`${apiBase}/auth/login`);
+      loginReq.flush(mockLoginResponse);
+
+      // Ensure no return URL exists
+      sessionStorage.removeItem('returnUrl');
+      expect(sessionStorage.getItem('returnUrl')).toBeNull();
+
+      // Logout should still work
+      service.logout().subscribe(() => {
+        expect(service.getCurrentUserValue()).toBeNull();
+        expect(sessionStorage.getItem('returnUrl')).toBeNull();
+      });
+
+      const logoutReq = httpMock.expectOne(`${apiBase}/auth/logout`);
+      logoutReq.flush({});
+    });
   });
 
   describe('refreshToken', () => {

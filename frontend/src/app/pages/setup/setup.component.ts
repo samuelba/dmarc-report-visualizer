@@ -14,6 +14,7 @@ import { MaterialModule } from '../../shared/material.module';
 import { AuthService } from '../../services/auth.service';
 import { PasswordStrengthComponent } from '../../components/password-strength/password-strength.component';
 import { PASSWORD_MIN_LENGTH, PASSWORD_SPECIAL_CHARS_REGEX } from '../../constants/password.constants';
+import { clearReturnUrl } from '../../utils/url-validation.utils';
 
 // Custom validator for password strength
 function passwordStrengthValidator(): ValidatorFn {
@@ -116,6 +117,9 @@ export class SetupComponent implements OnInit {
 
     this.authService.setup(email, password, passwordConfirmation).subscribe({
       next: () => {
+        // Clear any stored return URL (setup should always go to dashboard)
+        clearReturnUrl();
+
         // Navigate to dashboard on success
         this.router.navigate(['/dashboard']);
       },

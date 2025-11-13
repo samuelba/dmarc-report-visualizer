@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router } from '@angular/router';
 import { MaterialModule } from '../../shared/material.module';
 import { AuthService } from '../../services/auth.service';
+import { getValidatedReturnUrl, clearReturnUrl } from '../../utils/url-validation.utils';
 
 @Component({
   selector: 'app-login',
@@ -83,8 +84,14 @@ export class LoginComponent implements OnInit {
 
     this.authService.login(email, password).subscribe({
       next: () => {
-        // Navigate to dashboard on success
-        this.router.navigate(['/dashboard']);
+        // Get return URL from session storage
+        const returnUrl = getValidatedReturnUrl();
+
+        // Clear the stored return URL
+        clearReturnUrl();
+
+        // Navigate to return URL or default dashboard
+        this.router.navigateByUrl(returnUrl);
       },
       error: (error) => {
         this.isSubmitting = false;

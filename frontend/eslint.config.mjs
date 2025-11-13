@@ -20,6 +20,7 @@ export default [
         window: 'readonly',
         document: 'readonly',
         localStorage: 'readonly',
+        sessionStorage: 'readonly',
         navigator: 'readonly',
         setTimeout: 'readonly',
         setInterval: 'readonly',
@@ -81,6 +82,8 @@ export default [
         afterEach: 'readonly',
         beforeAll: 'readonly',
         afterAll: 'readonly',
+        console: 'readonly',
+        window: 'readonly',
       },
     },
     plugins: {

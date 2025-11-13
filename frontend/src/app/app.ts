@@ -104,30 +104,17 @@ export class App implements OnInit {
           if (response.needsSetup) {
             // Setup is needed, redirect to setup page
             this.router.navigate(['/setup']);
-          } else {
-            // Setup is complete, check if user is authenticated
-            this.authService
-              .isAuthenticated()
-              .pipe(take(1))
-              .subscribe({
-                next: (isAuthenticated) => {
-                  if (!isAuthenticated) {
-                    // User is not authenticated, redirect to login
-                    this.router.navigate(['/login']);
-                  }
-                  // If authenticated, allow normal navigation (guards will handle protected routes)
-                },
-                error: (error) => {
-                  console.error('Error checking authentication:', error);
-                  this.router.navigate(['/login']);
-                },
-              });
           }
+          // If setup is complete, let the auth guards handle authentication checks
+          // This prevents overwriting return URLs that guards may have stored
         },
         error: (error) => {
           console.error('Error checking setup status:', error);
           // On error, redirect to login as a safe fallback
-          this.router.navigate(['/login']);
+          // Only redirect if not already navigating
+          if (!this.router.url.startsWith('/login')) {
+            this.router.navigate(['/login']);
+          }
         },
       });
   }

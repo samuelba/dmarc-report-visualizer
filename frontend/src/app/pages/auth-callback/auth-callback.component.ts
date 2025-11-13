@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { getValidatedReturnUrl, clearReturnUrl } from '../../utils/url-validation.utils';
 
 @Component({
   selector: 'app-auth-callback',
@@ -23,8 +24,14 @@ export class AuthCallbackComponent implements OnInit {
     // Fetch user info directly using the access token cookie
     this.authService.fetchCurrentUser().subscribe({
       next: () => {
-        // Redirect to dashboard on success
-        this.router.navigate(['/dashboard']);
+        // Get return URL from session storage
+        const returnUrl = getValidatedReturnUrl();
+
+        // Clear the stored return URL
+        clearReturnUrl();
+
+        // Navigate to return URL or default dashboard
+        this.router.navigateByUrl(returnUrl);
       },
       error: (error) => {
         console.error('Failed to fetch user info after SAML login:', error);
