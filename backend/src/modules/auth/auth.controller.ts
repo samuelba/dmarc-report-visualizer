@@ -18,16 +18,37 @@ import { AuthService } from './services/auth.service';
 import { SamlService } from './services/saml.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { JwtService } from './services/jwt.service';
+import { TotpService } from './services/totp.service';
+import { RecoveryCodeService } from './services/recovery-code.service';
 import { SetupDto } from './dto/setup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SamlConfigDto, SamlConfigResponse } from './dto/saml-config.dto';
+import {
+  TotpSetupResponseDto,
+  TotpEnableDto,
+  TotpEnableResponseDto,
+  TotpDisableDto,
+  TotpVerifyDto,
+  RecoveryCodeVerifyDto,
+  TotpStatusResponseDto,
+} from './dto/totp.dto';
 import { SetupGuard } from './guards/setup.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { SamlEnabledGuard } from './guards/saml-enabled.guard';
 import { Public } from './decorators/public.decorator';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { User } from './entities/user.entity';
+import {
+  TotpRateLimitException,
+  SamlUserTotpException,
+  TotpAlreadyEnabledException,
+  TotpNotEnabledException,
+  InvalidTotpCodeException,
+  ExpiredTempTokenException,
+  InvalidRecoveryCodeException,
+  RecoveryCodeAlreadyUsedException,
+} from './exceptions/totp.exception';
 
 @Controller('auth')
 export class AuthController {
@@ -36,6 +57,8 @@ export class AuthController {
     private readonly samlService: SamlService,
     private readonly rateLimiterService: RateLimiterService,
     private readonly jwtService: JwtService,
+    private readonly totpService: TotpService,
+    private readonly recoveryCodeService: RecoveryCodeService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -73,12 +96,15 @@ export class AuthController {
       setupDto.password,
     );
 
-    // Generate tokens
-    const {
-      accessToken,
-      refreshToken,
-      user: userInfo,
-    } = await this.authService.login(user);
+    // Generate tokens (TOTP is never enabled during setup)
+    const loginResult = await this.authService.login(user);
+
+    // Setup should never require TOTP (new user)
+    if ('totpRequired' in loginResult) {
+      throw new Error('Unexpected TOTP requirement during setup');
+    }
+
+    const { accessToken, refreshToken, user: userInfo } = loginResult;
 
     // Get cookie expiry time (same for both tokens to ensure they persist together)
     const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
@@ -107,7 +133,7 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponse> {
+  ): Promise<AuthResponse | { totpRequired: true }> {
     const ip = request.ip || request.connection?.remoteAddress || 'unknown';
 
     // Check if password login is allowed
@@ -137,12 +163,19 @@ export class AuthController {
     // Reset rate limit attempts on successful login
     await this.rateLimiterService.resetAttempts(loginDto.email);
 
-    // Generate tokens
-    const {
-      accessToken,
-      refreshToken,
-      user: userInfo,
-    } = await this.authService.login(user);
+    // Generate tokens or return TOTP requirement
+    const loginResult = await this.authService.login(user);
+
+    // Check if TOTP is required
+    if ('totpRequired' in loginResult) {
+      // Set temp token as HttpOnly cookie (5 minute expiry)
+      this.setTotpTempTokenCookie(response, loginResult.tempToken);
+
+      // Return TOTP required response (temp token is in cookie)
+      return { totpRequired: true };
+    }
+
+    const { accessToken, refreshToken, user: userInfo } = loginResult;
 
     // Get cookie expiry time (same for both tokens to ensure they persist together)
     const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
@@ -296,8 +329,15 @@ export class AuthController {
       changePasswordDto.newPassword,
     );
 
-    // Generate new tokens for the current session
-    const { accessToken, refreshToken } = await this.authService.login(user);
+    // Generate new tokens for the current session (skip TOTP since user is already authenticated)
+    const loginResult = await this.authService.login(user, true);
+
+    // With skipTotp=true, this should never require TOTP
+    if ('totpRequired' in loginResult) {
+      throw new Error('Unexpected TOTP requirement during password change');
+    }
+
+    const { accessToken, refreshToken } = loginResult;
 
     // Get cookie expiry time (same for both tokens to ensure they persist together)
     const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
@@ -414,6 +454,53 @@ export class AuthController {
   }
 
   /**
+   * Helper method to set TOTP temp token cookie with security flags
+   * Short-lived cookie (5 minutes) for TOTP verification flow
+   */
+  private setTotpTempTokenCookie(response: Response, tempToken: string): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieSecure =
+      this.configService.get<string>(
+        'COOKIE_SECURE',
+        isProduction ? 'true' : 'false',
+      ) === 'true';
+    const cookieDomain = this.configService.get<string>('COOKIE_DOMAIN');
+
+    // 5 minutes expiry (matches JWT temp token expiry)
+    const maxAge = 5 * 60 * 1000;
+
+    response.cookie('totpTempToken', tempToken, {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: isProduction ? 'strict' : 'lax',
+      maxAge,
+      path: '/',
+      ...(cookieDomain && { domain: cookieDomain }),
+    });
+  }
+
+  /**
+   * Helper method to clear TOTP temp token cookie
+   */
+  private clearTotpTempTokenCookie(response: Response): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieSecure =
+      this.configService.get<string>(
+        'COOKIE_SECURE',
+        isProduction ? 'true' : 'false',
+      ) === 'true';
+    const cookieDomain = this.configService.get<string>('COOKIE_DOMAIN');
+
+    response.clearCookie('totpTempToken', {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: isProduction ? 'strict' : 'lax',
+      path: '/',
+      ...(cookieDomain && { domain: cookieDomain }),
+    });
+  }
+
+  /**
    * SAML login initiation endpoint
    * Redirects to IdP for authentication
    * Protected by SamlEnabledGuard - only accessible when SAML is configured and enabled
@@ -444,8 +531,15 @@ export class AuthController {
     // User is attached to request by SAML strategy after successful validation
     const user = req.user;
 
-    // Generate JWT tokens
-    const { accessToken, refreshToken } = await this.authService.login(user);
+    // Generate JWT tokens (SAML users never have TOTP enabled)
+    const loginResult = await this.authService.login(user);
+
+    // SAML should never require TOTP (2FA handled by IdP)
+    if ('totpRequired' in loginResult) {
+      throw new Error('Unexpected TOTP requirement for SAML user');
+    }
+
+    const { accessToken, refreshToken } = loginResult;
 
     // Get cookie expiry time (same for both tokens to ensure they persist together)
     const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
@@ -700,5 +794,362 @@ export class AuthController {
   async enablePasswordLogin(): Promise<{ message: string }> {
     await this.samlService.setPasswordLoginDisabled(false);
     return { message: 'Password login has been enabled.' };
+  }
+
+  /**
+   * TOTP setup endpoint - generates secret and QR code
+   * Requires authentication
+   * SAML users cannot use this endpoint
+   */
+  @Post('totp/setup')
+  @HttpCode(HttpStatus.OK)
+  async setupTotp(
+    @Req()
+    request: Request & {
+      user: { id: string; email: string; authProvider: string };
+    },
+  ): Promise<TotpSetupResponseDto> {
+    // Check if user is SAML user
+    if (request.user.authProvider === 'saml') {
+      throw new SamlUserTotpException();
+    }
+
+    // Check if TOTP is already enabled
+    const isTotpEnabled = await this.totpService.isTotpEnabled(request.user.id);
+    if (isTotpEnabled) {
+      throw new TotpAlreadyEnabledException();
+    }
+
+    // Generate secret and otpauth URL
+    const { secret, otpauthUrl } = this.totpService.generateSecret();
+
+    // Generate QR code
+    const qrCodeUrl = await this.totpService.generateQrCode(
+      otpauthUrl,
+      request.user.email,
+    );
+
+    return {
+      secret,
+      qrCodeUrl,
+      otpauthUrl,
+    };
+  }
+
+  /**
+   * TOTP enable endpoint - verifies initial code and enables TOTP
+   * Requires authentication
+   * Returns recovery codes that must be saved by the user
+   */
+  @Post('totp/enable')
+  @HttpCode(HttpStatus.OK)
+  async enableTotp(
+    @Body() dto: TotpEnableDto,
+    @Req() request: Request & { user: { id: string; authProvider: string } },
+  ): Promise<TotpEnableResponseDto> {
+    // Check if user is SAML user
+    if (request.user.authProvider === 'saml') {
+      throw new SamlUserTotpException();
+    }
+
+    // Check rate limit for TOTP setup
+    const rateLimitCheck = await this.rateLimiterService.checkTotpSetupLimit(
+      request.user.id,
+    );
+    if (!rateLimitCheck.allowed) {
+      throw new TotpRateLimitException(rateLimitCheck.retryAfter!, 'setup');
+    }
+
+    try {
+      // Enable TOTP (validates token and stores encrypted secret)
+      await this.totpService.enableTotp(request.user.id, dto.secret, dto.token);
+
+      // Reset rate limit on success
+      await this.rateLimiterService.resetTotpSetupAttempts(request.user.id);
+
+      // Generate recovery codes
+      const recoveryCodes =
+        await this.recoveryCodeService.generateRecoveryCodes(request.user.id);
+
+      return { recoveryCodes };
+    } catch (error) {
+      // Record failed attempt for rate limiting (only for invalid code errors)
+      if (error instanceof InvalidTotpCodeException) {
+        await this.rateLimiterService.recordTotpSetupAttempt(request.user.id);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * TOTP disable endpoint - disables TOTP with password and code verification
+   * Requires authentication
+   * Invalidates all recovery codes
+   * SAML users cannot use this endpoint
+   */
+  @Post('totp/disable')
+  @HttpCode(HttpStatus.OK)
+  async disableTotp(
+    @Body() dto: TotpDisableDto,
+    @Req() request: Request & { user: { id: string; authProvider: string } },
+  ): Promise<{ message: string }> {
+    // Check if user is SAML user
+    if (request.user.authProvider === 'saml') {
+      throw new SamlUserTotpException();
+    }
+
+    // Disable TOTP (validates password and token)
+    await this.totpService.disableTotp(
+      request.user.id,
+      dto.password,
+      dto.token,
+    );
+
+    // Invalidate all recovery codes
+    await this.recoveryCodeService.invalidateAllCodes(request.user.id);
+
+    return { message: 'Two-factor authentication has been disabled' };
+  }
+
+  /**
+   * TOTP verify endpoint - verifies TOTP code during login
+   * Public endpoint - uses temporary token from HttpOnly cookie
+   * Issues access and refresh tokens on success
+   */
+  @Public()
+  @Post('totp/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyTotp(
+    @Body() dto: TotpVerifyDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    // Get temp token from cookie
+    const tempToken = request.cookies?.totpTempToken;
+
+    if (!tempToken) {
+      throw new UnauthorizedException(
+        'TOTP verification session not found. Please log in again.',
+      );
+    }
+
+    // Extract user ID from temporary token
+    let userId: string;
+    try {
+      const payload = this.jwtService.verifyTempToken(tempToken);
+      userId = payload.sub;
+    } catch (_error) {
+      // Clear the invalid cookie
+      this.clearTotpTempTokenCookie(response);
+      throw new ExpiredTempTokenException();
+    }
+
+    // Check rate limit for TOTP verification
+    const rateLimitCheck =
+      await this.rateLimiterService.checkTotpVerificationLimit(userId);
+    if (!rateLimitCheck.allowed) {
+      throw new TotpRateLimitException(
+        rateLimitCheck.retryAfter!,
+        'verification',
+      );
+    }
+
+    try {
+      // Verify TOTP and complete login
+      const { accessToken, refreshToken, user } =
+        await this.authService.verifyTotpAndLogin(tempToken, dto.totpCode);
+
+      // Reset rate limit on success
+      await this.rateLimiterService.resetTotpVerificationAttempts(userId);
+
+      // Clear the temp token cookie (no longer needed)
+      this.clearTotpTempTokenCookie(response);
+
+      // Get cookie expiry time
+      const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
+
+      // Set tokens in cookies
+      this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
+      this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
+
+      return { user };
+    } catch (error) {
+      // Record failed attempt for rate limiting (only for invalid code errors)
+      if (error instanceof InvalidTotpCodeException) {
+        await this.rateLimiterService.recordTotpVerificationAttempt(userId);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Recovery code verify endpoint - verifies recovery code during login
+   * Public endpoint - uses temporary token from HttpOnly cookie
+   * Issues access and refresh tokens on success
+   * Marks recovery code as used
+   */
+  @Public()
+  @Post('totp/verify-recovery')
+  @HttpCode(HttpStatus.OK)
+  async verifyRecoveryCode(
+    @Body() dto: RecoveryCodeVerifyDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    // Get temp token from cookie
+    const tempToken = request.cookies?.totpTempToken;
+
+    if (!tempToken) {
+      throw new UnauthorizedException(
+        'TOTP verification session not found. Please log in again.',
+      );
+    }
+
+    // Extract user ID from temporary token
+    let userId: string;
+    try {
+      const payload = this.jwtService.verifyTempToken(tempToken);
+      userId = payload.sub;
+    } catch (_error) {
+      // Clear the invalid cookie
+      this.clearTotpTempTokenCookie(response);
+      throw new ExpiredTempTokenException();
+    }
+
+    // Check rate limit for recovery code verification
+    const rateLimitCheck =
+      await this.rateLimiterService.checkRecoveryCodeLimit(userId);
+    if (!rateLimitCheck.allowed) {
+      throw new TotpRateLimitException(
+        rateLimitCheck.retryAfter!,
+        'recovery code verification',
+      );
+    }
+
+    try {
+      // Verify recovery code and complete login
+      const { accessToken, refreshToken, user } =
+        await this.authService.loginWithRecoveryCode(
+          tempToken,
+          dto.recoveryCode,
+        );
+
+      // Reset rate limit on success
+      await this.rateLimiterService.resetRecoveryCodeAttempts(userId);
+
+      // Clear the temp token cookie (no longer needed)
+      this.clearTotpTempTokenCookie(response);
+
+      // Get cookie expiry time
+      const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
+
+      // Set tokens in cookies
+      this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
+      this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
+
+      return { user };
+    } catch (error) {
+      // Record failed attempt for rate limiting (only for recovery code errors)
+      if (
+        error instanceof InvalidRecoveryCodeException ||
+        error instanceof RecoveryCodeAlreadyUsedException
+      ) {
+        await this.rateLimiterService.recordRecoveryCodeAttempt(userId);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Regenerate recovery codes endpoint
+   * Requires authentication and valid TOTP code
+   * Invalidates all existing recovery codes
+   * SAML users cannot use this endpoint
+   */
+  @Post('totp/recovery-codes/regenerate')
+  @HttpCode(HttpStatus.OK)
+  async regenerateRecoveryCodes(
+    @Body() body: { token: string },
+    @Req() request: Request & { user: { id: string; authProvider: string } },
+  ): Promise<TotpEnableResponseDto> {
+    // Check if user is SAML user
+    if (request.user.authProvider === 'saml') {
+      throw new SamlUserTotpException();
+    }
+
+    // Verify TOTP is enabled
+    const isTotpEnabled = await this.totpService.isTotpEnabled(request.user.id);
+    if (!isTotpEnabled) {
+      throw new TotpNotEnabledException();
+    }
+
+    // Get decrypted secret
+    const secret = await this.totpService.getDecryptedSecret(request.user.id);
+    if (!secret) {
+      throw new TotpNotEnabledException();
+    }
+
+    // Validate TOTP token
+    const isValid = await this.totpService.validateToken(
+      body.token,
+      secret,
+      request.user.id,
+    );
+    if (!isValid) {
+      throw new InvalidTotpCodeException();
+    }
+
+    // Update last used timestamp
+    await this.totpService.updateLastUsedTimestamp(request.user.id);
+
+    // Invalidate all existing recovery codes
+    await this.recoveryCodeService.invalidateAllCodes(request.user.id);
+
+    // Generate new recovery codes
+    const recoveryCodes = await this.recoveryCodeService.generateRecoveryCodes(
+      request.user.id,
+    );
+
+    return { recoveryCodes };
+  }
+
+  /**
+   * Get TOTP status endpoint
+   * Requires authentication
+   * Returns TOTP enabled status, last used timestamp, and remaining recovery codes
+   * SAML users cannot use this endpoint
+   */
+  @Get('totp/status')
+  async getTotpStatus(
+    @Req() request: Request & { user: { id: string; authProvider: string } },
+  ): Promise<TotpStatusResponseDto> {
+    // Check if user is SAML user
+    if (request.user.authProvider === 'saml') {
+      throw new SamlUserTotpException();
+    }
+
+    // Get TOTP enabled status
+    const isTotpEnabled = await this.totpService.isTotpEnabled(request.user.id);
+
+    if (!isTotpEnabled) {
+      return {
+        enabled: false,
+        lastUsed: null,
+        recoveryCodesRemaining: 0,
+      };
+    }
+
+    // Get user to retrieve last used timestamp
+    const user = await this.authService.findUserById(request.user.id);
+
+    // Get remaining recovery codes count
+    const recoveryCodesRemaining =
+      await this.recoveryCodeService.getRemainingCodesCount(request.user.id);
+
+    return {
+      enabled: true,
+      lastUsed: user?.totpLastUsedAt || null,
+      recoveryCodesRemaining,
+    };
   }
 }

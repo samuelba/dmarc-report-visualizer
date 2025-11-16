@@ -30,12 +30,9 @@
 
         <!-- Message for SAML users -->
         @if (isSamlUser) {
-          <div class="saml-user-message">
-            <mat-icon>info</mat-icon>
-            <div class="message-content">
-              <p>Password management is handled by your organization's Identity Provider.</p>
-            </div>
-          </div>
+          <app-message type="info">
+            Password management is handled by your organization's Identity Provider.
+          </app-message>
         }
 
         <!-- Password change form for local users -->
@@ -136,20 +133,14 @@
 
             <!-- Success Message -->
             @if (successMessage) {
-              <div class="success-message">
-                <mat-icon>check_circle</mat-icon>
-                <div class="message-content">
-                  <strong>Success!</strong>
-                  <p>{{ successMessage }}</p>
-                </div>
-              </div>
+              <app-message type="success"> <strong>Success!</strong> {{ successMessage }} </app-message>
             }
 
             <!-- Error Message -->
             @if (errorMessage) {
-              <mat-error class="error-message">
+              <app-message type="error">
                 {{ errorMessage }}
-              </mat-error>
+              </app-message>
             }
 
             <!-- Submit Button -->
@@ -171,6 +162,66 @@
           </form>
         }
       </div>
+
+      <!-- Two-Factor Authentication Section (only for non-SAML users) -->
+      @if (!isSamlUser) {
+        <mat-divider></mat-divider>
+
+        <div class="totp-section">
+          <h3>Two-Factor Authentication</h3>
+
+          @if (totpLoading) {
+            <div class="loading-container">
+              <mat-spinner diameter="40"></mat-spinner>
+            </div>
+          }
+
+          @if (!totpLoading && !totpEnabled) {
+            <div class="totp-disabled">
+              <p>Add an extra layer of security to your account by enabling two-factor authentication.</p>
+              <button matButton="tonal" color="primary" (click)="setupTotp()">
+                <mat-icon>security</mat-icon>
+                Enable 2FA
+              </button>
+            </div>
+          }
+
+          @if (!totpLoading && totpEnabled) {
+            <div class="totp-enabled">
+              <app-message type="success">
+                <p><strong>Two-factor authentication is enabled</strong></p>
+                @if (totpLastUsed) {
+                  <p class="last-used">Last used: {{ totpLastUsed | date: 'medium' }}</p>
+                }
+                <p class="recovery-codes">Recovery codes remaining: {{ recoveryCodesRemaining }}</p>
+              </app-message>
+
+              <div class="totp-actions">
+                <button matButton="outlined" (click)="regenerateRecoveryCodes()">
+                  <mat-icon>refresh</mat-icon>
+                  Regenerate Recovery Codes
+                </button>
+                <button matButton="outlined" color="warn" (click)="disableTotp()">
+                  <mat-icon>security</mat-icon>
+                  Disable 2FA
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- SAML User 2FA Message -->
+      @if (isSamlUser) {
+        <mat-divider></mat-divider>
+
+        <div class="totp-section">
+          <h3>Two-Factor Authentication</h3>
+          <app-message type="info">
+            Two-factor authentication is managed by your organization's Identity Provider.
+          </app-message>
+        </div>
+      }
     </mat-card-content>
   </mat-card>
 </div>

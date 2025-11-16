@@ -7,6 +7,8 @@ import { AuthService } from './services/auth.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { JwtService } from './services/jwt.service';
 import { SamlService } from './services/saml.service';
+import { TotpService } from './services/totp.service';
+import { RecoveryCodeService } from './services/recovery-code.service';
 import { User } from './entities/user.entity';
 
 describe('AuthController', () => {
@@ -23,6 +25,11 @@ describe('AuthController', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],
+    totpSecret: null,
+    totpEnabled: false,
+    totpEnabledAt: null,
+    totpLastUsedAt: null,
+    recoveryCodes: [],
   };
 
   const mockAuthService = {
@@ -52,6 +59,24 @@ describe('AuthController', () => {
     setPasswordLoginDisabled: jest.fn(),
   };
 
+  const mockTotpService = {
+    generateSecret: jest.fn(),
+    generateQrCode: jest.fn(),
+    validateToken: jest.fn(),
+    enableTotp: jest.fn(),
+    disableTotp: jest.fn(),
+    isTotpEnabled: jest.fn(),
+    updateLastUsedTimestamp: jest.fn(),
+    getDecryptedSecret: jest.fn(),
+  };
+
+  const mockRecoveryCodeService = {
+    generateRecoveryCodes: jest.fn(),
+    validateRecoveryCode: jest.fn(),
+    invalidateAllCodes: jest.fn(),
+    getRemainingCodesCount: jest.fn(),
+  };
+
   const mockResponse = () => {
     const res: Partial<Response> = {
       cookie: jest.fn(),
@@ -77,12 +102,21 @@ describe('AuthController', () => {
           useValue: mockSamlService,
         },
         {
+          provide: TotpService,
+          useValue: mockTotpService,
+        },
+        {
+          provide: RecoveryCodeService,
+          useValue: mockRecoveryCodeService,
+        },
+        {
           provide: JwtService,
           useValue: {
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
             getAccessTokenExpiryMs: jest.fn().mockReturnValue(15 * 60 * 1000), // 15 minutes
+            verifyToken: jest.fn(),
           },
         },
         {
@@ -536,6 +570,7 @@ describe('AuthController', () => {
         changePasswordDto.currentPassword,
         changePasswordDto.newPassword,
       );
+      expect(authService.login).toHaveBeenCalledWith(mockUser, true);
       expect(response.cookie).toHaveBeenCalledWith(
         'refreshToken',
         'new-refresh-token',
@@ -651,6 +686,128 @@ describe('AuthController', () => {
         expect(mockSamlService.setPasswordLoginDisabled).toHaveBeenCalledWith(
           false,
         );
+      });
+    });
+  });
+
+  describe('TOTP SAML User Restrictions', () => {
+    const samlUser = {
+      ...mockUser,
+      authProvider: 'saml',
+    };
+
+    const localUser = {
+      ...mockUser,
+      authProvider: 'local',
+    };
+
+    describe('setupTotp endpoint', () => {
+      it('should throw SamlUserTotpException for SAML users', async () => {
+        const request = {
+          user: {
+            id: samlUser.id,
+            email: samlUser.email,
+            authProvider: 'saml',
+          },
+        } as any;
+
+        await expect(controller.setupTotp(request)).rejects.toThrow(
+          "Two-factor authentication is managed by your organization's Identity Provider",
+        );
+      });
+
+      it('should allow local users to setup TOTP', async () => {
+        const request = {
+          user: {
+            id: localUser.id,
+            email: localUser.email,
+            authProvider: 'local',
+          },
+        } as any;
+
+        mockTotpService.isTotpEnabled.mockResolvedValue(false);
+        mockTotpService.generateSecret.mockReturnValue({
+          secret: 'test-secret',
+          otpauthUrl: 'otpauth://totp/test',
+        });
+        mockTotpService.generateQrCode.mockResolvedValue(
+          'data:image/png;base64,test',
+        );
+
+        const result = await controller.setupTotp(request);
+
+        expect(result).toHaveProperty('secret');
+        expect(result).toHaveProperty('qrCodeUrl');
+        expect(mockTotpService.generateSecret).toHaveBeenCalled();
+      });
+    });
+
+    describe('enableTotp endpoint', () => {
+      it('should throw SamlUserTotpException for SAML users', async () => {
+        const request = {
+          user: { id: samlUser.id, authProvider: 'saml' },
+        } as any;
+        const dto = { secret: 'test-secret', token: '123456' };
+
+        await expect(controller.enableTotp(dto, request)).rejects.toThrow(
+          "Two-factor authentication is managed by your organization's Identity Provider",
+        );
+      });
+    });
+
+    describe('disableTotp endpoint', () => {
+      it('should throw SamlUserTotpException for SAML users', async () => {
+        const request = {
+          user: { id: samlUser.id, authProvider: 'saml' },
+        } as any;
+        const dto = { password: 'password', token: '123456' };
+
+        await expect(controller.disableTotp(dto, request)).rejects.toThrow(
+          "Two-factor authentication is managed by your organization's Identity Provider",
+        );
+      });
+    });
+
+    describe('regenerateRecoveryCodes endpoint', () => {
+      it('should throw SamlUserTotpException for SAML users', async () => {
+        const request = {
+          user: { id: samlUser.id, authProvider: 'saml' },
+        } as any;
+        const body = { token: '123456' };
+
+        await expect(
+          controller.regenerateRecoveryCodes(body, request),
+        ).rejects.toThrow(
+          "Two-factor authentication is managed by your organization's Identity Provider",
+        );
+      });
+    });
+
+    describe('getTotpStatus endpoint', () => {
+      it('should throw SamlUserTotpException for SAML users', async () => {
+        const request = {
+          user: { id: samlUser.id, authProvider: 'saml' },
+        } as any;
+
+        await expect(controller.getTotpStatus(request)).rejects.toThrow(
+          "Two-factor authentication is managed by your organization's Identity Provider",
+        );
+      });
+
+      it('should return status for local users', async () => {
+        const request = {
+          user: { id: localUser.id, authProvider: 'local' },
+        } as any;
+
+        mockTotpService.isTotpEnabled.mockResolvedValue(false);
+
+        const result = await controller.getTotpStatus(request);
+
+        expect(result).toEqual({
+          enabled: false,
+          lastUsed: null,
+          recoveryCodesRemaining: 0,
+        });
       });
     });
   });

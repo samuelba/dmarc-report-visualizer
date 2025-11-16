@@ -12,6 +12,8 @@ import { User } from '../entities/user.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { PasswordService } from './password.service';
 import { JwtService } from './jwt.service';
+import { TotpService } from './totp.service';
+import { RecoveryCodeService } from './recovery-code.service';
 import * as crypto from 'crypto';
 
 describe('AuthService', () => {
@@ -27,9 +29,14 @@ describe('AuthService', () => {
     passwordHash: 'bcrypt$hashedpassword',
     authProvider: 'local',
     organizationId: null,
+    totpSecret: null,
+    totpEnabled: false,
+    totpEnabledAt: null,
+    totpLastUsedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],
+    recoveryCodes: [],
   };
 
   beforeEach(async () => {
@@ -67,8 +74,10 @@ describe('AuthService', () => {
           useValue: {
             generateAccessToken: jest.fn(),
             generateRefreshToken: jest.fn(),
+            generateTempToken: jest.fn(),
             verifyRefreshToken: jest.fn(),
             verifyAccessTokenIgnoreExpiration: jest.fn(),
+            verifyTempToken: jest.fn(),
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
@@ -86,6 +95,20 @@ describe('AuthService', () => {
               }
               return defaultValue;
             }),
+          },
+        },
+        {
+          provide: TotpService,
+          useValue: {
+            validateToken: jest.fn(),
+            getDecryptedSecret: jest.fn(),
+            updateLastUsedTimestamp: jest.fn(),
+          },
+        },
+        {
+          provide: RecoveryCodeService,
+          useValue: {
+            validateRecoveryCode: jest.fn(),
           },
         },
       ],
@@ -205,7 +228,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should generate access and refresh tokens', async () => {
+    it('should generate access and refresh tokens when TOTP is not enabled', async () => {
       const accessToken = 'access-token-jwt';
       const refreshToken = 'refresh-token-jwt';
       const refreshTokenEntity = {
@@ -232,6 +255,11 @@ describe('AuthService', () => {
 
       const result = await service.login(mockUser);
 
+      // Type guard to check if it's not a TOTP required response
+      if ('totpRequired' in result) {
+        fail('Expected normal login response, got TOTP required');
+      }
+
       expect(result.accessToken).toBe(accessToken);
       expect(result.refreshToken).toBe(refreshToken);
       expect(result.user).toEqual({
@@ -250,6 +278,31 @@ describe('AuthService', () => {
         refreshTokenEntity.id,
       );
       expect(refreshTokenRepository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return TOTP required response when TOTP is enabled', async () => {
+      const userWithTotp = {
+        ...mockUser,
+        totpEnabled: true,
+        totpSecret: 'encrypted-secret',
+      };
+      const tempToken = 'temp-token-jwt';
+
+      jest.spyOn(jwtService, 'generateTempToken').mockReturnValue(tempToken);
+
+      const result = await service.login(userWithTotp);
+
+      // Type guard to check if it's a TOTP required response
+      if (!('totpRequired' in result)) {
+        fail('Expected TOTP required response, got normal login');
+      }
+
+      expect(result.totpRequired).toBe(true);
+      expect(result.tempToken).toBe(tempToken);
+      expect(jwtService.generateTempToken).toHaveBeenCalledWith(
+        userWithTotp.id,
+        userWithTotp.email,
+      );
     });
 
     it('should store hashed refresh token in database', async () => {

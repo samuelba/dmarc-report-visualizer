@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface RateLimitEntry {
@@ -9,8 +9,12 @@ interface RateLimitEntry {
 
 @Injectable()
 export class RateLimiterService {
+  private readonly logger = new Logger(RateLimiterService.name);
   private readonly ipAttempts = new Map<string, RateLimitEntry>();
   private readonly accountAttempts = new Map<string, RateLimitEntry>();
+  private readonly totpVerificationAttempts = new Map<string, RateLimitEntry>();
+  private readonly recoveryCodeAttempts = new Map<string, RateLimitEntry>();
+  private readonly totpSetupAttempts = new Map<string, RateLimitEntry>();
 
   // Configuration constants from environment
   private readonly IP_MAX_ATTEMPTS: number;
@@ -18,6 +22,14 @@ export class RateLimiterService {
   private readonly ACCOUNT_MAX_ATTEMPTS: number;
   private readonly ACCOUNT_WINDOW_MS: number;
   private readonly LOCK_DURATION_MS: number;
+
+  // TOTP rate limiting constants
+  private readonly TOTP_VERIFY_MAX_ATTEMPTS = 5;
+  private readonly TOTP_VERIFY_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+  private readonly RECOVERY_CODE_MAX_ATTEMPTS = 3;
+  private readonly RECOVERY_CODE_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+  private readonly TOTP_SETUP_MAX_ATTEMPTS = 10;
+  private readonly TOTP_SETUP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
   constructor(private readonly configService: ConfigService) {
     this.IP_MAX_ATTEMPTS = parseInt(
@@ -84,6 +96,16 @@ export class RateLimiterService {
       // Lock the IP
       entry.lockedUntil = now + this.LOCK_DURATION_MS;
       const retryAfter = Math.ceil(this.LOCK_DURATION_MS / 1000);
+
+      // Audit log: IP rate limit violation
+      this.logger.warn({
+        event: 'rate_limit_violation',
+        type: 'ip_login',
+        ipAddress: ip,
+        attempts: entry.attempts,
+        timestamp: new Date().toISOString(),
+      });
+
       return { allowed: false, retryAfter };
     }
 
@@ -123,6 +145,16 @@ export class RateLimiterService {
       // Lock the account
       entry.lockedUntil = now + this.LOCK_DURATION_MS;
       const retryAfter = Math.ceil(this.LOCK_DURATION_MS / 1000);
+
+      // Audit log: Account rate limit violation
+      this.logger.warn({
+        event: 'rate_limit_violation',
+        type: 'account_login',
+        email: email.toLowerCase(),
+        attempts: entry.attempts,
+        timestamp: new Date().toISOString(),
+      });
+
       return { locked: true, retryAfter };
     }
 
@@ -178,10 +210,227 @@ export class RateLimiterService {
   }
 
   /**
+   * Check if TOTP verification is rate limited for a user
+   * @param userId - The user ID
+   * @returns Object with allowed status and optional retryAfter in seconds
+   */
+  async checkTotpVerificationLimit(
+    userId: string,
+  ): Promise<{ allowed: boolean; retryAfter?: number }> {
+    const result = this.checkRateLimit(
+      this.totpVerificationAttempts,
+      userId,
+      this.TOTP_VERIFY_MAX_ATTEMPTS,
+      this.TOTP_VERIFY_WINDOW_MS,
+    );
+
+    // Audit log if rate limit exceeded
+    if (!result.allowed) {
+      const entry = this.totpVerificationAttempts.get(userId);
+      this.logger.warn({
+        event: 'rate_limit_violation',
+        type: 'totp_verification',
+        userId,
+        attempts: entry?.attempts || 0,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Record a failed TOTP verification attempt
+   * @param userId - The user ID
+   */
+  async recordTotpVerificationAttempt(userId: string): Promise<void> {
+    this.recordAttempt(
+      this.totpVerificationAttempts,
+      userId,
+      this.TOTP_VERIFY_WINDOW_MS,
+    );
+  }
+
+  /**
+   * Reset TOTP verification attempts for a user
+   * @param userId - The user ID
+   */
+  async resetTotpVerificationAttempts(userId: string): Promise<void> {
+    this.totpVerificationAttempts.delete(userId);
+  }
+
+  /**
+   * Check if recovery code verification is rate limited for a user
+   * @param userId - The user ID
+   * @returns Object with allowed status and optional retryAfter in seconds
+   */
+  async checkRecoveryCodeLimit(
+    userId: string,
+  ): Promise<{ allowed: boolean; retryAfter?: number }> {
+    const result = this.checkRateLimit(
+      this.recoveryCodeAttempts,
+      userId,
+      this.RECOVERY_CODE_MAX_ATTEMPTS,
+      this.RECOVERY_CODE_WINDOW_MS,
+    );
+
+    // Audit log if rate limit exceeded
+    if (!result.allowed) {
+      const entry = this.recoveryCodeAttempts.get(userId);
+      this.logger.warn({
+        event: 'rate_limit_violation',
+        type: 'recovery_code_verification',
+        userId,
+        attempts: entry?.attempts || 0,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Record a failed recovery code verification attempt
+   * @param userId - The user ID
+   */
+  async recordRecoveryCodeAttempt(userId: string): Promise<void> {
+    this.recordAttempt(
+      this.recoveryCodeAttempts,
+      userId,
+      this.RECOVERY_CODE_WINDOW_MS,
+    );
+  }
+
+  /**
+   * Reset recovery code verification attempts for a user
+   * @param userId - The user ID
+   */
+  async resetRecoveryCodeAttempts(userId: string): Promise<void> {
+    this.recoveryCodeAttempts.delete(userId);
+  }
+
+  /**
+   * Check if TOTP setup verification is rate limited for a user
+   * @param userId - The user ID
+   * @returns Object with allowed status and optional retryAfter in seconds
+   */
+  async checkTotpSetupLimit(
+    userId: string,
+  ): Promise<{ allowed: boolean; retryAfter?: number }> {
+    const result = this.checkRateLimit(
+      this.totpSetupAttempts,
+      userId,
+      this.TOTP_SETUP_MAX_ATTEMPTS,
+      this.TOTP_SETUP_WINDOW_MS,
+    );
+
+    // Audit log if rate limit exceeded
+    if (!result.allowed) {
+      const entry = this.totpSetupAttempts.get(userId);
+      this.logger.warn({
+        event: 'rate_limit_violation',
+        type: 'totp_setup',
+        userId,
+        attempts: entry?.attempts || 0,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Record a failed TOTP setup verification attempt
+   * @param userId - The user ID
+   */
+  async recordTotpSetupAttempt(userId: string): Promise<void> {
+    this.recordAttempt(
+      this.totpSetupAttempts,
+      userId,
+      this.TOTP_SETUP_WINDOW_MS,
+    );
+  }
+
+  /**
+   * Reset TOTP setup verification attempts for a user
+   * @param userId - The user ID
+   */
+  async resetTotpSetupAttempts(userId: string): Promise<void> {
+    this.totpSetupAttempts.delete(userId);
+  }
+
+  /**
+   * Generic rate limit checker
+   * @param store - The Map to check
+   * @param key - The key to check
+   * @param maxAttempts - Maximum allowed attempts
+   * @param windowMs - Time window in milliseconds
+   * @returns Object with allowed status and optional retryAfter in seconds
+   */
+  private checkRateLimit(
+    store: Map<string, RateLimitEntry>,
+    key: string,
+    maxAttempts: number,
+    windowMs: number,
+  ): { allowed: boolean; retryAfter?: number } {
+    const now = Date.now();
+    const entry = store.get(key);
+
+    if (!entry) {
+      return { allowed: true };
+    }
+
+    // Check if window has expired
+    if (now - entry.firstAttemptAt > windowMs) {
+      // Window expired, clean up
+      store.delete(key);
+      return { allowed: true };
+    }
+
+    // Check if attempts exceeded
+    if (entry.attempts >= maxAttempts) {
+      const windowEnd = entry.firstAttemptAt + windowMs;
+      const retryAfter = Math.ceil((windowEnd - now) / 1000);
+      return { allowed: false, retryAfter };
+    }
+
+    return { allowed: true };
+  }
+
+  /**
+   * Generic attempt recorder
+   * @param store - The Map to record in
+   * @param key - The key to record
+   * @param windowMs - Time window in milliseconds
+   */
+  private recordAttempt(
+    store: Map<string, RateLimitEntry>,
+    key: string,
+    windowMs: number,
+  ): void {
+    const now = Date.now();
+    const entry = store.get(key);
+
+    if (!entry || now - entry.firstAttemptAt > windowMs) {
+      // Start new window
+      store.set(key, {
+        attempts: 1,
+        firstAttemptAt: now,
+      });
+    } else {
+      // Increment attempts in current window
+      entry.attempts++;
+    }
+  }
+
+  /**
    * Clear all rate limit data (useful for testing)
    */
   clearAll(): void {
     this.ipAttempts.clear();
     this.accountAttempts.clear();
+    this.totpVerificationAttempts.clear();
+    this.recoveryCodeAttempts.clear();
+    this.totpSetupAttempts.clear();
   }
 }

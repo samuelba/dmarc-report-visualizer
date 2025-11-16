@@ -83,14 +83,17 @@ export class LoginComponent implements OnInit {
     const { email, password } = this.loginForm.value;
 
     this.authService.login(email, password).subscribe({
-      next: () => {
-        // Get return URL from session storage
+      next: (response) => {
+        // Check if TOTP verification is required
+        if ('totpRequired' in response) {
+          // Temp token is now in HttpOnly cookie - just navigate
+          this.router.navigate(['/totp-verification']);
+          return;
+        }
+
+        // Regular login success - navigate to return URL or dashboard
         const returnUrl = getValidatedReturnUrl();
-
-        // Clear the stored return URL
         clearReturnUrl();
-
-        // Navigate to return URL or default dashboard
         this.router.navigateByUrl(returnUrl);
       },
       error: (error) => {

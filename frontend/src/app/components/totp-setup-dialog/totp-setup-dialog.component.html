@@ -1,0 +1,158 @@
+<h2 mat-dialog-title>
+  @if (step === 'scan') {
+    <span>Set Up Two-Factor Authentication</span>
+  }
+  @if (step === 'verify') {
+    <span>Verify Your Setup</span>
+  }
+  @if (step === 'recovery') {
+    <span>Save Your Recovery Codes</span>
+  }
+</h2>
+
+<mat-dialog-content>
+  <!-- Loading State -->
+  @if (isLoading && step === 'scan') {
+    <div class="loading-container">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Generating your TOTP secret...</p>
+    </div>
+  }
+
+  <!-- Step 1: Scan QR Code -->
+  @if (step === 'scan' && !isLoading) {
+    <div class="step-content">
+      <div class="step-instructions">
+        <h3>Step 1: Scan the QR Code</h3>
+        <p>Use your authenticator app to scan this QR code:</p>
+      </div>
+
+      <div class="qr-code-container">
+        <img [src]="qrCodeUrl" alt="TOTP QR Code" class="qr-code" />
+      </div>
+
+      <div class="manual-entry">
+        <p class="manual-entry-label">Or enter this code manually:</p>
+        <div class="secret-code">
+          <code>{{ secret }}</code>
+          <button
+            mat-icon-button
+            (click)="copySecretToClipboard()"
+            matTooltip="Copy to clipboard"
+            aria-label="Copy secret to clipboard"
+          >
+            <mat-icon>content_copy</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="authenticator-apps">
+        <p class="apps-label">Compatible authenticator apps e.g.:</p>
+        <ul class="apps-list">
+          <li *ngFor="let app of authenticatorApps">{{ app }}</li>
+        </ul>
+      </div>
+
+      <app-message type="info">
+        After scanning the QR code or entering the secret manually, your app will start generating 6-digit codes.
+      </app-message>
+    </div>
+  }
+
+  <!-- Step 2: Verify Code -->
+  @if (step === 'verify') {
+    <div class="step-content">
+      <div class="step-instructions">
+        <h3>Step 2: Verify Your Authenticator</h3>
+        <p>Enter the 6-digit code from your authenticator app to confirm the setup:</p>
+      </div>
+
+      <app-totp-input [(ngModel)]="verificationCode" [disabled]="isLoading" [autofocus]="true"></app-totp-input>
+
+      @if (errorMessage) {
+        <app-message type="error">
+          {{ errorMessage }}
+        </app-message>
+      }
+
+      <app-message type="info" icon="schedule">
+        Make sure your device time is correct. TOTP codes are time-based and expire every 30 seconds.
+      </app-message>
+
+      @if (isLoading) {
+        <div class="loading-inline">
+          <mat-spinner diameter="24"></mat-spinner>
+          <span>Verifying code...</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Step 3: Save Recovery Codes -->
+  @if (step === 'recovery') {
+    <div class="step-content">
+      <div class="step-instructions">
+        <h3>Step 3: Save Your Recovery Codes</h3>
+        <app-message type="warning">
+          Store these codes in a safe place. Each code can only be used once to access your account if you lose your
+          authenticator device.
+        </app-message>
+      </div>
+
+      <div class="recovery-codes-grid">
+        <code *ngFor="let code of recoveryCodes" class="recovery-code">{{ code }}</code>
+      </div>
+
+      <div class="recovery-actions">
+        <button mat-stroked-button (click)="copyRecoveryCodesToClipboard()" class="action-button">
+          <mat-icon>content_copy</mat-icon>
+          Copy All Codes
+        </button>
+        <button mat-stroked-button (click)="downloadCodes()" class="action-button">
+          <mat-icon>download</mat-icon>
+          Download as Text File
+        </button>
+      </div>
+
+      <mat-checkbox [(ngModel)]="acknowledged" class="acknowledgment-checkbox" color="primary">
+        I have saved my recovery codes in a secure location
+      </mat-checkbox>
+
+      <app-message type="info">
+        You can regenerate recovery codes later from your profile settings, but this will invalidate all existing codes.
+      </app-message>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <!-- Scan Step Actions -->
+  @if (step === 'scan') {
+    <ng-container>
+      <button mat-button (click)="cancel()">Cancel</button>
+      <button mat-flat-button color="primary" (click)="goToVerify()" [disabled]="isLoading || !qrCodeUrl">Next</button>
+    </ng-container>
+  }
+
+  <!-- Verify Step Actions -->
+  @if (step === 'verify') {
+    <ng-container>
+      <button mat-button (click)="goBackToScan()" [disabled]="isLoading">Back</button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="verifyAndEnable()"
+        [disabled]="!isVerificationCodeValid || isLoading"
+      >
+        Verify & Enable
+      </button>
+    </ng-container>
+  }
+
+  <!-- Recovery Step Actions -->
+  @if (step === 'recovery') {
+    <ng-container>
+      <button mat-flat-button color="primary" (click)="complete()" [disabled]="!acknowledged">Done</button>
+    </ng-container>
+  }
+</mat-dialog-actions>

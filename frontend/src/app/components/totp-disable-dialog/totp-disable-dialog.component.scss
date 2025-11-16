@@ -1,0 +1,45 @@
+app-message {
+  display: block;
+
+  p {
+    margin: 0 0 8px 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  ul {
+    margin: 8px 0;
+    padding-left: 20px;
+
+    li {
+      margin: 4px 0;
+    }
+  }
+
+  strong {
+    font-weight: 600;
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+.button-spinner {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 400px;
+  max-width: 500px;
+}
+
+mat-dialog-actions {
+  padding: 16px 24px;
+}

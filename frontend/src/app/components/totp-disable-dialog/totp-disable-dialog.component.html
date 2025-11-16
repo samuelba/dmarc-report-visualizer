@@ -1,0 +1,61 @@
+<h2 mat-dialog-title>Disable Two-Factor Authentication</h2>
+
+<mat-dialog-content>
+  <!-- Warning Messages -->
+  <app-message type="warning">
+    <p><strong>Warning:</strong> Disabling two-factor authentication will:</p>
+    <ul>
+      <li>Remove the extra layer of security from your account</li>
+      <li>Invalidate all your recovery codes</li>
+      <li>Allow login with only your password</li>
+    </ul>
+    <p>You can re-enable 2FA at any time from your profile settings.</p>
+  </app-message>
+
+  <!-- Password Field -->
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Current Password</mat-label>
+    <input
+      matInput
+      [type]="showPassword ? 'text' : 'password'"
+      [(ngModel)]="password"
+      placeholder="Enter your password"
+      autocomplete="current-password"
+      [disabled]="isLoading"
+      required
+    />
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      (click)="togglePasswordVisibility()"
+      [attr.aria-label]="'Toggle password visibility'"
+    >
+      <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+    </button>
+    <mat-hint>Verify your identity with your password</mat-hint>
+  </mat-form-field>
+
+  <!-- TOTP Code Field -->
+  <app-totp-input [(ngModel)]="totpCode" [disabled]="isLoading"></app-totp-input>
+
+  <!-- Error Message -->
+  @if (errorMessage) {
+    <app-message type="error">
+      {{ errorMessage }}
+    </app-message>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="isLoading">Cancel</button>
+  <button matButton="filled" color="warn" (click)="disableTotp()" [disabled]="!isValid || isLoading">
+    @if (isLoading) {
+      <mat-spinner diameter="20" class="button-spinner"></mat-spinner>
+    }
+
+    @if (!isLoading) {
+      <span>Disable 2FA</span>
+    }
+  </button>
+</mat-dialog-actions>

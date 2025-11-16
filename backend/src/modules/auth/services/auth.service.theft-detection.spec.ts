@@ -9,8 +9,11 @@ import {
   RefreshToken,
   RevocationReason,
 } from '../entities/refresh-token.entity';
+import { RecoveryCode } from '../entities/recovery-code.entity';
 import { PasswordService } from './password.service';
 import { JwtService } from './jwt.service';
+import { TotpService } from './totp.service';
+import { RecoveryCodeService } from './recovery-code.service';
 import * as crypto from 'crypto';
 
 describe('AuthService - Theft Detection', () => {
@@ -27,9 +30,14 @@ describe('AuthService - Theft Detection', () => {
     passwordHash: 'bcrypt$hashedpassword',
     authProvider: 'local',
     organizationId: null,
+    totpSecret: null,
+    totpEnabled: false,
+    totpEnabledAt: null,
+    totpLastUsedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],
+    recoveryCodes: [],
   };
 
   beforeEach(async () => {
@@ -76,6 +84,30 @@ describe('AuthService - Theft Detection', () => {
             getRefreshTokenExpiryMs: jest
               .fn()
               .mockReturnValue(7 * 24 * 60 * 60 * 1000),
+          },
+        },
+        {
+          provide: TotpService,
+          useValue: {
+            generateSecret: jest.fn(),
+            verifyToken: jest.fn(),
+            generateQRCode: jest.fn(),
+          },
+        },
+        {
+          provide: RecoveryCodeService,
+          useValue: {
+            generateCodes: jest.fn(),
+            validateCode: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(RecoveryCode),
+          useValue: {
+            create: jest.fn(),
+            save: jest.fn(),
+            findOne: jest.fn(),
+            find: jest.fn(),
           },
         },
         {

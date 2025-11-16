@@ -88,31 +88,6 @@ mat-divider {
     font-weight: 500;
     margin-bottom: 16px;
   }
-
-  .saml-user-message {
-    display: flex;
-    align-items: flex-start;
-    padding: 16px;
-    background-color: var(--custom-info-bg-color);
-    border-left: 4px solid var(--custom-info-color);
-    border-radius: 8px;
-
-    mat-icon {
-      color: var(--custom-info-color);
-      margin-right: 12px;
-      margin-top: 2px;
-    }
-
-    .message-content {
-      flex: 1;
-
-      p {
-        margin: 0;
-        font-size: 14px;
-        line-height: 1.5;
-      }
-    }
-  }
 }
 
 .full-width {
@@ -123,48 +98,9 @@ mat-form-field {
   margin-bottom: 16px;
 }
 
-.success-message {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 16px;
-  padding: 16px;
-  background-color: var(--custom-success-bg-color);
-  border-left: 4px solid var(--custom-success-color);
-  border-radius: 4px;
-
-  mat-icon {
-    color: var(--custom-success-color);
-    margin-right: 12px;
-    margin-top: 2px;
-  }
-
-  .message-content {
-    flex: 1;
-
-    strong {
-      display: block;
-      font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 4px;
-      color: var(--custom-success-color);
-    }
-
-    p {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-  }
-}
-
-.error-message {
+app-message {
   display: block;
   margin-bottom: 16px;
-  padding: 12px;
-  background-color: var(--custom-error-bg-color);
-  border-left: 4px solid var(--custom-error-color);
-  border-radius: 4px;
-  font-size: 14px;
 }
 
 .submit-button-container {
@@ -179,4 +115,73 @@ mat-form-field {
 .button-spinner {
   display: inline-block;
   margin-right: 8px;
+}
+
+// Two-Factor Authentication Section
+.totp-section {
+  h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .loading-container {
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .totp-disabled {
+    p {
+      margin-bottom: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button {
+      mat-icon {
+        margin-right: 8px;
+      }
+    }
+  }
+
+  .totp-enabled {
+    app-message {
+      margin-bottom: 16px;
+
+      p {
+        margin: 0 0 4px 0;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        strong {
+          font-weight: 500;
+        }
+      }
+
+      .last-used {
+        font-size: 13px;
+        opacity: 0.8;
+      }
+
+      .recovery-codes {
+        font-size: 13px;
+        opacity: 0.8;
+      }
+    }
+
+    .totp-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+
+      button {
+        mat-icon {
+          margin-right: 8px;
+        }
+      }
+    }
+  }
 }

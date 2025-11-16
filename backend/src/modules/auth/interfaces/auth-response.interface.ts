@@ -6,3 +6,8 @@ export interface AuthResponse {
     authProvider: string;
   };
 }
+
+export interface TotpRequiredResponse {
+  totpRequired: true;
+  tempToken: string; // Used internally by controller to set HttpOnly cookie, not returned in HTTP response body
+}
