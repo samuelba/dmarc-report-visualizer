@@ -13,6 +13,12 @@ import { MaterialModule } from '../../shared/material.module';
 import { AuthService } from '../../services/auth.service';
 import { PasswordStrengthComponent } from '../../components/password-strength/password-strength.component';
 import { PASSWORD_MIN_LENGTH, PASSWORD_SPECIAL_CHARS_REGEX } from '../../constants/password.constants';
+import { MatDialog } from '@angular/material/dialog';
+import { TotpSetupDialogComponent } from '../../components/totp-setup-dialog/totp-setup-dialog.component';
+import { TotpDisableDialogComponent } from '../../components/totp-disable-dialog/totp-disable-dialog.component';
+import { RecoveryCodesDialogComponent } from '../../components/recovery-codes-dialog/recovery-codes-dialog.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MessageComponent } from '../../components/message/message.component';
 
 // Custom validator for password strength
 function passwordStrengthValidator(): ValidatorFn {
@@ -83,13 +89,15 @@ function passwordNotEqualValidator(otherFieldName: string): ValidatorFn {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MaterialModule, PasswordStrengthComponent],
+  imports: [CommonModule, ReactiveFormsModule, MaterialModule, PasswordStrengthComponent, MessageComponent],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],
 })
 export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   passwordForm!: FormGroup;
   hideCurrentPassword = true;
@@ -102,6 +110,12 @@ export class ProfileComponent implements OnInit {
   authProvider = '';
   isSamlUser = false;
 
+  // TOTP 2FA properties
+  totpEnabled = false;
+  totpLastUsed: Date | null = null;
+  recoveryCodesRemaining = 0;
+  totpLoading = false;
+
   ngOnInit(): void {
     // Get current user email and auth provider
     this.authService.getCurrentUser().subscribe((user) => {
@@ -109,6 +123,11 @@ export class ProfileComponent implements OnInit {
         this.currentUserEmail = user.email;
         this.authProvider = user.authProvider;
         this.isSamlUser = user.authProvider === 'saml';
+
+        // Load TOTP status for non-SAML users
+        if (!this.isSamlUser) {
+          this.loadTotpStatus();
+        }
       }
     });
 
@@ -195,6 +214,66 @@ export class ProfileComponent implements OnInit {
           this.errorMessage = 'Password change failed. Please try again.';
         }
       },
+    });
+  }
+
+  // TOTP 2FA Methods
+
+  loadTotpStatus(): void {
+    this.totpLoading = true;
+    this.authService.getTotpStatus().subscribe({
+      next: (status) => {
+        this.totpEnabled = status.enabled;
+        this.totpLastUsed = status.lastUsed;
+        this.recoveryCodesRemaining = status.recoveryCodesRemaining;
+        this.totpLoading = false;
+      },
+      error: (error) => {
+        this.totpLoading = false;
+        console.error('Failed to load TOTP status:', error);
+      },
+    });
+  }
+
+  setupTotp(): void {
+    const dialogRef = this.dialog.open(TotpSetupDialogComponent, {
+      width: '600px',
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        // TOTP was successfully enabled, reload status
+        this.loadTotpStatus();
+      }
+    });
+  }
+
+  disableTotp(): void {
+    const dialogRef = this.dialog.open(TotpDisableDialogComponent, {
+      width: '500px',
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        // TOTP was successfully disabled, reload status
+        this.loadTotpStatus();
+      }
+    });
+  }
+
+  regenerateRecoveryCodes(): void {
+    const dialogRef = this.dialog.open(RecoveryCodesDialogComponent, {
+      width: '600px',
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        // Recovery codes were regenerated, reload status
+        this.loadTotpStatus();
+      }
     });
   }
 }

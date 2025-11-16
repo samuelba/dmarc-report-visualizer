@@ -1,0 +1,106 @@
+mat-dialog-content {
+  min-width: 500px;
+  max-width: 600px;
+  padding: 24px;
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.step-instructions {
+  p {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    line-height: 1.5;
+  }
+}
+
+.loading-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  justify-content: center;
+
+  span {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 14px;
+  }
+}
+
+.recovery-codes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: var(--mat-sys-surface-container);
+  border-radius: 8px;
+  border: 1px solid var(--mat-sys-outline-variant);
+
+  .recovery-code {
+    padding: 10px 12px;
+    background: var(--mat-sys-surface-container-high);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    text-align: center;
+    color: var(--mat-sys-on-surface);
+    border: 1px solid var(--mat-sys-outline-variant);
+  }
+}
+
+.recovery-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+
+  .action-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+}
+
+.acknowledgment-checkbox {
+  margin-top: 8px;
+
+  ::ng-deep .mat-mdc-checkbox-label {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+
+mat-dialog-actions {
+  padding: 16px 24px;
+  margin: 0;
+}
+
+// Responsive adjustments
+@media (max-width: 600px) {
+  mat-dialog-content {
+    min-width: unset;
+    max-width: 100%;
+    padding: 16px;
+  }
+
+  .recovery-codes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recovery-actions {
+    flex-direction: column;
+
+    .action-button {
+      width: 100%;
+    }
+  }
+}

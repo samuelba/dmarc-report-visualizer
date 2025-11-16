@@ -1,0 +1,90 @@
+<div class="verification-container">
+  <mat-card class="verification-card">
+    <mat-card-header>
+      <mat-card-title>Two-Factor Authentication</mat-card-title>
+      <mat-card-subtitle>
+        {{ useRecoveryCode ? 'Enter your recovery code' : 'Enter your verification code' }}
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="verificationForm" (ngSubmit)="onSubmit()">
+        <!-- TOTP Code Input -->
+        @if (!useRecoveryCode) {
+          <div class="input-section">
+            <p class="instruction-text">Enter the 6-digit code from your authenticator app:</p>
+
+            <app-totp-input formControlName="totpCode" [autofocus]="true"></app-totp-input>
+
+            <app-message type="info" icon="schedule">
+              Make sure your device time is correct. TOTP codes are time-based and expire every 30 seconds.
+            </app-message>
+          </div>
+        }
+
+        <!-- Recovery Code Input -->
+        @if (useRecoveryCode) {
+          <div class="input-section">
+            <p class="instruction-text">Enter one of your recovery codes:</p>
+
+            <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+              <mat-label>Recovery Code</mat-label>
+              <input
+                matInput
+                type="text"
+                formControlName="recoveryCode"
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                maxlength="19"
+                autocomplete="off"
+                (input)="formatRecoveryCode($event)"
+                (keyup.enter)="onSubmit()"
+              />
+              <mat-icon matPrefix>vpn_key</mat-icon>
+              @if (verificationForm.get('recoveryCode')?.hasError('required')) {
+                <mat-error> Recovery code is required </mat-error>
+              }
+              @if (verificationForm.get('recoveryCode')?.hasError('pattern')) {
+                <mat-error> Invalid recovery code format </mat-error>
+              }
+            </mat-form-field>
+
+            <app-message type="warning"> Each recovery code can only be used once </app-message>
+          </div>
+        }
+
+        <!-- Error Message -->
+        @if (errorMessage) {
+          <app-message type="error">
+            {{ errorMessage }}
+          </app-message>
+        }
+
+        <!-- Submit Button -->
+        <div class="submit-button-container">
+          <button
+            matButton="filled"
+            color="primary"
+            type="submit"
+            class="submit-button"
+            [disabled]="!isFormValid || isSubmitting"
+          >
+            @if (isSubmitting) {
+              <mat-spinner diameter="20" class="button-spinner"></mat-spinner>
+            }
+
+            @if (!isSubmitting) {
+              <span>Verify</span>
+            }
+          </button>
+        </div>
+
+        <!-- Toggle Mode Button -->
+        <div class="toggle-section">
+          <button mat-button type="button" class="toggle-button" (click)="toggleMode()" [disabled]="isSubmitting">
+            {{ useRecoveryCode ? 'Use authenticator app instead' : 'Use recovery code instead' }}
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div>

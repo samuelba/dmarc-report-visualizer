@@ -31,9 +31,14 @@ describe('SamlStrategy', () => {
     passwordHash: '',
     authProvider: 'saml',
     organizationId: null,
+    totpSecret: null,
+    totpEnabled: false,
+    totpEnabledAt: null,
+    totpLastUsedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     refreshTokens: [],
+    recoveryCodes: [],
   };
 
   const mockSamlProfile: Profile = {

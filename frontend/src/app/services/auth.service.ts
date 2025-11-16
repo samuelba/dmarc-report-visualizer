@@ -31,6 +31,54 @@ export interface ChangePasswordDto {
   newPasswordConfirmation: string;
 }
 
+// TOTP Interfaces
+export interface TotpSetupResponse {
+  secret: string;
+  qrCodeUrl: string;
+  otpauthUrl: string;
+}
+
+export interface TotpEnableDto {
+  secret: string;
+  token: string;
+}
+
+export interface TotpEnableResponse {
+  recoveryCodes: string[];
+}
+
+export interface TotpDisableDto {
+  password: string;
+  token: string;
+}
+
+export interface TotpVerifyDto {
+  totpCode: string;
+}
+
+export interface RecoveryCodeVerifyDto {
+  recoveryCode: string;
+}
+
+export interface TotpRequiredResponse {
+  totpRequired: true;
+  // Temp token is in HttpOnly cookie
+}
+
+export interface TotpStatusResponse {
+  enabled: boolean;
+  lastUsed: Date | null;
+  recoveryCodesRemaining: number;
+}
+
+export interface RegenerateRecoveryCodesDto {
+  token: string;
+}
+
+export interface RegenerateRecoveryCodesResponse {
+  recoveryCodes: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -59,12 +107,16 @@ export class AuthService {
 
   /**
    * Login with email and password
+   * Returns either AuthResponse or TotpRequiredResponse if 2FA is enabled
    */
-  login(email: string, password: string): Observable<AuthResponse> {
+  login(email: string, password: string): Observable<AuthResponse | TotpRequiredResponse> {
     const dto: LoginDto = { email, password };
-    return this.http.post<AuthResponse>(`${this.apiBase}/auth/login`, dto).pipe(
+    return this.http.post<AuthResponse | TotpRequiredResponse>(`${this.apiBase}/auth/login`, dto).pipe(
       tap((response) => {
-        this.currentUser$.next(response.user);
+        // Only set user if we got a full AuthResponse (not TOTP required)
+        if ('user' in response) {
+          this.currentUser$.next(response.user);
+        }
       })
     );
   }
@@ -184,6 +236,72 @@ export class AuthService {
    */
   clearTokens(): void {
     this.currentUser$.next(null);
+  }
+
+  // TOTP 2FA Methods
+
+  /**
+   * Setup TOTP - Generate secret and QR code
+   */
+  setupTotp(): Observable<TotpSetupResponse> {
+    return this.http.post<TotpSetupResponse>(`${this.apiBase}/auth/totp/setup`, {});
+  }
+
+  /**
+   * Enable TOTP - Verify initial code and enable 2FA
+   */
+  enableTotp(secret: string, token: string): Observable<TotpEnableResponse> {
+    const dto: TotpEnableDto = { secret, token };
+    return this.http.post<TotpEnableResponse>(`${this.apiBase}/auth/totp/enable`, dto);
+  }
+
+  /**
+   * Disable TOTP - Disable 2FA with password and TOTP verification
+   */
+  disableTotp(password: string, token: string): Observable<void> {
+    const dto: TotpDisableDto = { password, token };
+    return this.http.post<void>(`${this.apiBase}/auth/totp/disable`, dto);
+  }
+
+  /**
+   * Verify TOTP code during login
+   * Temp token is automatically sent via HttpOnly cookie
+   */
+  verifyTotp(totpCode: string): Observable<AuthResponse> {
+    const dto: TotpVerifyDto = { totpCode };
+    return this.http.post<AuthResponse>(`${this.apiBase}/auth/totp/verify`, dto).pipe(
+      tap((response) => {
+        this.currentUser$.next(response.user);
+      })
+    );
+  }
+
+  /**
+   * Verify recovery code during login
+   * Temp token is automatically sent via HttpOnly cookie
+   */
+  verifyRecoveryCode(recoveryCode: string): Observable<AuthResponse> {
+    const dto: RecoveryCodeVerifyDto = { recoveryCode };
+    return this.http.post<AuthResponse>(`${this.apiBase}/auth/totp/verify-recovery`, dto).pipe(
+      tap((response) => {
+        this.currentUser$.next(response.user);
+      })
+    );
+  }
+
+  /**
+   * Get TOTP status for current user
+   */
+  getTotpStatus(): Observable<TotpStatusResponse> {
+    return this.http.get<TotpStatusResponse>(`${this.apiBase}/auth/totp/status`);
+  }
+
+  /**
+   * Regenerate recovery codes
+   */
+  regenerateRecoveryCodes(token: string): Observable<RegenerateRecoveryCodesResponse> {
+    const dto: RegenerateRecoveryCodesDto = { token };
+    return this.http.post<RegenerateRecoveryCodesResponse>(`${this.apiBase}/auth/totp/recovery-codes/regenerate`, dto);
   }
 
   // SAML Configuration Methods

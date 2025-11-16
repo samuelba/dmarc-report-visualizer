@@ -144,4 +144,51 @@ export class JwtService {
     );
     return this.parseExpirationToMs(expiration);
   }
+
+  /**
+   * Generate a temporary token for TOTP verification with 5-minute expiration
+   * @param userId User ID
+   * @param email User email
+   * @returns JWT temporary token string
+   */
+  generateTempToken(userId: string, email: string): string {
+    const payload: any = {
+      sub: userId,
+      email,
+      type: 'totp_temp',
+    };
+
+    return this.nestJwtService.sign(payload, {
+      expiresIn: '5m',
+    });
+  }
+
+  /**
+   * Verify and decode a temporary token
+   * @param token JWT temporary token string
+   * @returns Decoded temporary token payload
+   * @throws UnauthorizedException if token is invalid or expired
+   */
+  verifyTempToken(token: string): { sub: string; email: string } {
+    try {
+      const payload = this.nestJwtService.verify<any>(token);
+
+      // Verify it's a temp token
+      if (payload.type !== 'totp_temp') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      return {
+        sub: payload.sub,
+        email: payload.email,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException(
+        'Verification session expired. Please log in again',
+      );
+    }
+  }
 }

@@ -251,4 +251,95 @@ describe('LoginComponent - SSO Integration', () => {
       // the external redirect to the SAML provider and back
     });
   });
+
+  describe('TOTP 2FA Flow', () => {
+    beforeEach(() => {
+      fixture.detectChanges();
+    });
+
+    it('should detect TOTP required response and navigate to verification page', () => {
+      // Set up form with valid credentials
+      component.loginForm.patchValue({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      // Mock TOTP required response (temp token is now in HttpOnly cookie)
+      const mockTotpResponse = {
+        totpRequired: true as const,
+      };
+      authService.login.and.returnValue(of(mockTotpResponse));
+
+      // Submit the form
+      component.onSubmit();
+
+      // Verify navigation to TOTP verification page
+      expect(router.navigate).toHaveBeenCalledWith(['/totp-verification']);
+    });
+
+    it('should navigate to TOTP verification when TOTP is required', () => {
+      // Set up form with valid credentials
+      component.loginForm.patchValue({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      // Mock TOTP required response (temp token is now in HttpOnly cookie)
+      const mockTotpResponse = {
+        totpRequired: true as const,
+      };
+      authService.login.and.returnValue(of(mockTotpResponse));
+
+      // Submit the form
+      component.onSubmit();
+
+      // Verify navigation to TOTP verification page
+      expect(router.navigate).toHaveBeenCalledWith(['/totp-verification']);
+    });
+
+    it('should not set user in auth service when TOTP is required', () => {
+      // Set up form with valid credentials
+      component.loginForm.patchValue({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      // Mock TOTP required response (temp token is now in HttpOnly cookie)
+      const mockTotpResponse = {
+        totpRequired: true as const,
+      };
+      authService.login.and.returnValue(of(mockTotpResponse));
+
+      // Submit the form
+      component.onSubmit();
+
+      // Verify navigation happened but user is not set yet (will be set after TOTP verification)
+      expect(router.navigate).toHaveBeenCalledWith(['/totp-verification']);
+      // The auth service should not have set the user yet (that happens in verifyTotp)
+    });
+
+    it('should handle regular login when TOTP is not required', () => {
+      // Set up form with valid credentials
+      component.loginForm.patchValue({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      // Mock regular auth response (no TOTP)
+      const mockAuthResponse = {
+        user: { id: '1', email: 'test@example.com', authProvider: 'local' },
+      };
+      authService.login.and.returnValue(of(mockAuthResponse));
+
+      // Spy on utility functions
+      spyOn(urlValidationUtils, 'getValidatedReturnUrl').and.returnValue('/dashboard');
+      spyOn(urlValidationUtils, 'clearReturnUrl');
+
+      // Submit the form
+      component.onSubmit();
+
+      // Verify normal navigation occurred
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/dashboard');
+    });
+  });
 });

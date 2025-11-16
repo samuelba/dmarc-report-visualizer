@@ -1,0 +1,16 @@
+<div
+  class="message-container"
+  [class.message-info]="type === 'info'"
+  [class.message-warning]="type === 'warning'"
+  [class.message-error]="type === 'error'"
+  [class.message-success]="type === 'success'"
+  [class.with-border]="showBorder"
+  [class.without-border]="!showBorder"
+>
+  @if (showIcon) {
+    <mat-icon>{{ defaultIcon }}</mat-icon>
+  }
+  <span class="message-content">
+    <ng-content></ng-content>
+  </span>
+</div>

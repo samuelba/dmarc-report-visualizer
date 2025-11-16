@@ -13,6 +13,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/login/login.component').then((m) => m.LoginComponent),
   },
   {
+    path: 'totp-verification',
+    loadComponent: () =>
+      import('./pages/totp-verification/totp-verification.component').then((m) => m.TotpVerificationComponent),
+  },
+  {
     path: 'auth/callback',
     loadComponent: () => import('./pages/auth-callback/auth-callback.component').then((m) => m.AuthCallbackComponent),
   },

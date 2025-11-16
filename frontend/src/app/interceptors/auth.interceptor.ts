@@ -49,7 +49,19 @@ export const authInterceptor: HttpInterceptorFn = (
           return throwError(() => error);
         }
 
-        // Skip auto-refresh for these endpoints to prevent infinite loops or let components handle errors
+        // Check if this is a validation error (not an auth error)
+        const isValidationError =
+          errorBody?.errorCode &&
+          ['INVALID_TOTP_CODE', 'INVALID_RECOVERY_CODE', 'RECOVERY_CODE_ALREADY_USED', 'INVALID_PASSWORD'].includes(
+            errorBody.errorCode
+          );
+
+        // Skip auto-refresh for validation errors - these should be handled by components
+        if (isValidationError) {
+          return throwError(() => error);
+        }
+
+        // Skip auto-refresh for these endpoints to prevent infinite loops
         const skipAutoRefresh = ['/auth/change-password', '/auth/me', '/auth/refresh'].some((url) =>
           req.url.includes(url)
         );
@@ -84,15 +96,30 @@ function handle401Error(
         refreshTokenSubject.next(true);
 
         // Retry the original request (cookie will be sent automatically)
+        // Note: If the retry fails with a validation error, it will be caught
+        // by the main interceptor's catchError and handled appropriately
         return next(req);
       }),
       catchError((error) => {
         // Refresh failed, redirect to login
         isRefreshing = false;
 
-        // Note: If this is a SESSION_COMPROMISED error, it will be caught
-        // by the main interceptor's catchError block above, which will
-        // show the snackbar and redirect. We just need to clean up here.
+        // Check if this is a validation error from the retried request
+        // If so, don't redirect - just pass the error through
+        const errorBody = error?.error;
+        const isValidationError =
+          errorBody?.errorCode &&
+          ['INVALID_TOTP_CODE', 'INVALID_RECOVERY_CODE', 'RECOVERY_CODE_ALREADY_USED', 'INVALID_PASSWORD'].includes(
+            errorBody.errorCode
+          );
+
+        if (isValidationError) {
+          // This is a validation error from the retry, not a refresh failure
+          // Don't clear tokens or redirect, just pass the error through
+          return throwError(() => error);
+        }
+
+        // Actual refresh failure - clear tokens and redirect
         authService.clearTokens();
         router.navigate(['/login']);
 

@@ -1,0 +1,16 @@
+<mat-form-field appearance="outline" class="totp-input-field" subscriptSizing="dynamic">
+  <mat-label>{{ label }}</mat-label>
+  <input
+    matInput
+    [(ngModel)]="value"
+    (input)="onInput($event)"
+    maxlength="6"
+    [placeholder]="placeholder"
+    inputmode="numeric"
+    pattern="[0-9]*"
+    autocomplete="off"
+    [disabled]="disabled"
+  />
+  <mat-icon matPrefix>security</mat-icon>
+  <mat-hint>{{ hint }}</mat-hint>
+</mat-form-field>

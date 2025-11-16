@@ -15,6 +15,14 @@ import {
 } from '../entities/refresh-token.entity';
 import { PasswordService } from './password.service';
 import { JwtService } from './jwt.service';
+import { TotpService } from './totp.service';
+import { RecoveryCodeService } from './recovery-code.service';
+import { TotpRequiredResponse } from '../interfaces/auth-response.interface';
+import {
+  InvalidTotpCodeException,
+  TotpNotEnabledException,
+  ExpiredTempTokenException,
+} from '../exceptions/totp.exception';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -28,6 +36,8 @@ export class AuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly passwordService: PasswordService,
     private readonly jwtService: JwtService,
+    private readonly totpService: TotpService,
+    private readonly recoveryCodeService: RecoveryCodeService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -101,11 +111,54 @@ export class AuthService {
   }
 
   /**
+   * Find user by ID
+   * @param userId User ID
+   * @returns User entity or null if not found
+   */
+  async findUserById(userId: string): Promise<User | null> {
+    return await this.userRepository.findOne({ where: { id: userId } });
+  }
+
+  /**
    * Login user and generate access and refresh tokens
+   * If TOTP is enabled, returns a temporary token for TOTP verification
+   * @param user User entity
+   * @param skipTotp Optional flag to bypass TOTP check (for already-authenticated operations)
+   * @returns Object with tokens or TotpRequiredResponse with temporary token
+   */
+  async login(
+    user: User,
+    skipTotp: boolean = false,
+  ): Promise<
+    | {
+        accessToken: string;
+        refreshToken: string;
+        user: { id: string; email: string; authProvider: string };
+      }
+    | TotpRequiredResponse
+  > {
+    // Check if user has TOTP enabled (unless skipTotp is true)
+    if (!skipTotp && user.totpEnabled) {
+      // Generate a short-lived temporary token (5 minutes) for TOTP verification
+      const tempToken = this.jwtService.generateTempToken(user.id, user.email);
+
+      return {
+        totpRequired: true,
+        tempToken,
+      };
+    }
+
+    // TOTP not enabled or skipped - proceed with normal login
+    return this.issueTokens(user);
+  }
+
+  /**
+   * Issue access and refresh tokens for a user
+   * Internal method used by login and TOTP verification flows
    * @param user User entity
    * @returns Object containing access token, refresh token, and user info
    */
-  async login(user: User): Promise<{
+  private async issueTokens(user: User): Promise<{
     accessToken: string;
     refreshToken: string;
     user: { id: string; email: string; authProvider: string };
@@ -162,6 +215,141 @@ export class AuthService {
         authProvider: user.authProvider,
       },
     };
+  }
+
+  /**
+   * Verify TOTP code and complete login by issuing tokens
+   * @param tempToken Temporary token from initial login
+   * @param totpCode 6-digit TOTP code
+   * @returns Object containing access token, refresh token, and user info
+   * @throws UnauthorizedException if temp token or TOTP code is invalid
+   */
+  async verifyTotpAndLogin(
+    tempToken: string,
+    totpCode: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; email: string; authProvider: string };
+  }> {
+    // Verify the temporary token
+    let payload;
+    try {
+      payload = this.jwtService.verifyTempToken(tempToken);
+    } catch (_error) {
+      throw new ExpiredTempTokenException();
+    }
+
+    // Get the user
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found. Please log in again.');
+    }
+
+    // Check if TOTP is enabled
+    if (!user.totpEnabled || !user.totpSecret) {
+      throw new TotpNotEnabledException();
+    }
+
+    // Get decrypted secret
+    const secret = await this.totpService.getDecryptedSecret(user.id);
+    if (!secret) {
+      throw new TotpNotEnabledException();
+    }
+
+    // Validate TOTP code
+    const isValid = await this.totpService.validateToken(
+      totpCode,
+      secret,
+      user.id,
+    );
+
+    if (!isValid) {
+      // Audit log: TOTP verification failed
+      this.logger.warn({
+        event: 'totp_verification_failed',
+        userId: user.id,
+        email: user.email,
+        reason: 'invalid_code',
+        timestamp: new Date().toISOString(),
+      });
+
+      throw new InvalidTotpCodeException(
+        'Invalid verification code. Make sure your device time is correct and try again.',
+      );
+    }
+
+    // Update last used timestamp
+    await this.totpService.updateLastUsedTimestamp(user.id);
+
+    // Audit log: TOTP verification successful
+    this.logger.log({
+      event: 'totp_verification_success',
+      userId: user.id,
+      email: user.email,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Issue tokens
+    return this.issueTokens(user);
+  }
+
+  /**
+   * Verify recovery code and complete login by issuing tokens
+   * @param tempToken Temporary token from initial login
+   * @param recoveryCode Recovery code in format XXXX-XXXX-XXXX-XXXX
+   * @returns Object containing access token, refresh token, and user info
+   * @throws UnauthorizedException if temp token or recovery code is invalid
+   */
+  async loginWithRecoveryCode(
+    tempToken: string,
+    recoveryCode: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; email: string; authProvider: string };
+  }> {
+    // Verify the temporary token
+    let payload;
+    try {
+      payload = this.jwtService.verifyTempToken(tempToken);
+    } catch (_error) {
+      throw new ExpiredTempTokenException();
+    }
+
+    // Get the user
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found. Please log in again.');
+    }
+
+    // Check if TOTP is enabled
+    if (!user.totpEnabled) {
+      throw new TotpNotEnabledException();
+    }
+
+    // Validate recovery code (throws exception if invalid or already used)
+    await this.recoveryCodeService.validateRecoveryCode(user.id, recoveryCode);
+
+    // Update last used timestamp (recovery code counts as TOTP usage)
+    await this.totpService.updateLastUsedTimestamp(user.id);
+
+    // Audit log: Recovery code login successful
+    this.logger.log({
+      event: 'recovery_code_login_success',
+      userId: user.id,
+      email: user.email,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Issue tokens
+    return this.issueTokens(user);
   }
 
   /**

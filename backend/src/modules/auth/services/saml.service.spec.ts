@@ -586,9 +586,14 @@ describe('SamlService', () => {
         passwordHash: '',
         authProvider: 'saml',
         organizationId: null,
+        totpSecret: null,
+        totpEnabled: false,
+        totpEnabledAt: null,
+        totpLastUsedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         refreshTokens: [],
+        recoveryCodes: [],
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
@@ -616,9 +621,14 @@ describe('SamlService', () => {
         passwordHash: '',
         authProvider: 'saml',
         organizationId: null,
+        totpSecret: null,
+        totpEnabled: false,
+        totpEnabledAt: null,
+        totpLastUsedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         refreshTokens: [],
+        recoveryCodes: [],
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(existingUser);
@@ -637,9 +647,14 @@ describe('SamlService', () => {
         passwordHash: 'hashed-password',
         authProvider: 'local',
         organizationId: null,
+        totpSecret: null,
+        totpEnabled: false,
+        totpEnabledAt: null,
+        totpLastUsedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         refreshTokens: [],
+        recoveryCodes: [],
       };
 
       const profileForLocalUser = {
@@ -704,9 +719,14 @@ describe('SamlService', () => {
         passwordHash: '',
         authProvider: 'saml',
         organizationId: null,
+        totpSecret: null,
+        totpEnabled: false,
+        totpEnabledAt: null,
+        totpLastUsedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         refreshTokens: [],
+        recoveryCodes: [],
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
@@ -737,9 +757,14 @@ describe('SamlService', () => {
         passwordHash: '',
         authProvider: 'saml',
         organizationId: null,
+        totpSecret: null,
+        totpEnabled: false,
+        totpEnabledAt: null,
+        totpLastUsedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         refreshTokens: [],
+        recoveryCodes: [],
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);

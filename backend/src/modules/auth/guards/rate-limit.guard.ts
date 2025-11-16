@@ -16,6 +16,9 @@ export class RateLimitGuard implements CanActivate {
     const ip = request.ip || request.connection.remoteAddress || 'unknown';
     const email = request.body?.email;
 
+    // Store IP in request for potential audit logging
+    request.clientIp = ip;
+
     // Check IP rate limit
     const ipCheck = await this.rateLimiterService.checkIpRateLimit(ip);
     if (!ipCheck.allowed) {
