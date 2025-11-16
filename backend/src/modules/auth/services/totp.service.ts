@@ -39,7 +39,7 @@ export class TotpService {
 
     // TOTP configuration
     this.totpWindow = parseInt(
-      this.configService.get<string>('TOTP_WINDOW', '1'),
+      this.configService.get<string>('TOTP_WINDOW', '3'),
       10,
     );
     this.totpStep = parseInt(
