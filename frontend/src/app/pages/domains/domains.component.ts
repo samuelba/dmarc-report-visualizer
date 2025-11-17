@@ -12,11 +12,12 @@ import {
 import { DomainCardComponent } from '../../components/domain-card/domain-card.component';
 import { DomainListItemComponent } from '../../components/domain-list-item/domain-list-item';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MessageComponent } from '../../components/message/message.component';
 
 @Component({
   selector: 'app-domains',
   standalone: true,
-  imports: [CommonModule, FormsModule, MaterialModule, DomainCardComponent, DomainListItemComponent],
+  imports: [CommonModule, FormsModule, MaterialModule, DomainCardComponent, DomainListItemComponent, MessageComponent],
   templateUrl: './domains.component.html',
   styleUrls: ['./domains.component.scss'],
 })

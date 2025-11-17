@@ -13,6 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { AuthService } from '../../../services/auth.service';
+import { MessageComponent } from '../../../components/message/message.component';
 
 export interface SamlConfigResponse {
   enabled: boolean;
@@ -43,6 +44,7 @@ export interface SamlConfigResponse {
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatChipsModule,
+    MessageComponent,
   ],
   templateUrl: './saml-settings.component.html',
   styleUrls: ['./saml-settings.component.scss'],
