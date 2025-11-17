@@ -98,22 +98,19 @@
           Unknown Domains in Reports
         </h2>
       </div>
-      <div class="warning-box">
-        <mat-icon>info</mat-icon>
-        <div class="warning-content">
-          <p><strong>Review these domains carefully!</strong></p>
-          <p>These domains appear in your DMARC reports but are not in your managed list. They could be:</p>
-          <ul>
-            <li><strong>Legitimate:</strong> Domains you forgot to add or subdomains you use</li>
-            <li><strong>Suspicious:</strong> Phishing or spoofing attempts using your domains</li>
-            <li><strong>Third-party:</strong> Services sending on your behalf</li>
-          </ul>
-          <p>
-            If you recognize a domain, you can add it to your managed list. If you don't recognize it, investigate
-            further to determine if it's a security concern.
-          </p>
-        </div>
-      </div>
+      <app-message type="warning" icon="warning">
+        <strong>Review these domains carefully!</strong>
+        <p>These domains appear in your DMARC reports but are not in your managed list. They could be:</p>
+        <ul>
+          <li><strong>Legitimate:</strong> Domains you forgot to add or subdomains you use</li>
+          <li><strong>Suspicious:</strong> Phishing or spoofing attempts using your domains</li>
+          <li><strong>Third-party:</strong> Services sending on your behalf</li>
+        </ul>
+        <p>
+          If you recognize a domain, you can add it to your managed list. If you don't recognize it, investigate further
+          to determine if it's a security concern.
+        </p>
+      </app-message>
 
       @if (unknownDomains.length === 0) {
         <mat-card class="empty-state success">

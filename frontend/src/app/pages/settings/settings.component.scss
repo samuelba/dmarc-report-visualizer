@@ -1,3 +1,8 @@
+.tab-content {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
 .settings-container {
   display: flex;
   flex-direction: column;
@@ -74,39 +79,6 @@ mat-card-header {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.info-box {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: var(--custom-info-bg-color);
-  border-radius: 8px;
-  border-left: 4px solid var(--custom-info-color);
-
-  mat-icon {
-    flex-shrink: 0;
-  }
-
-  .info-content {
-    flex: 1;
-
-    strong {
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    ul {
-      margin: 0.5rem 0;
-      padding-left: 1.5rem;
-    }
-
-    .warning {
-      margin-top: 0.5rem;
-      color: var(--custom-warning-color);
-      font-weight: 500;
-    }
-  }
 }
 
 .date-range-selector {
@@ -270,15 +242,6 @@ mat-slide-toggle {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-
-  .warning-box {
-    border-left-color: var(--custom-warning-color);
-    background-color: var(--custom-warning-bg-color);
-
-    mat-icon {
-      color: var(--custom-warning-color);
-    }
-  }
 
   .delete-section {
     display: flex;

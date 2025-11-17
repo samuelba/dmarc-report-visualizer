@@ -20,6 +20,7 @@ import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/ap
 import { ThirdPartySenderDialogComponent } from './third-party-sender-dialog.component';
 import { SamlSettingsComponent } from './saml-settings/saml-settings.component';
 import { timer, takeWhile } from 'rxjs';
+import { MessageComponent } from '../../components/message/message.component';
 
 @Component({
   selector: 'app-settings',
@@ -43,6 +44,7 @@ import { timer, takeWhile } from 'rxjs';
     MatInputModule,
     MatNativeDateModule,
     SamlSettingsComponent,
+    MessageComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],

@@ -70,13 +70,15 @@
   }
 
   .domains-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
     margin-bottom: 40px;
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
     }
 
     h2 {
@@ -96,7 +98,7 @@
     }
 
     .section-description {
-      margin: 0 0 24px 0;
+      margin: 0;
       color: var(--mat-sys-on-surface-variant);
       font-size: 14px;
     }
@@ -108,44 +110,10 @@
     }
   }
 
-  .warning-box {
-    background: var(--custom-warning-bg-color);
-    border-left: 4px solid var(--custom-warning-color);
-    padding: 16px;
-    margin-bottom: 24px;
-    border-radius: 8px;
+  .unknown-section {
     display: flex;
-    gap: 16px;
-
-    > mat-icon {
-      color: var(--custom-warning-color);
-      flex-shrink: 0;
-    }
-
-    .warning-content {
-      flex: 1;
-
-      p {
-        margin: 0 0 12px 0;
-
-        &:last-child {
-          margin-bottom: 0;
-        }
-      }
-
-      ul {
-        margin: 8px 0;
-        padding-left: 20px;
-
-        li {
-          margin: 4px 0;
-        }
-      }
-
-      strong {
-        font-weight: 600;
-      }
-    }
+    flex-direction: column;
+    gap: 1.5rem;
   }
 
   .empty-state {

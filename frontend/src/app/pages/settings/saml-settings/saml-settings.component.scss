@@ -1,3 +1,5 @@
+$section-padding: 16px;
+
 .loading-container {
   display: flex;
   justify-content: center;
@@ -15,7 +17,7 @@ mat-card-header {
 
 .status-section {
   margin-bottom: 2rem;
-  padding: 1rem;
+  padding: $section-padding;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
 
@@ -105,40 +107,6 @@ mat-card-header {
   }
 }
 
-.force-enabled-warning {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  background-color: var(--custom-warning-bg-color);
-  border-left: 4px solid var(--custom-warning-color);
-  border-radius: 8px;
-
-  mat-icon {
-    flex-shrink: 0;
-    color: var(--custom-warning-color);
-    font-size: 1.5rem;
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  div {
-    flex: 1;
-
-    strong {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: var(--custom-warning-color);
-    }
-
-    p {
-      margin: 0;
-      font-size: 0.875rem;
-      color: var(--mat-sys-on-surface-variant);
-    }
-  }
-}
-
 .upload-mode-toggle {
   display: flex;
   flex-direction: column;
@@ -148,17 +116,25 @@ mat-card-header {
 
 .metadata-upload-form,
 .manual-config-form {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: $section-padding;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
 }
 
 .sp-config-fields {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.5rem;
+  padding: $section-padding;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
 
@@ -181,30 +157,10 @@ mat-card-header {
   }
 }
 
-.upload-instructions {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: var(--custom-info-bg-color);
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-
-  mat-icon {
-    flex-shrink: 0;
-    color: var(--custom-info-color);
-  }
-
-  p {
-    margin: 0;
-    color: var(--mat-sys-on-surface-variant);
-  }
-}
-
 .file-upload-section {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-bottom: 1.5rem;
 
   .file-selected {
     display: flex;
@@ -224,8 +180,6 @@ mat-card-header {
 }
 
 .current-config {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
 
@@ -261,7 +215,6 @@ mat-card-header {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  margin-top: 1.5rem;
 
   button {
     mat-icon {
@@ -276,13 +229,15 @@ mat-card-header {
 }
 
 .toggle-container {
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: $section-padding;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
 
   mat-slide-toggle {
     display: block;
-    margin-bottom: 1rem;
 
     .toggle-label {
       font-weight: 500;
@@ -324,14 +279,16 @@ mat-card-header {
 }
 
 .test-container {
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: $section-padding;
   background-color: var(--custom-list-item-background);
   border-radius: 8px;
 
   .test-info {
     display: flex;
     gap: 1rem;
-    margin-bottom: 1.5rem;
 
     mat-icon {
       flex-shrink: 0;
@@ -343,18 +300,6 @@ mat-card-header {
     p {
       margin: 0 0 0.75rem 0;
       color: var(--mat-sys-on-surface-variant);
-    }
-
-    .note {
-      font-size: 0.875rem;
-      padding: 0.75rem;
-      background-color: var(--custom-info-bg-color);
-      border-radius: 8px;
-      border-left: 4px solid var(--custom-info-color);
-
-      strong {
-        color: var(--custom-info-color);
-      }
     }
   }
 

@@ -123,21 +123,17 @@
 
             <mat-card-content>
               <div class="reprocessing-section">
-                <div class="info-box">
-                  <mat-icon color="primary">info</mat-icon>
-                  <div class="info-content">
-                    <strong>When to reprocess:</strong>
-                    <ul>
-                      <li>After adding or modifying third-party sender configurations</li>
-                      <li>After updating forwarding detection logic</li>
-                      <li>To ensure all records reflect current settings</li>
-                    </ul>
-                    <p class="warning">
-                      ⚠️ Reprocessing may take several minutes/hours depending on the number of records and workers
-                      configured.
-                    </p>
-                  </div>
-                </div>
+                <app-message type="info" icon="info">
+                  <strong>When to reprocess:</strong>
+                  <ul>
+                    <li>After adding or modifying third-party sender configurations</li>
+                    <li>After updating forwarding detection logic</li>
+                    <li>To ensure all records reflect current settings</li>
+                  </ul>
+                </app-message>
+                <app-message type="warning" icon="warning">
+                  Reprocessing may take several minutes/hours depending on the number of records and workers configured.
+                </app-message>
 
                 <!-- Date Range Selector -->
                 <div class="date-range-selector">
@@ -351,18 +347,15 @@
 
             <mat-card-content>
               <div class="utilities-section">
-                <div class="info-box warning-box">
-                  <mat-icon color="warn">warning</mat-icon>
-                  <div class="info-content">
-                    <strong>Warning: This action is irreversible!</strong>
-                    <ul>
-                      <li>Deleted reports cannot be recovered</li>
-                      <li>All associated records, DKIM results, and SPF results will also be deleted</li>
-                      <li>Consider backing up your database before proceeding</li>
-                      <li><strong>This operation may take several minutes to hours for large datasets</strong></li>
-                    </ul>
-                  </div>
-                </div>
+                <app-message type="warning" icon="warning">
+                  <strong>Warning: This action is irreversible!</strong>
+                  <ul>
+                    <li>Deleted reports cannot be recovered</li>
+                    <li>All associated records, DKIM results, and SPF results will also be deleted</li>
+                    <li>Consider backing up your database before proceeding</li>
+                    <li><strong>This operation may take several minutes to hours for large datasets</strong></li>
+                  </ul>
+                </app-message>
 
                 <div class="delete-section">
                   <mat-form-field appearance="outline" class="delete-date-field">
