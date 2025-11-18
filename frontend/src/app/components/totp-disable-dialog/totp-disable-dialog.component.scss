@@ -1,8 +1,10 @@
+@use '../../../styles/variables' as vars;
+
 app-message {
   display: block;
 
   p {
-    margin: 0 0 8px 0;
+    margin: 0 0 vars.$spacing-sm 0;
 
     &:last-child {
       margin-bottom: 0;
@@ -10,11 +12,11 @@ app-message {
   }
 
   ul {
-    margin: 8px 0;
-    padding-left: 20px;
+    margin: vars.$spacing-sm 0;
+    padding-left: vars.$spacing-lg;
 
     li {
-      margin: 4px 0;
+      margin: vars.$spacing-xs 0;
     }
   }
 
@@ -29,17 +31,17 @@ app-message {
 
 .button-spinner {
   display: inline-block;
-  margin-right: 8px;
+  margin-right: vars.$spacing-sm;
 }
 
 mat-dialog-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-width: 400px;
-  max-width: 500px;
+  gap: vars.$spacing-lg;
+  min-width: 25rem; // 400px
+  max-width: 31.25rem; // 500px
 }
 
 mat-dialog-actions {
-  padding: 16px 24px;
+  padding: vars.$spacing-base vars.$spacing-xl;
 }

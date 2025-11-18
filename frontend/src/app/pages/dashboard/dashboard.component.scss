@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .dashboard-container {
   min-height: 100vh;
   display: flex;
@@ -14,9 +16,9 @@
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(15.625rem, 1fr)); // 250px
+  gap: vars.$spacing-lg;
+  margin-bottom: vars.$spacing-lg;
 }
 
 .summary-card {
@@ -27,14 +29,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: vars.$spacing-sm;
+  font-size: vars.$font-size-md;
 }
 
 .metric-value {
   font-size: 2.5rem;
   font-weight: bold;
-  margin: 16px 0 8px;
+  margin: vars.$spacing-base 0 vars.$spacing-sm;
 }
 
 .metric-value.success {
@@ -51,14 +53,14 @@
 
 .metric-label {
   color: var(--custom-metric-label-color);
-  font-size: 14px;
+  font-size: vars.$font-size-base;
 }
 
 .metric-sub {
   display: flex;
   justify-content: center;
-  gap: 16px;
-  margin-top: 4px;
+  gap: vars.$spacing-base;
+  margin-top: vars.$spacing-xs;
   color: var(--custom-metric-label-color);
 }
 
@@ -67,19 +69,19 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100px;
+  min-height: 6.25rem; // 100px
 }
 
 .small-pie-chart {
   width: 100%;
-  height: 100px;
+  height: 6.25rem; // 100px
 }
 
 .top-tables-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(22.5rem, 1fr)); // 360px
+  gap: vars.$spacing-lg;
+  margin-bottom: vars.$spacing-lg;
 }
 
 .countries-card {
@@ -88,13 +90,13 @@
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); // 320px
+  gap: vars.$spacing-lg;
+  margin-bottom: vars.$spacing-lg;
 }
 
 .chart-card .chart {
-  height: 280px;
+  height: 17.5rem; // 280px
   width: 100%;
 }
 
@@ -102,31 +104,31 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px;
-  gap: 16px;
+  padding: vars.$spacing-3xl;
+  gap: vars.$spacing-base;
 }
 
 .countries-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px; /* Add gap before pagination */
+  gap: vars.$spacing-md;
+  margin-bottom: vars.$spacing-base; /* Add gap before pagination */
 }
 
 .country-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px;
+  gap: vars.$spacing-base;
+  padding: vars.$spacing-md;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 }
 
 .country-rank {
-  font-size: 18px;
+  font-size: vars.$font-size-lg;
   font-weight: bold;
   color: var(--custom-metric-label-color);
-  min-width: 30px;
+  min-width: 1.875rem; // 30px
 }
 
 .country-info {
@@ -136,15 +138,15 @@
 .country-name {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: vars.$spacing-xs;
 }
 
 .country-stats {
   display: flex;
-  gap: 16px;
-  font-size: 14px;
+  gap: vars.$spacing-base;
+  font-size: vars.$font-size-base;
 }
 
 .total-count {
@@ -164,7 +166,7 @@
 }
 
 .country-progress {
-  width: 100px;
+  width: 6.25rem; // 100px
 }
 
 /* Header-From list styles */
@@ -174,7 +176,7 @@
   mat-card-title {
     button {
       margin-left: auto;
-      margin-bottom: -12px;
+      margin-bottom: calc(-1 * #{vars.$spacing-md});
     }
   }
 }
@@ -182,29 +184,29 @@
 .headerfrom-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px; /* Add gap before pagination */
+  gap: vars.$spacing-md;
+  margin-bottom: vars.$spacing-base; /* Add gap before pagination */
 }
 
 .headerfrom-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px;
+  gap: vars.$spacing-base;
+  padding: vars.$spacing-md;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   &.unmanaged-domain {
-    border-left: 4px solid var(--custom-warning-color); // Orange warning color
-    padding-left: 8px; // Adjust padding to account for border
+    border-left: vars.$border-thick solid var(--custom-warning-color); // Orange warning color
+    padding-left: vars.$spacing-sm; // Adjust padding to account for border
   }
 }
 
 .hf-rank {
-  font-size: 18px;
+  font-size: vars.$font-size-lg;
   font-weight: bold;
   color: var(--custom-metric-label-color);
-  min-width: 30px;
+  min-width: 1.875rem; // 30px
 }
 
 .hf-info {
@@ -214,46 +216,46 @@
 .hf-name {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: vars.$spacing-xs;
   word-break: break-all;
 }
 
 .hf-stats {
   display: flex;
-  gap: 16px;
-  font-size: 14px;
+  gap: vars.$spacing-base;
+  font-size: vars.$font-size-base;
   flex-wrap: wrap;
 }
 
 .hf-progress {
-  width: 100px;
+  width: 6.25rem; // 100px
 }
 
 .insights-card {
-  margin-bottom: 20px;
+  margin-bottom: vars.$spacing-lg;
 }
 
 .insights-grid {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: vars.$spacing-lg;
 }
 
 .insight-item {
   display: flex;
-  gap: 16px;
-  padding: 16px;
+  gap: vars.$spacing-base;
+  padding: vars.$spacing-base;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
-  border-left: 4px solid var(--custom-info-color);
+  border-radius: vars.$radius-lg;
+  border-left: vars.$border-thick solid var(--custom-info-color);
 }
 
 .insight-item mat-icon {
-  font-size: 24px;
-  width: 24px;
-  height: 24px;
+  font-size: vars.$icon-md;
+  width: vars.$icon-md;
+  height: vars.$icon-md;
 }
 
 .insight-item mat-icon.info {
@@ -273,23 +275,23 @@
 }
 
 .insight-content h4 {
-  margin: 0 0 8px;
+  margin: 0 0 vars.$spacing-sm;
 }
 
 .insight-content p {
-  margin: 0 0 8px;
+  margin: 0 0 vars.$spacing-sm;
 }
 
 .insight-action {
-  font-size: 14px;
+  font-size: vars.$font-size-base;
 }
 
 mat-card-header {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 mat-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
 }

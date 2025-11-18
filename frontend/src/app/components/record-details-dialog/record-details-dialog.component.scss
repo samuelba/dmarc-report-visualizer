@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .record-details-dialog {
   display: flex;
   flex-direction: column;
@@ -8,22 +10,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--xml-dialog-header-border-color);
+  padding: vars.$spacing-base vars.$spacing-xl;
+  border-bottom: vars.$border-thin solid var(--xml-dialog-header-border-color);
 }
 
 h2[mat-dialog-title] {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   margin: 0;
-  font-size: 20px;
+  font-size: vars.$icon-sm;
   font-weight: 500;
 }
 
 .header-actions {
   display: flex;
-  gap: 4px;
+  gap: vars.$spacing-xs;
 }
 
 mat-dialog-content {
@@ -35,39 +37,39 @@ mat-dialog-content {
 }
 
 .record-summary {
-  padding: 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  padding: vars.$spacing-xl;
+  border-bottom: vars.$border-thin solid rgba(0, 0, 0, 0.12);
 }
 
 .summary-card {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(9.375rem, 1fr)); // 150px
+  gap: vars.$spacing-base;
 }
 
 .summary-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: vars.$spacing-xs;
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem; // 0.5px
 }
 
 .summary-value {
-  font-size: 16px;
+  font-size: vars.$font-size-md;
   font-weight: 500;
 
   &.disposition {
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: vars.$spacing-xs vars.$spacing-sm;
+    border-radius: vars.$radius-md;
     display: inline-block;
     width: fit-content;
-    font-size: 14px;
+    font-size: vars.$font-size-base;
 
     &.disposition-none {
       background-color: var(--custom-success-bg-color);
@@ -87,10 +89,10 @@ mat-dialog-content {
 }
 
 .details-content {
-  padding: 16px;
+  padding: vars.$spacing-base;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: vars.$spacing-base;
 }
 
 // Detail Card Styling
@@ -99,45 +101,45 @@ mat-dialog-content {
     &.card-title {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: vars.$spacing-sm;
       margin: 0;
-      font-size: 14px;
+      font-size: vars.$font-size-base;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.03125rem; // 0.5px
 
       mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        font-size: vars.$font-size-lg;
+        width: vars.$font-size-lg;
+        height: vars.$font-size-lg;
       }
     }
   }
 
   mat-card-content {
-    padding-top: 16px;
+    padding-top: vars.$spacing-base;
   }
 }
 
 .card-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 16px;
+  gap: vars.$spacing-sm vars.$spacing-base;
   align-items: center;
 }
 
 .grid-label {
   font-weight: 500;
   text-align: right;
-  font-size: 13px;
+  font-size: vars.$font-size-base;
 }
 
 .grid-value {
   word-break: break-word;
-  font-size: 13px;
+  font-size: vars.$font-size-base;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   flex-wrap: wrap;
 
   &.status {
@@ -149,17 +151,17 @@ mat-dialog-content {
 %badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  gap: vars.$spacing-xs;
+  padding: vars.$spacing-xs vars.$spacing-sm;
+  border-radius: vars.$radius-md;
+  font-size: vars.$font-size-sm;
   font-weight: 500;
   white-space: nowrap;
 
   mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
+    font-size: vars.$font-size-md;
+    width: vars.$font-size-md;
+    height: vars.$font-size-md;
   }
 }
 
@@ -198,7 +200,7 @@ mat-dialog-content {
   &.forwarded-unknown {
     color: var(--custom-unknown-color);
     background-color: var(--custom-unknown-bg-color);
-    border: 1px dashed var(--custom-unknown-color);
+    border: vars.$border-thin dashed var(--custom-unknown-color);
   }
 }
 
@@ -218,12 +220,12 @@ mat-dialog-content {
   &.auth-missing {
     color: var(--custom-unknown-color);
     background-color: var(--custom-unknown-bg-color);
-    border: 1px dashed var(--custom-unknown-color);
+    border: vars.$border-thin dashed var(--custom-unknown-color);
   }
 }
 
 .auth-details {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
 }
 
 .auth-selector {
@@ -255,32 +257,32 @@ mat-dialog-content {
 
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); // 120px
+  gap: vars.$spacing-lg;
 }
 
 .status-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   align-items: center;
   text-align: center;
 }
 
 .status-label {
-  font-size: 11px;
+  font-size: vars.$font-size-xs-md;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.03125rem; // 0.5px
   opacity: 0.7;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: vars.$spacing-xs;
 }
 
 .status-value {
-  font-size: 14px;
+  font-size: vars.$font-size-base;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -288,8 +290,8 @@ mat-dialog-content {
 }
 
 .applies-icon {
-  font-size: 14px !important;
-  width: 14px !important;
-  height: 14px !important;
+  font-size: vars.$font-size-base !important;
+  width: vars.$font-size-base !important;
+  height: vars.$font-size-base !important;
   color: var(--custom-info-color);
 }

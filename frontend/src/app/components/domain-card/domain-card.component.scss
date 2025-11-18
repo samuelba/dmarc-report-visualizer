@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .domain-card {
   height: 100%;
 
@@ -5,20 +7,20 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 8px;
+    margin-bottom: vars.$spacing-sm;
 
     mat-card-title {
-      font-size: 20px;
+      font-size: vars.$icon-sm;
       font-weight: 500;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: vars.$spacing-sm;
 
       mat-icon.warning-icon {
         color: var(--custom-warning-color);
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
+        font-size: vars.$icon-md;
+        width: vars.$icon-md;
+        height: vars.$icon-md;
       }
     }
 
@@ -30,19 +32,19 @@
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-bottom: 16px;
+    gap: vars.$spacing-base;
+    margin-bottom: vars.$spacing-base;
   }
 
   .stat-item {
     .stat-label {
-      font-size: 12px;
+      font-size: vars.$font-size-sm;
       color: var(--custom-metric-label-color);
-      margin-bottom: 4px;
+      margin-bottom: vars.$spacing-xs;
     }
 
     .stat-value {
-      font-size: 18px;
+      font-size: vars.$font-size-lg;
       font-weight: 500;
 
       &.pass-rate-good {
@@ -70,24 +72,24 @@
   .notes-section {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    padding: 12px;
+    gap: vars.$spacing-sm;
+    padding: vars.$spacing-md;
     background: var(--custom-result-bg-color);
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: vars.$radius-md;
+    font-size: vars.$font-size-base;
     color: var(--mat-sys-on-surface-variant);
 
     mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
+      font-size: vars.$font-size-lg;
+      width: vars.$font-size-lg;
+      height: vars.$font-size-lg;
       color: var(--mat-sys-outline);
       flex-shrink: 0;
-      margin-top: 2px;
+      margin-top: 0.125rem; // 2px - specific positioning
     }
   }
 
   &.unknown-card {
-    border-left: 4px solid var(--custom-warning-color);
+    border-left: vars.$border-thick solid var(--custom-warning-color);
   }
 }

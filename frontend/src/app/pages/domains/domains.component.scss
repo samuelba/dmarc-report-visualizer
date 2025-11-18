@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .domains-container {
   min-height: 100vh;
   display: flex;
@@ -5,14 +7,14 @@
 
   .filters {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, max-content));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(13.75rem, max-content)); // 220px
+    gap: vars.$spacing-md;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: vars.$spacing-base;
 
     .filter-controls {
       display: flex;
-      gap: 16px;
+      gap: vars.$spacing-base;
       align-items: center;
       grid-column: 1 / -1;
 
@@ -28,35 +30,35 @@
 
   .page-header {
     display: flex;
-    margin-bottom: 20px;
+    margin-bottom: vars.$spacing-lg;
 
     .layout-toggle {
       margin-left: auto;
     }
 
     h1 {
-      margin: 0 0 8px 0;
-      font-size: 32px;
+      margin: 0 0 vars.$spacing-sm 0;
+      font-size: vars.$font-size-4xl;
       font-weight: 500;
     }
 
     .subtitle {
       margin: 0;
       color: var(--mat-sys-on-surface-variant);
-      font-size: 16px;
+      font-size: vars.$font-size-md;
     }
   }
 
   .filter-card {
-    margin-bottom: 20px;
+    margin-bottom: vars.$spacing-lg;
 
     .filter-controls {
       display: flex;
-      gap: 16px;
+      gap: vars.$spacing-base;
       align-items: center;
 
       mat-form-field {
-        width: 200px;
+        width: 12.5rem; // 200px
         margin: 0;
       }
     }
@@ -66,14 +68,14 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 400px;
+    min-height: 25rem; // 400px
   }
 
   .domains-section {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 40px;
+    gap: vars.$spacing-xl;
+    margin-bottom: vars.$spacing-3xl;
 
     .section-header {
       display: flex;
@@ -84,15 +86,15 @@
     h2 {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 24px;
+      gap: vars.$spacing-sm;
+      font-size: vars.$font-size-2xl;
       font-weight: 500;
       margin: 0;
 
       mat-icon {
-        font-size: 28px;
-        width: 28px;
-        height: 28px;
+        font-size: vars.$font-size-3xl;
+        width: vars.$font-size-3xl;
+        height: vars.$font-size-3xl;
         color: var(--custom-success-color);
       }
     }
@@ -100,7 +102,7 @@
     .section-description {
       margin: 0;
       color: var(--mat-sys-on-surface-variant);
-      font-size: 14px;
+      font-size: vars.$font-size-base;
     }
 
     &.unknown-section {
@@ -113,24 +115,24 @@
   .unknown-section {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: vars.$spacing-xl;
   }
 
   .empty-state {
     text-align: center;
-    padding: 48px 24px;
+    padding: vars.$spacing-4xl vars.$spacing-xl;
 
     mat-card-content {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: vars.$spacing-md;
     }
 
     mat-icon {
-      font-size: 64px;
-      width: 64px;
-      height: 64px;
+      font-size: vars.$icon-2xl;
+      width: vars.$icon-2xl;
+      height: vars.$icon-2xl;
       color: var(--mat-sys-outline);
       opacity: 0.5;
     }
@@ -140,7 +142,7 @@
       color: var(--mat-sys-on-surface-variant);
 
       &.hint {
-        font-size: 14px;
+        font-size: vars.$font-size-base;
         opacity: 0.7;
       }
     }
@@ -155,14 +157,14 @@
 
   .domains-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr)); // 400px
+    gap: vars.$spacing-lg;
   }
 
   .domains-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: vars.$spacing-md;
 
     app-domain-card {
       width: 100%;

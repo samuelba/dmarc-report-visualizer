@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .login-container {
   display: flex;
   justify-content: center;
@@ -5,24 +7,24 @@
 
 .login-card {
   width: 100%;
-  max-width: 450px;
-  padding: 20px;
+  max-width: 28.125rem; // 450px
+  padding: vars.$spacing-lg;
 }
 
 mat-card-header {
   display: flex;
   flex-direction: column;
-  margin-bottom: 24px;
+  margin-bottom: vars.$spacing-xl;
 
   mat-card-title {
-    font-size: 28px;
+    font-size: vars.$font-size-3xl;
     font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: vars.$spacing-sm;
     text-align: center;
   }
 
   mat-card-subtitle {
-    font-size: 14px;
+    font-size: vars.$font-size-base;
     opacity: 0.7;
     text-align: center;
   }
@@ -33,29 +35,29 @@ mat-card-header {
 }
 
 mat-form-field {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 .error-message {
   display: block;
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-bottom: vars.$spacing-base;
+  padding: vars.$spacing-md;
   background-color: var(--custom-error-bg-color);
-  border-left: 4px solid var(--custom-error-color);
-  border-radius: 4px;
-  font-size: 14px;
+  border-left: vars.$border-thick solid var(--custom-error-color);
+  border-radius: vars.$radius-md;
+  font-size: vars.$font-size-base;
 
   &.rate-limit-error {
     background-color: var(--custom-warning-bg-color);
     border-left-color: var(--custom-warning-color);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: vars.$spacing-sm;
 
     mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
+      font-size: vars.$icon-sm;
+      width: vars.$icon-sm;
+      height: vars.$icon-sm;
     }
   }
 }
@@ -71,29 +73,29 @@ mat-form-field {
 
 .button-spinner {
   display: inline-block;
-  margin-right: 8px;
+  margin-right: vars.$spacing-sm;
 }
 
 .password-disabled-message {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  gap: vars.$spacing-md;
+  padding: vars.$spacing-base;
+  margin-bottom: vars.$spacing-base;
   background-color: var(--custom-info-bg-color);
-  border-left: 4px solid var(--custom-info-color);
-  border-radius: 8px;
+  border-left: vars.$border-thick solid var(--custom-info-color);
+  border-radius: vars.$radius-lg;
 
   mat-icon {
-    font-size: 24px;
-    width: 24px;
-    height: 24px;
+    font-size: vars.$icon-md;
+    width: vars.$icon-md;
+    height: vars.$icon-md;
     color: var(--custom-info-color);
   }
 
   p {
     margin: 0;
-    font-size: 14px;
+    font-size: vars.$font-size-base;
     line-height: 1.5;
   }
 }
@@ -107,7 +109,7 @@ mat-form-field {
     display: flex;
     align-items: center;
     text-align: center;
-    margin: 24px 0;
+    margin: vars.$spacing-xl 0;
 
     &::before,
     &::after {
@@ -116,8 +118,8 @@ mat-form-field {
     }
 
     span {
-      padding: 0 16px;
-      font-size: 12px;
+      padding: 0 vars.$spacing-base;
+      font-size: vars.$font-size-sm;
       font-weight: 500;
       opacity: 0.6;
     }
@@ -125,9 +127,9 @@ mat-form-field {
 
   .sso-button {
     mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
+      font-size: vars.$icon-sm;
+      width: vars.$icon-sm;
+      height: vars.$icon-sm;
     }
   }
 }

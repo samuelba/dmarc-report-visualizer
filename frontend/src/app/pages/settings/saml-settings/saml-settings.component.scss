@@ -1,52 +1,51 @@
-$section-padding: 16px;
+@use '../../../../styles/variables' as vars;
 
 .loading-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
+  min-height: 25rem; // 400px
 }
 
 mat-card {
-  margin-bottom: 1.5rem;
+  margin-bottom: vars.$spacing-xl;
 }
 
 mat-card-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: vars.$spacing-xl;
 }
 
 .status-section {
-  margin-bottom: 2rem;
-  padding: $section-padding;
+  margin-bottom: vars.$spacing-2xl;
+  padding: vars.$spacing-base;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   h3 {
     margin-top: 0;
-    margin-bottom: 1rem;
+    margin-bottom: vars.$spacing-base;
     font-weight: 500;
   }
 
   .status-badges {
     display: flex;
-    gap: 1rem;
+    gap: vars.$spacing-base;
     flex-wrap: wrap;
 
     span {
       display: inline-flex;
       align-items: center;
-      gap: 0.25rem;
+      gap: vars.$spacing-xs;
       font-weight: 500;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 13px;
+      padding: vars.$spacing-xs vars.$spacing-sm;
+      border-radius: vars.$radius-md;
+      font-size: vars.$font-size-base;
 
       .status-icon {
-        font-size: 1.1rem;
+        font-size: vars.$font-size-lg;
         width: auto;
         height: auto;
         vertical-align: middle;
-        margin-left: -2px;
       }
     }
 
@@ -93,16 +92,16 @@ mat-card-header {
 .saml-toggle-section,
 .password-login-toggle-section,
 .test-section {
-  margin-bottom: 2rem;
+  margin-bottom: vars.$spacing-2xl;
 
   h3 {
     margin-top: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: vars.$spacing-sm;
     font-weight: 500;
   }
 
   .section-description {
-    margin-bottom: 1rem;
+    margin-bottom: vars.$spacing-base;
     color: var(--mat-sys-on-surface-variant);
   }
 }
@@ -110,33 +109,33 @@ mat-card-header {
 .upload-mode-toggle {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin: 1.5rem 0;
+  gap: vars.$spacing-md;
+  margin: vars.$spacing-xl 0;
 }
 
 .metadata-upload-form,
 .manual-config-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: $section-padding;
+  gap: vars.$spacing-xl;
+  padding: vars.$spacing-base;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: vars.$spacing-xl;
   }
 }
 
 .sp-config-fields {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: $section-padding;
+  gap: vars.$spacing-xl;
+  padding: vars.$spacing-base;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   .sp-field {
     width: 100%;
@@ -145,13 +144,13 @@ mat-card-header {
   .metadata-download {
     button {
       mat-icon {
-        margin-right: 0.5rem;
+        margin-right: vars.$spacing-sm;
       }
     }
 
     .help-text {
-      margin-top: 0.5rem;
-      font-size: 0.875rem;
+      margin-top: vars.$spacing-sm;
+      font-size: vars.$font-size-base;
       color: var(--mat-sys-on-surface-variant);
     }
   }
@@ -160,20 +159,20 @@ mat-card-header {
 .file-upload-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: vars.$spacing-base;
 
   .file-selected {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem;
+    gap: vars.$spacing-sm;
+    padding: vars.$spacing-md;
     background-color: var(--custom-success-bg-color);
-    border-radius: 4px;
+    border-radius: vars.$radius-md;
 
     mat-icon {
-      font-size: 1.2rem;
-      width: 1.2rem;
-      height: 1.2rem;
+      font-size: vars.$icon-lg;
+      width: vars.$icon-lg;
+      height: vars.$icon-lg;
       color: var(--custom-success-color);
     }
   }
@@ -181,27 +180,27 @@ mat-card-header {
 
 .current-config {
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   h4 {
     margin-top: 0;
-    margin-bottom: 1rem;
+    margin-bottom: vars.$spacing-base;
     font-weight: 500;
   }
 
   .config-details {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: vars.$spacing-md;
   }
 
   .config-item {
     display: flex;
-    gap: 1rem;
+    gap: vars.$spacing-base;
 
     .label {
       font-weight: 600;
-      min-width: 100px;
+      min-width: 6.25rem; // 100px
     }
 
     .value {
@@ -214,44 +213,44 @@ mat-card-header {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: vars.$spacing-base;
 
   button {
     mat-icon {
-      margin-right: 0.5rem;
+      margin-right: vars.$spacing-sm;
     }
   }
 }
 
 .full-width {
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: vars.$spacing-base;
 }
 
 .toggle-container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: $section-padding;
+  gap: vars.$spacing-xl;
+  padding: vars.$spacing-base;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   mat-slide-toggle {
     display: block;
 
     .toggle-label {
       font-weight: 500;
-      font-size: 1rem;
+      font-size: vars.$font-size-md;
     }
   }
 
   .toggle-description {
     display: flex;
-    gap: 1rem;
-    padding: 1rem;
+    gap: vars.$spacing-base;
+    padding: vars.$spacing-base;
     background-color: var(--custom-info-bg-color);
-    border-radius: 8px;
-    margin-top: 1rem;
+    border-radius: vars.$radius-lg;
+    margin-top: vars.$spacing-base;
 
     mat-icon {
       flex-shrink: 0;
@@ -264,12 +263,12 @@ mat-card-header {
     }
 
     .recovery-note {
-      margin-top: 0.75rem;
-      padding: 0.75rem;
+      margin-top: vars.$spacing-md;
+      padding: vars.$spacing-md;
       background-color: var(--custom-warning-bg-color);
-      border-left: 3px solid var(--custom-warning-color);
-      border-radius: 4px;
-      font-size: 0.875rem;
+      border-left: 0.1875rem solid var(--custom-warning-color); // 3px
+      border-radius: vars.$radius-md;
+      font-size: vars.$font-size-base;
 
       strong {
         color: var(--custom-warning-color);
@@ -281,31 +280,31 @@ mat-card-header {
 .test-container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: $section-padding;
+  gap: vars.$spacing-xl;
+  padding: vars.$spacing-base;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 
   .test-info {
     display: flex;
-    gap: 1rem;
+    gap: vars.$spacing-base;
 
     mat-icon {
       flex-shrink: 0;
-      font-size: 2rem;
-      width: 2rem;
-      height: 2rem;
+      font-size: vars.$icon-lg;
+      width: vars.$icon-lg;
+      height: vars.$icon-lg;
     }
 
     p {
-      margin: 0 0 0.75rem 0;
+      margin: 0 0 vars.$spacing-md 0;
       color: var(--mat-sys-on-surface-variant);
     }
   }
 
   button {
     mat-icon {
-      margin-right: 0.5rem;
+      margin-right: vars.$spacing-sm;
     }
   }
 }

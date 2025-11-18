@@ -1,13 +1,15 @@
+@use '../../../styles/variables' as vars;
+
 mat-dialog-content {
-  min-width: 500px;
-  max-width: 600px;
-  padding: 24px;
+  min-width: 31.25rem; // 500px
+  max-width: 37.5rem; // 600px
+  padding: vars.$spacing-xl;
 }
 
 .step-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: vars.$spacing-lg;
 }
 
 .step-instructions {
@@ -21,66 +23,66 @@ mat-dialog-content {
 .loading-inline {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: vars.$spacing-md;
+  padding: vars.$spacing-md;
   justify-content: center;
 
   span {
     color: var(--mat-sys-on-surface-variant);
-    font-size: 14px;
+    font-size: vars.$font-size-base;
   }
 }
 
 .recovery-codes-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  padding: 16px;
+  gap: vars.$spacing-md;
+  padding: vars.$spacing-base;
   background: var(--mat-sys-surface-container);
-  border-radius: 8px;
-  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: vars.$radius-lg;
+  border: vars.$border-thin solid var(--mat-sys-outline-variant);
 
   .recovery-code {
-    padding: 10px 12px;
+    padding: vars.$spacing-sm vars.$spacing-md;
     background: var(--mat-sys-surface-container-high);
-    border-radius: 4px;
+    border-radius: vars.$radius-md;
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: vars.$font-size-base;
     text-align: center;
     color: var(--mat-sys-on-surface);
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: vars.$border-thin solid var(--mat-sys-outline-variant);
   }
 }
 
 .recovery-actions {
   display: flex;
-  gap: 12px;
+  gap: vars.$spacing-md;
   justify-content: center;
 
   .action-button {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: vars.$spacing-sm;
 
     mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
+      font-size: vars.$font-size-lg;
+      width: vars.$font-size-lg;
+      height: vars.$font-size-lg;
     }
   }
 }
 
 .acknowledgment-checkbox {
-  margin-top: 8px;
+  margin-top: vars.$spacing-sm;
 
   ::ng-deep .mat-mdc-checkbox-label {
-    font-size: 14px;
+    font-size: vars.$font-size-base;
     line-height: 1.5;
   }
 }
 
 mat-dialog-actions {
-  padding: 16px 24px;
+  padding: vars.$spacing-base vars.$spacing-xl;
   margin: 0;
 }
 
@@ -89,7 +91,7 @@ mat-dialog-actions {
   mat-dialog-content {
     min-width: unset;
     max-width: 100%;
-    padding: 16px;
+    padding: vars.$spacing-base;
   }
 
   .recovery-codes-grid {

@@ -1,3 +1,5 @@
+@use '../styles/variables' as vars;
+
 .spacer {
   flex: 1 1 auto;
 }
@@ -7,7 +9,7 @@
 }
 
 main {
-  padding: 20px;
+  padding: vars.$spacing-lg;
 }
 
 .app-toolbar {
@@ -16,8 +18,8 @@ main {
   left: 0;
   right: 0;
   z-index: 1000; // above sidenav
-  min-height: 64px;
-  gap: 8px;
+  min-height: vars.$toolbar-height;
+  gap: vars.$spacing-sm;
 
   .logo {
     height: 100%;
@@ -30,8 +32,8 @@ main {
       max-height: 100%;
       width: auto;
       display: block;
-      padding-top: 4px;
-      padding-bottom: 4px;
+      padding-top: vars.$spacing-xs;
+      padding-bottom: vars.$spacing-xs;
     }
   }
 }
@@ -42,8 +44,8 @@ main {
 
 /* Layout */
 .app-container {
-  min-height: calc(100vh - 64px);
-  margin-top: 64px;
+  min-height: calc(100vh - #{vars.$toolbar-height});
+  margin-top: vars.$toolbar-height;
 }
 
 /* Ensure browser (body) scroll instead of in-page */
@@ -58,29 +60,29 @@ main {
 }
 
 .app-sidenav {
-  width: 170px;
-  padding-top: 8px;
+  width: vars.$sidenav-width;
+  padding-top: vars.$spacing-sm;
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: vars.$spacing-xs;
+  padding-right: vars.$spacing-xs;
   border: 0;
   border-radius: 0;
 
   mat-icon {
-    margin-left: 11px;
-    margin-right: 8px;
+    margin-left: 0.6875rem; // 11px - specific positioning
+    margin-right: vars.$spacing-sm;
   }
 
   &.collapsed {
-    width: 54px;
+    width: vars.$sidenav-collapsed-width;
 
     .label {
       display: none;
     }
     .collapse-toggle {
-      margin-left: 8px;
+      margin-left: vars.$spacing-sm;
     }
     a[mat-list-item] {
       margin: 0 0px;
@@ -93,32 +95,32 @@ main {
     display: flex;
     flex-direction: column;
     height: 100%;
-    gap: 8px;
+    gap: vars.$spacing-sm;
     overflow: visible;
   }
 
   .collapse-toggle {
     align-self: flex-end;
-    margin: 0 8px 8px 0;
+    margin: 0 vars.$spacing-sm vars.$spacing-sm 0;
   }
 
   .nav-top,
   .nav-bottom {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: vars.$spacing-xs;
     overflow: visible;
   }
 
   mat-nav-list {
-    padding: 4px 0;
+    padding: vars.$spacing-xs 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 0.375rem; // 6px - specific spacing
   }
 
   a[mat-list-item] {
-    border-radius: 8px;
+    border-radius: vars.$radius-lg;
     margin: 0 0px;
     overflow: hidden;
   }
@@ -133,7 +135,7 @@ main {
 
   .sidenav-bottom-link {
     margin-top: auto;
-    padding-bottom: 12px;
+    padding-bottom: vars.$spacing-md;
     display: flex;
     justify-content: center;
   }
@@ -145,7 +147,7 @@ main {
 }
 
 .menu-toggle {
-  margin-right: 4px;
+  margin-right: vars.$spacing-xs;
 }
 
 .app-content {
@@ -153,5 +155,5 @@ main {
 }
 
 .mat-toolbar-single-row {
-  padding-left: 8px;
+  padding-left: vars.$spacing-sm;
 }

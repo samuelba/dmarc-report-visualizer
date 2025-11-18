@@ -1,12 +1,14 @@
+@use '../../../styles/variables' as vars;
+
 .message-container {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 8px;
+  gap: vars.$spacing-md;
+  padding: vars.$spacing-md;
+  border-radius: vars.$radius-lg;
 
   &.with-border {
-    border-left: 4px solid;
+    border-left: vars.$border-thick solid;
   }
 
   &.without-border {
@@ -14,15 +16,15 @@
   }
 
   mat-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
+    font-size: vars.$icon-sm;
+    width: vars.$icon-sm;
+    height: vars.$icon-sm;
     flex-shrink: 0;
   }
 
   .message-content {
     margin: 0;
-    font-size: 14px;
+    font-size: vars.$font-size-base;
     line-height: 1.5;
     flex: 1;
   }

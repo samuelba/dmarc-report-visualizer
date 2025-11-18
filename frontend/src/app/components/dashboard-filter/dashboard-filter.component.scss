@@ -1,12 +1,14 @@
+@use '../../../styles/variables' as vars;
+
 .compact-filter {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 .filter-row {
   display: grid;
   align-items: center;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(250px, max-content));
+  gap: vars.$spacing-md;
+  grid-template-columns: repeat(auto-fill, minmax(15.625rem, max-content)); // 250px
 }
 
 .date-filter {
@@ -19,7 +21,7 @@
 
 .filter-buttons {
   display: flex;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   align-items: center;
 }
 

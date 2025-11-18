@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .setup-container {
   display: flex;
   justify-content: center;
@@ -5,24 +7,24 @@
 
 .setup-card {
   width: 100%;
-  max-width: 450px;
-  padding: 20px;
+  max-width: 28.125rem; // 450px
+  padding: vars.$spacing-lg;
 }
 
 mat-card-header {
   display: flex;
   flex-direction: column;
-  margin-bottom: 24px;
+  margin-bottom: vars.$spacing-xl;
 
   mat-card-title {
-    font-size: 28px;
+    font-size: vars.$font-size-3xl;
     font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: vars.$spacing-sm;
     text-align: center;
   }
 
   mat-card-subtitle {
-    font-size: 14px;
+    font-size: vars.$font-size-base;
     opacity: 0.7;
     text-align: center;
   }
@@ -33,17 +35,17 @@ mat-card-header {
 }
 
 mat-form-field {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 .error-message {
   display: block;
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-bottom: vars.$spacing-base;
+  padding: vars.$spacing-md;
   background-color: var(--custom-error-bg-color);
-  border-left: 4px solid var(--custom-error-color);
-  border-radius: 4px;
-  font-size: 14px;
+  border-left: vars.$border-thick solid var(--custom-error-color);
+  border-radius: vars.$radius-md;
+  font-size: vars.$font-size-base;
 }
 
 .submit-button-container {
@@ -57,5 +59,5 @@ mat-form-field {
 
 .button-spinner {
   display: inline-block;
-  margin-right: 8px;
+  margin-right: vars.$spacing-sm;
 }

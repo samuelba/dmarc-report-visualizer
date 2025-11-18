@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .combined-date-filter {
   width: 100%;
 }
@@ -7,25 +9,25 @@
 }
 
 .menu-content {
-  padding: 16px;
-  min-width: 300px;
-  max-width: 350px;
+  padding: vars.$spacing-base;
+  min-width: 18.75rem; // 300px
+  max-width: 21.875rem; // 350px
   width: max-content;
   box-sizing: border-box;
 }
 
 .mode-selector {
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: vars.$spacing-base;
+  padding-bottom: vars.$spacing-base;
+  border-bottom: vars.$border-thin solid #e0e0e0;
 }
 
 .mode-selector mat-radio-button {
-  margin-right: 16px;
+  margin-right: vars.$spacing-base;
 }
 
 .filter-content {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 .period-mode mat-form-field {
@@ -34,18 +36,18 @@
 }
 
 .period-mode mat-hint {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
 }
 
 .quick-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: vars.$spacing-sm;
+  margin-top: vars.$spacing-sm;
 }
 
 .quick-options button {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
 }
 
 .range-mode mat-form-field {
@@ -56,9 +58,9 @@
 .menu-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  gap: vars.$spacing-sm;
+  padding-top: vars.$spacing-base;
+  border-top: vars.$border-thin solid #e0e0e0;
 }
 
 .mat-mdc-menu-content {

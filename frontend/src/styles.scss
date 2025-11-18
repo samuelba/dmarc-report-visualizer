@@ -1,7 +1,11 @@
 @use '@angular/material' as mat;
 @use 'styles/theme-colors' as theme-colors;
+@use 'styles/variables' as vars;
 
 html {
+  // Set base font size for rem units (1rem = 16px)
+  font-size: 16px;
+
   @include mat.theme(
     (
       color: (
@@ -24,7 +28,7 @@ body {
   font-family: Roboto, 'Helvetica Neue', sans-serif;
   background: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
-  max-height: calc(100vh - 64px);
+  max-height: calc(100vh - #{vars.$toolbar-height});
 }
 
 :root {
@@ -197,14 +201,14 @@ body {
 
   .popup-content {
     h4 {
-      margin: 0 0 8px;
+      margin: 0 0 vars.$spacing-sm;
       color: #e0e0e0;
-      font-size: 14px;
+      font-size: vars.$font-size-base;
     }
 
     p {
-      margin: 4px 0;
-      font-size: 12px;
+      margin: vars.$spacing-xs 0;
+      font-size: vars.$font-size-sm;
       color: #b0b0b0;
     }
   }
@@ -213,14 +217,14 @@ body {
 .light {
   .popup-content {
     h4 {
-      margin: 0 0 8px;
+      margin: 0 0 vars.$spacing-sm;
       color: var(--md-sys-color-on-surface);
-      font-size: 14px;
+      font-size: vars.$font-size-base;
     }
 
     p {
-      margin: 4px 0;
-      font-size: 12px;
+      margin: vars.$spacing-xs 0;
+      font-size: vars.$font-size-sm;
       color: #666;
     }
   }

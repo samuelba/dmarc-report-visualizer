@@ -1,11 +1,13 @@
+@use '../../../styles/variables' as vars;
+
 .map-card {
-  margin-bottom: 20px;
+  margin-bottom: vars.$spacing-lg;
 }
 
 .map-container {
-  height: 500px;
+  height: 31.25rem; // 500px
   width: 100%;
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
   overflow: hidden;
 }
 
@@ -13,31 +15,31 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-bottom: vars.$spacing-base;
+  padding: vars.$spacing-md;
   background-color: var(--custom-list-item-background);
-  border-radius: 8px;
+  border-radius: vars.$radius-lg;
 }
 
 .map-legend {
   display: flex;
-  gap: 20px;
+  gap: vars.$spacing-lg;
 }
 
 .map-filter mat-radio-group {
   display: flex;
-  gap: 16px;
+  gap: vars.$spacing-base;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
 }
 
 .legend-color {
-  width: 16px;
-  height: 16px;
+  width: vars.$spacing-base;
+  height: vars.$spacing-base;
   border-radius: 50%;
 }
 
@@ -64,17 +66,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: vars.$spacing-base;
 }
 
 mat-card-header {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 mat-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
 }
 
 // Map controls
@@ -103,7 +105,7 @@ mat-card-title {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  padding: vars.$spacing-lg;
 }
 
 // Custom popup styles for Leaflet
@@ -113,28 +115,28 @@ mat-card-title {
 
 .light .popup-content {
   h4 {
-    margin: 0 0 8px;
+    margin: 0 0 vars.$spacing-sm;
     color: var(--md-sys-color-on-surface);
-    font-size: 14px;
+    font-size: vars.$font-size-base;
   }
 
   p {
-    margin: 4px 0;
-    font-size: 12px;
+    margin: vars.$spacing-xs 0;
+    font-size: vars.$font-size-sm;
     color: #666;
   }
 }
 
 .dark .popup-content {
   h4 {
-    margin: 0 0 8px;
+    margin: 0 0 vars.$spacing-sm;
     color: #e0e0e0;
-    font-size: 14px;
+    font-size: vars.$font-size-base;
   }
 
   p {
-    margin: 4px 0;
-    font-size: 12px;
+    margin: vars.$spacing-xs 0;
+    font-size: vars.$font-size-sm;
     color: #b0b0b0;
   }
 }
