@@ -1,13 +1,15 @@
+@use '../../../styles/variables' as vars;
+
 .ips-card {
-  margin-bottom: 20px;
+  margin-bottom: vars.$spacing-lg;
 }
 
 .loading-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px;
-  gap: 16px;
+  padding: vars.$spacing-3xl;
+  gap: vars.$spacing-base;
 }
 
 .table-container {
@@ -21,26 +23,26 @@
 .ip-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
 }
 
 .ip-cell code {
   font-family: 'Courier New', monospace;
   background-color: var(--custom-list-item-background);
-  padding: 2px 4px;
-  border-radius: 4px;
+  padding: 0.125rem vars.$spacing-xs; // 2px 4px
+  border-radius: vars.$radius-md;
 }
 
 .location-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: vars.$spacing-xs;
 }
 
 .entities-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: vars.$spacing-xs;
 }
 
 .country,
@@ -51,17 +53,17 @@
 .no-entities {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: vars.$spacing-xs;
+  font-size: vars.$font-size-sm;
 }
 
 .flag-icon,
 .city-icon,
 .isp-icon,
 .org-icon {
-  font-size: 14px;
-  width: 14px;
-  height: 14px;
+  font-size: vars.$font-size-base;
+  width: vars.$font-size-base;
+  height: vars.$font-size-base;
 }
 
 .country {
@@ -89,63 +91,63 @@
 .count-badge {
   background-color: var(--custom-info-bg-color);
   color: var(--custom-info-color);
-  padding: 4px 4px;
-  border-radius: 4px;
+  padding: vars.$spacing-xs vars.$spacing-xs;
+  border-radius: vars.$radius-md;
   font-weight: 500;
 }
 
 .auth-result {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: vars.$spacing-xxs;
 }
 
 .pass-count {
-  color: #4caf50;
+  color: var(--custom-success-color);
   font-weight: 500;
 }
 
 .fail-count {
-  color: #f44336;
+  color: var(--custom-error-color);
   font-weight: 500;
 }
 
 .percentage {
-  font-size: 11px;
+  font-size: vars.$font-size-xs-md;
 }
 
 .percentage.pass {
-  color: #4caf50;
+  color: var(--custom-success-color);
 }
 
 .percentage.fail {
-  color: #f44336;
+  color: var(--custom-error-color);
 }
 
 .success-rate {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 80px;
+  gap: vars.$spacing-xs;
+  min-width: 5rem; // 80px
 }
 
 .rate-text {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
   text-align: center;
 }
 
 mat-card-header {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 mat-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
 }
 
 mat-paginator {
-  margin-top: 16px;
+  margin-top: vars.$spacing-base;
 }
 
 table {

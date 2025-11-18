@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .xml-viewer-dialog {
   display: flex;
   flex-direction: column;
@@ -8,22 +10,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--xml-dialog-header-border-color);
+  padding: vars.$spacing-base vars.$spacing-xl;
+  border-bottom: vars.$border-thin solid var(--xml-dialog-header-border-color);
 }
 
 h2[mat-dialog-title] {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   margin: 0;
-  font-size: 20px;
+  font-size: vars.$icon-sm;
   font-weight: 500;
 }
 
 .header-actions {
   display: flex;
-  gap: 4px;
+  gap: vars.$spacing-xs;
 }
 
 mat-dialog-content {
@@ -35,18 +37,18 @@ mat-dialog-content {
 }
 
 .xml-container {
-  padding: 16px;
+  padding: vars.$spacing-base;
   min-height: 100%;
 }
 
 pre {
   margin: 0;
   padding: 0;
-  border: 1px solid var(--xml-dialog-header-border-color);
-  border-radius: 4px;
+  border: vars.$border-thin solid var(--xml-dialog-header-border-color);
+  border-radius: vars.$radius-md;
   overflow-x: auto;
   font-family: 'Courier New', Consolas, Monaco, monospace;
-  font-size: 13px;
+  font-size: vars.$font-size-base;
   line-height: 1.6;
   white-space: pre;
   word-wrap: normal;

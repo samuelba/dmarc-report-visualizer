@@ -1,9 +1,11 @@
+@use '../../../styles/variables' as vars;
+
 .totp-input-field {
   width: 100%;
 
   input {
-    font-size: 24px;
-    letter-spacing: 8px;
+    font-size: vars.$icon-md;
+    letter-spacing: vars.$spacing-sm;
     text-align: center;
     font-family: 'Courier New', monospace;
   }

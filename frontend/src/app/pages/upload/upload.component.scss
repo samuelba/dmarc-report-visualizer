@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .upload-container {
   display: flex;
   flex-direction: column;
@@ -8,25 +10,25 @@
 }
 
 .upload-card {
-  margin-bottom: 20px;
+  margin-bottom: vars.$spacing-lg;
   margin: 0 auto;
 }
 
 mat-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: vars.$spacing-sm;
 }
 
 .upload-area {
-  border: 2px dashed var(--custom-upload-border-color);
-  border-radius: 8px;
-  padding: 40px;
+  border: vars.$border-base dashed var(--custom-upload-border-color);
+  border-radius: vars.$radius-lg;
+  padding: vars.$spacing-3xl;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin: 20px 0;
-  max-width: 500px;
+  margin: vars.$spacing-lg 0;
+  max-width: 32rem;
 }
 
 .upload-area:hover,
@@ -36,71 +38,71 @@ mat-card-title {
 }
 
 .upload-icon {
-  font-size: 48px;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 16px;
+  font-size: vars.$icon-xl;
+  width: vars.$icon-xl;
+  height: vars.$icon-xl;
+  margin-bottom: vars.$spacing-base;
 }
 
 .upload-area h3 {
-  margin: 0 0 8px;
+  margin: 0 0 vars.$spacing-sm;
 }
 
 .upload-area p {
-  margin: 4px 0;
+  margin: vars.$spacing-xs 0;
 }
 
 .file-types {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
 }
 
 .selected-files {
-  margin: 20px 0;
+  margin: vars.$spacing-lg 0;
 }
 
 .selected-files h4 {
-  margin: 0 0 12px;
+  margin: 0 0 vars.$spacing-md;
 }
 
 .file-chips {
-  margin: 12px 0;
+  margin: vars.$spacing-md 0;
 }
 
 .file-size {
-  font-size: 11px;
-  margin-left: 4px;
+  font-size: vars.$font-size-xs-md;
+  margin-left: vars.$spacing-xs;
 }
 
 .upload-actions {
   display: flex;
-  gap: 12px;
-  margin: 20px 0;
+  gap: vars.$spacing-md;
+  margin: vars.$spacing-lg 0;
 }
 
 .upload-progress {
-  margin: 20px 0;
+  margin: vars.$spacing-lg 0;
 }
 
 .upload-progress p {
-  margin: 8px 0 0;
-  font-size: 14px;
+  margin: vars.$spacing-sm 0 0;
+  font-size: vars.$font-size-base;
 }
 
 .upload-results {
-  margin: 20px 0;
+  margin: vars.$spacing-lg 0;
 }
 
 .upload-results h4 {
-  margin: 0 0 12px;
+  margin: 0 0 vars.$spacing-md;
 }
 
 .result-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 4px;
+  gap: vars.$spacing-sm;
+  padding: vars.$spacing-sm;
+  margin: vars.$spacing-xs 0;
+  border-radius: vars.$radius-md;
 }
 
 .result-item.success {
@@ -119,6 +121,6 @@ mat-card-title {
 
 .message {
   flex: 1;
-  font-size: 14px;
+  font-size: vars.$font-size-base;
   text-align: end;
 }

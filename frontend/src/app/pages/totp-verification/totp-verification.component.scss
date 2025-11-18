@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .verification-container {
   display: flex;
   justify-content: center;
@@ -5,32 +7,32 @@
 
 .verification-card {
   width: 100%;
-  max-width: 450px;
-  padding: 1rem;
+  max-width: 28.125rem; // 450px
+  padding: vars.$spacing-base;
 }
 
 mat-card-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: vars.$spacing-xl;
 }
 
 mat-card-title {
-  font-size: 1.75rem;
+  font-size: vars.$font-size-3xl;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: vars.$spacing-sm;
 }
 
 mat-card-subtitle {
-  font-size: 1rem;
+  font-size: vars.$font-size-md;
   opacity: 0.8;
 }
 
 .input-section {
-  margin-bottom: 1.5rem;
+  margin-bottom: vars.$spacing-xl;
 }
 
 .instruction-text {
-  margin: 0 0 1rem 0;
-  font-size: 0.95rem;
+  margin: 0 0 vars.$spacing-base 0;
+  font-size: vars.$font-size-base;
   line-height: 1.5;
 }
 
@@ -40,13 +42,13 @@ mat-card-subtitle {
 
 app-message {
   display: block;
-  margin-top: 0.5rem;
+  margin-top: vars.$spacing-sm;
 }
 
 .submit-button-container {
   display: flex;
   justify-content: center;
-  margin-top: 1.5rem;
+  margin-top: vars.$spacing-xl;
 }
 
 .submit-button {
@@ -59,11 +61,11 @@ app-message {
 }
 
 .toggle-section {
-  margin-top: 1rem;
+  margin-top: vars.$spacing-base;
   text-align: center;
 }
 
 .toggle-button {
-  font-size: 0.875rem;
+  font-size: vars.$font-size-base;
   text-decoration: none;
 }

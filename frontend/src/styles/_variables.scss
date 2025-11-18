@@ -1,0 +1,64 @@
+// SCSS Variables for DMARC Frontend
+// All spacing, typography, and dimensions use rem units for accessibility and scalability
+// Base font size: 16px (browser default)
+
+// ============================================================================
+// Spacing Scale (rem)
+// ============================================================================
+$spacing-xxs: 0.125rem; // 2px
+$spacing-xs: 0.25rem; // 4px
+$spacing-sm: 0.5rem; // 8px
+$spacing-md: 0.75rem; // 12px
+$spacing-base: 1rem; // 16px
+$spacing-lg: 1.25rem; // 20px
+$spacing-xl: 1.5rem; // 24px
+$spacing-2xl: 2rem; // 32px
+$spacing-3xl: 2.5rem; // 40px
+$spacing-4xl: 3rem; // 48px
+
+// ============================================================================
+// Typography Scale (rem)
+// ============================================================================
+$font-size-xs: 0.625rem; // 10px
+$font-size-xs-md: 0.6875rem; // 11px
+$font-size-sm: 0.75rem; // 12px
+$font-size-base: 0.875rem; // 14px
+$font-size-md: 1rem; // 16px
+$font-size-lg: 1.125rem; // 18px
+$font-size-xl: 1.25rem; // 20px
+$font-size-2xl: 1.5rem; // 24px
+$font-size-3xl: 1.75rem; // 28px
+$font-size-4xl: 2rem; // 32px
+$font-size-5xl: 3rem; // 48px
+$font-size-6xl: 4rem; // 64px
+
+// ============================================================================
+// Border Radius (rem)
+// ============================================================================
+$radius-sm: 0.125rem; // 2px
+$radius-md: 0.25rem; // 4px
+$radius-lg: 0.5rem; // 8px
+
+// ============================================================================
+// Border Widths (px - kept small for precision)
+// ============================================================================
+$border-thin: 1px;
+$border-base: 2px;
+$border-thick: 4px;
+
+// ============================================================================
+// Icon Sizes (rem)
+// ============================================================================
+$icon-xs: 1rem; // 16px
+$icon-sm: 1.25rem; // 20px
+$icon-md: 1.5rem; // 24px
+$icon-lg: 2rem; // 32px
+$icon-xl: 3rem; // 48px
+$icon-2xl: 4rem; // 64px
+
+// ============================================================================
+// Layout Dimensions (rem)
+// ============================================================================
+$toolbar-height: 4rem; // 64px
+$sidenav-width: 10.625rem; // 170px
+$sidenav-collapsed-width: 3.375rem; // 54px

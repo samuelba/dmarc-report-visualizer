@@ -1,3 +1,5 @@
+@use '../../../styles/variables' as vars;
+
 .explore-container {
   min-height: 100vh;
   display: flex;
@@ -10,10 +12,10 @@
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, max-content));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(13.75rem, max-content)); // 220px
+  gap: vars.$spacing-md;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 app-combined-date-filter {
@@ -22,7 +24,7 @@ app-combined-date-filter {
 
 .actions {
   display: flex;
-  gap: 8px;
+  gap: vars.$spacing-sm;
   white-space: nowrap;
   grid-column: span 1;
   justify-self: start;
@@ -34,12 +36,12 @@ app-combined-date-filter {
 }
 
 .contains-filter .mat-mdc-form-field-flex {
-  border-radius: 4px;
+  border-radius: vars.$radius-md;
 }
 
 table {
   width: 100%;
-  margin: 16px 0;
+  margin: vars.$spacing-base 0;
 
   th {
     background-color: var(--custom-table-header-background);
@@ -48,17 +50,17 @@ table {
 
 td.mat-mdc-cell,
 th.mat-mdc-header-cell {
-  padding-left: 4px !important;
-  padding-right: 4px !important;
+  padding-left: vars.$spacing-xs !important;
+  padding-right: vars.$spacing-xs !important;
 }
 
 tr td.mat-mdc-cell:first-child,
 tr th.mat-mdc-header-cell:first-child {
-  padding-left: 12px !important;
+  padding-left: vars.$spacing-md !important;
 }
 
 .auth {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
 }
 
 .detail-row {
@@ -70,19 +72,19 @@ tr th.mat-mdc-header-cell:first-child {
 }
 
 .detail-content {
-  padding: 16px;
+  padding: vars.$spacing-base;
 }
 
 .detail-section {
-  margin-bottom: 16px;
+  margin-bottom: vars.$spacing-base;
 }
 
 .detail-section h4 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
+  margin: 0 0 vars.$spacing-sm 0;
+  font-size: vars.$font-size-base;
   font-weight: 600;
-  border-bottom: 1px solid var(--custom-unknown-color);
-  padding-bottom: 4px;
+  border-bottom: vars.$border-thin solid var(--custom-unknown-color);
+  padding-bottom: vars.$spacing-xs;
 }
 
 .detail-section:last-child {
@@ -91,14 +93,14 @@ tr th.mat-mdc-header-cell:first-child {
 
 .policy-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); // 200px
+  gap: vars.$spacing-sm;
 }
 
 .auth {
   display: grid;
   grid-template-columns: auto 1fr;
-  column-gap: 4px;
+  column-gap: vars.$spacing-xs;
   align-items: center;
 }
 
@@ -130,9 +132,9 @@ tr th.mat-mdc-header-cell:first-child {
 // Base badge styling - shared across all status badges
 %status-badge {
   font-weight: 500;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: vars.$spacing-xxs vars.$spacing-xs;
+  border-radius: vars.$radius-md;
+  font-size: vars.$font-size-sm;
 }
 
 // Policy styling
@@ -188,7 +190,7 @@ tr th.mat-mdc-header-cell:first-child {
   color: var(--custom-unknown-color);
   background-color: var(--custom-unknown-bg-color);
   font-style: italic;
-  border: 1px dashed var(--custom-unknown-color);
+  border: vars.$border-thin dashed var(--custom-unknown-color);
 }
 
 // Forwarded email styling
@@ -196,9 +198,9 @@ tr th.mat-mdc-header-cell:first-child {
 .forwarded-no,
 .forwarded-unknown {
   @extend %status-badge;
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: vars.$spacing-xxs vars.$spacing-xs;
+  border-radius: vars.$radius-md;
+  font-size: vars.$font-size-sm;
 }
 
 .forwarded-yes {
@@ -218,23 +220,7 @@ tr th.mat-mdc-header-cell:first-child {
   background-color: var(--custom-unknown-bg-color);
   font-weight: 400;
   font-style: italic;
-  border: 1px dashed var(--custom-unknown-color);
-}
-
-// Info icon styling
-.info-container {
-  display: flex;
-  align-items: center;
-  .info-icon {
-    color: var(--custom-info-color);
-    cursor: help;
-    font-size: 1.4rem;
-    transition: color 0.2s ease;
-
-    &:hover {
-      color: var(--custom-warning-color);
-    }
-  }
+  border: vars.$border-thin dashed var(--custom-unknown-color);
 }
 
 // Clickable row styling
@@ -260,12 +246,12 @@ tr th.mat-mdc-header-cell:first-child {
 .entities-cell {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  max-width: 200px;
+  gap: vars.$spacing-xxs;
+  max-width: 12.5rem; // 200px
 }
 
 .entity-isp {
-  font-size: 10px;
+  font-size: vars.$font-size-xs;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
@@ -275,7 +261,7 @@ tr th.mat-mdc-header-cell:first-child {
 }
 
 .entity-org {
-  font-size: 10px;
+  font-size: vars.$font-size-xs;
   opacity: 0.7;
   line-height: 1.2;
   white-space: nowrap;
@@ -285,6 +271,6 @@ tr th.mat-mdc-header-cell:first-child {
 }
 
 .entity-missing {
-  font-size: 12px;
+  font-size: vars.$font-size-sm;
   opacity: 0.5;
 }
