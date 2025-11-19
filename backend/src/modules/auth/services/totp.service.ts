@@ -115,7 +115,19 @@ export class TotpService {
         secret: OTPAuth.Secret.fromBase32(secret),
       });
 
+      // Validate token with time window first to get the time step delta
+      const delta = totp.validate({
+        token,
+        window: this.totpWindow,
+      });
+
+      // If code is invalid, reject immediately
+      if (delta === null) {
+        return false;
+      }
+
       // Check if code was recently used (prevent replay attacks)
+      // We need to check if the same time step was already used
       if (userId) {
         const user = await this.userRepository.findOne({
           where: { id: userId },
@@ -124,23 +136,28 @@ export class TotpService {
         if (user?.totpLastUsedAt) {
           const lastUsedTime = user.totpLastUsedAt.getTime();
           const currentTime = Date.now();
-          const timeDiff = currentTime - lastUsedTime;
 
-          // If the code was used within the same time window, reject it
-          if (timeDiff < this.totpStep * 1000) {
+          // Calculate time steps (each step is totpStep seconds)
+          const currentTimeStep = Math.floor(
+            currentTime / (this.totpStep * 1000),
+          );
+          const lastUsedTimeStep = Math.floor(
+            lastUsedTime / (this.totpStep * 1000),
+          );
+
+          // Calculate the time step that was used for this code
+          // delta is the offset from current time step (0 = current, -1 = previous, +1 = next)
+          const usedTimeStep = currentTimeStep + delta;
+
+          // If the same time step was already used, reject it (replay attack)
+          if (usedTimeStep === lastUsedTimeStep) {
             return false;
           }
         }
       }
 
-      // Validate token with time window (±1 period by default)
-      const delta = totp.validate({
-        token,
-        window: this.totpWindow,
-      });
-
-      // delta is null if invalid, or a number indicating the time step difference
-      return delta !== null;
+      // Code is valid and not a replay
+      return true;
     } catch (error) {
       // Log error for debugging security-critical validation failures
       this.logger.error(
