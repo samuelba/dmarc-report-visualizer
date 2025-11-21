@@ -11,7 +11,9 @@ import {
   ParseUUIDPipe,
   BadRequestException,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
@@ -198,6 +200,7 @@ export class DmarcReportController {
   }
 
   @Post('process-directory')
+  @UseGuards(AdminGuard)
   async processDirectory(@Body() body: { directory?: string }) {
     const fs = require('fs/promises');
     const path = require('path');
@@ -448,6 +451,7 @@ export class DmarcReportController {
   }
 
   @Delete('old-reports')
+  @UseGuards(AdminGuard)
   async deleteOldReports(
     @Query('olderThan') olderThan: string,
   ): Promise<{ deletedCount: number }> {

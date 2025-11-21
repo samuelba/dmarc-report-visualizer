@@ -6,16 +6,19 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ReprocessingService } from '../services/reprocessing.service';
 import { ReprocessingJob } from '../entities/reprocessing-job.entity';
 import { StartReprocessingDto } from '../dto/start-reprocessing.dto';
+import { AdminGuard } from '../../auth/guards/admin.guard';
 
 /**
  * Controller for managing reprocessing jobs.
  * Handles background reprocessing of DMARC records when third-party sender config changes.
  */
 @Controller('reprocessing')
+@UseGuards(AdminGuard)
 export class ReprocessingController {
   constructor(private readonly reprocessingService: ReprocessingService) {}
 

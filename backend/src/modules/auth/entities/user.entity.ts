@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { RefreshToken } from './refresh-token.entity';
 import { RecoveryCode } from './recovery-code.entity';
+import { UserRole } from '../enums/user-role.enum';
 
 @Entity('users')
 export class User {
@@ -25,6 +26,13 @@ export class User {
 
   @Column({ name: 'organization_id', type: 'varchar', nullable: true })
   organizationId: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role: UserRole;
 
   @Column({ name: 'totp_secret', type: 'text', nullable: true })
   totpSecret: string | null;

@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { MaterialModule } from '../../shared/material.module';
 import { AuthService } from '../../services/auth.service';
 import { getValidatedReturnUrl, clearReturnUrl } from '../../utils/url-validation.utils';
+import { MessageComponent } from '../../components/message/message.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MaterialModule],
+  imports: [CommonModule, ReactiveFormsModule, MaterialModule, MessageComponent],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
 })
@@ -91,10 +92,22 @@ export class LoginComponent implements OnInit {
           return;
         }
 
-        // Regular login success - navigate to return URL or dashboard
-        const returnUrl = getValidatedReturnUrl();
-        clearReturnUrl();
-        this.router.navigateByUrl(returnUrl);
+        // Regular login success - fetch full user info (including role) before navigating
+        // The login response doesn't include role, so we need to fetch it from /me
+        this.authService.fetchCurrentUser().subscribe({
+          next: () => {
+            const returnUrl = getValidatedReturnUrl();
+            clearReturnUrl();
+            this.router.navigateByUrl(returnUrl);
+          },
+          error: (error) => {
+            console.error('Failed to fetch user info after login:', error);
+            // Still navigate even if fetch fails (user is authenticated)
+            const returnUrl = getValidatedReturnUrl();
+            clearReturnUrl();
+            this.router.navigateByUrl(returnUrl);
+          },
+        });
       },
       error: (error) => {
         this.isSubmitting = false;

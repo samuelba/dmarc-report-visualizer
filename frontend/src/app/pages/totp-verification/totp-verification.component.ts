@@ -102,14 +102,22 @@ export class TotpVerificationComponent implements OnInit {
 
     this.authService.verifyTotp(totpCode).subscribe({
       next: () => {
-        // Get return URL from session storage
-        const returnUrl = getValidatedReturnUrl();
-
-        // Clear the stored return URL
-        clearReturnUrl();
-
-        // Navigate to return URL or default dashboard
-        this.router.navigateByUrl(returnUrl);
+        // Fetch full user info (including role) before navigating
+        // The verify response doesn't include role, so we need to fetch it from /me
+        this.authService.fetchCurrentUser().subscribe({
+          next: () => {
+            const returnUrl = getValidatedReturnUrl();
+            clearReturnUrl();
+            this.router.navigateByUrl(returnUrl);
+          },
+          error: (error) => {
+            console.error('Failed to fetch user info after TOTP verification:', error);
+            // Still navigate even if fetch fails (user is authenticated)
+            const returnUrl = getValidatedReturnUrl();
+            clearReturnUrl();
+            this.router.navigateByUrl(returnUrl);
+          },
+        });
       },
       error: (error) => {
         this.isSubmitting = false;
@@ -152,14 +160,22 @@ export class TotpVerificationComponent implements OnInit {
 
     this.authService.verifyRecoveryCode(recoveryCode).subscribe({
       next: () => {
-        // Get return URL from session storage
-        const returnUrl = getValidatedReturnUrl();
-
-        // Clear the stored return URL
-        clearReturnUrl();
-
-        // Navigate to return URL or default dashboard
-        this.router.navigateByUrl(returnUrl);
+        // Fetch full user info (including role) before navigating
+        // The verify response doesn't include role, so we need to fetch it from /me
+        this.authService.fetchCurrentUser().subscribe({
+          next: () => {
+            const returnUrl = getValidatedReturnUrl();
+            clearReturnUrl();
+            this.router.navigateByUrl(returnUrl);
+          },
+          error: (error) => {
+            console.error('Failed to fetch user info after recovery code verification:', error);
+            // Still navigate even if fetch fails (user is authenticated)
+            const returnUrl = getValidatedReturnUrl();
+            clearReturnUrl();
+            this.router.navigateByUrl(returnUrl);
+          },
+        });
       },
       error: (error) => {
         this.isSubmitting = false;

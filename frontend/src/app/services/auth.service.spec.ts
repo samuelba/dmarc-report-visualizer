@@ -254,4 +254,117 @@ describe('AuthService', () => {
       req.flush(mockResponse);
     });
   });
+
+  describe('getCurrentUserRole', () => {
+    it('should return null when no user is logged in', (done) => {
+      service.getCurrentUserRole().subscribe((role) => {
+        expect(role).toBeNull();
+        done();
+      });
+    });
+
+    it('should return null when user has no role', (done) => {
+      const mockResponse: AuthResponse = {
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
+      };
+
+      service.login('test@example.com', 'password').subscribe(() => {
+        service.getCurrentUserRole().subscribe((role) => {
+          expect(role).toBeNull();
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne(`${apiBase}/auth/login`);
+      req.flush(mockResponse);
+    });
+
+    it('should return user role when user is logged in with role', (done) => {
+      const mockResponse: AuthResponse = {
+        user: {
+          id: 'user-123',
+          email: 'admin@example.com',
+          authProvider: 'local',
+          role: 'administrator' as any,
+        },
+      };
+
+      service.login('admin@example.com', 'password').subscribe(() => {
+        service.getCurrentUserRole().subscribe((role) => {
+          expect(role).toBe('administrator');
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne(`${apiBase}/auth/login`);
+      req.flush(mockResponse);
+    });
+  });
+
+  describe('isAdministrator', () => {
+    it('should return false when no user is logged in', (done) => {
+      service.isAdministrator().subscribe((isAdmin) => {
+        expect(isAdmin).toBe(false);
+        done();
+      });
+    });
+
+    it('should return false when user has no role', (done) => {
+      const mockResponse: AuthResponse = {
+        user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
+      };
+
+      service.login('test@example.com', 'password').subscribe(() => {
+        service.isAdministrator().subscribe((isAdmin) => {
+          expect(isAdmin).toBe(false);
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne(`${apiBase}/auth/login`);
+      req.flush(mockResponse);
+    });
+
+    it('should return false when user has user role', (done) => {
+      const mockResponse: AuthResponse = {
+        user: {
+          id: 'user-123',
+          email: 'user@example.com',
+          authProvider: 'local',
+          role: 'user' as any,
+        },
+      };
+
+      service.login('user@example.com', 'password').subscribe(() => {
+        service.isAdministrator().subscribe((isAdmin) => {
+          expect(isAdmin).toBe(false);
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne(`${apiBase}/auth/login`);
+      req.flush(mockResponse);
+    });
+
+    it('should return true when user has administrator role', (done) => {
+      const mockResponse: AuthResponse = {
+        user: {
+          id: 'user-123',
+          email: 'admin@example.com',
+          authProvider: 'local',
+          role: 'administrator' as any,
+        },
+      };
+
+      service.login('admin@example.com', 'password').subscribe(() => {
+        service.isAdministrator().subscribe((isAdmin) => {
+          expect(isAdmin).toBe(true);
+          done();
+        });
+      });
+
+      const req = httpMock.expectOne(`${apiBase}/auth/login`);
+      req.flush(mockResponse);
+    });
+  });
 });

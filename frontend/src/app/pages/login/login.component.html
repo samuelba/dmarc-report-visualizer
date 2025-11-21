@@ -16,7 +16,7 @@
 
       <!-- Password Login Form -->
       @if (showPasswordForm) {
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
           <!-- Email Field -->
           <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
             <mat-label>Email</mat-label>
@@ -53,9 +53,11 @@
           </mat-form-field>
 
           <!-- Error Message -->
-          <mat-error *ngIf="errorMessage" class="error-message" [class.rate-limit-error]="isRateLimited">
-            {{ errorMessage }}
-          </mat-error>
+          @if (errorMessage) {
+            <app-message type="error" icon="error">
+              {{ errorMessage }}
+            </app-message>
+          }
 
           <!-- Submit Button -->
           <div class="submit-button-container">

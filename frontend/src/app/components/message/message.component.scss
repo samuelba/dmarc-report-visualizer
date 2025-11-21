@@ -96,4 +96,8 @@
       color: var(--custom-success-color);
     }
   }
+
+  ::ng-deep a {
+    text-decoration: none;
+  }
 }

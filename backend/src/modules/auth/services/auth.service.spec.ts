@@ -28,6 +28,7 @@ describe('AuthService', () => {
     email: 'test@example.com',
     passwordHash: 'bcrypt$hashedpassword',
     authProvider: 'local',
+    role: 'user' as any,
     organizationId: null,
     totpSecret: null,
     totpEnabled: false,
@@ -168,6 +169,7 @@ describe('AuthService', () => {
         email,
         passwordHash: hashedPassword,
         authProvider: 'local',
+        role: 'administrator',
       });
       expect(userRepository.save).toHaveBeenCalled();
     });
@@ -270,6 +272,7 @@ describe('AuthService', () => {
       expect(jwtService.generateAccessToken).toHaveBeenCalledWith(
         mockUser.id,
         mockUser.email,
+        mockUser.role,
         mockUser.authProvider,
         mockUser.organizationId,
       );

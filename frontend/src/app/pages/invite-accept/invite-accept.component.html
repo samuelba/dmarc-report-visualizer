@@ -1,0 +1,144 @@
+<div class="invite-accept-container">
+  <mat-card class="invite-accept-card">
+    <mat-card-header>
+      <mat-card-title>Accept Invitation</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <!-- Loading State -->
+      @if (loading) {
+        <div class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Loading invitation details...</p>
+        </div>
+      }
+
+      <!-- Error State -->
+      @if (!loading && error && !inviteDetails?.valid) {
+        <div class="error-container">
+          <app-message type="error" icon="error">
+            {{ error }}
+          </app-message>
+          <button matButton="text" color="primary" routerLink="/login">Go to Login</button>
+        </div>
+      }
+
+      <!-- Valid Invite Form -->
+      @if (!loading && inviteDetails?.valid) {
+        <div class="invite-form-container">
+          <p class="info-label">You've been invited to join as:</p>
+          <div class="invite-info">
+            <div class="invite-details">
+              <div class="detail-row">
+                <mat-icon>email</mat-icon>
+                <span class="detail-value">{{ inviteDetails?.email }}</span>
+              </div>
+              <div class="detail-row">
+                <mat-icon>badge</mat-icon>
+                <span class="detail-value">{{ roleLabel }}</span>
+              </div>
+            </div>
+          </div>
+
+          <form [formGroup]="acceptForm" (ngSubmit)="onSubmit()" class="accept-form">
+            <!-- Password Field -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Password</mat-label>
+              <input
+                matInput
+                [type]="hidePassword ? 'password' : 'text'"
+                formControlName="password"
+                placeholder="Enter your password"
+                autocomplete="new-password"
+              />
+              <button
+                mat-icon-button
+                matSuffix
+                type="button"
+                (click)="hidePassword = !hidePassword"
+                [attr.aria-label]="'Hide password'"
+                [attr.aria-pressed]="hidePassword"
+              >
+                <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
+              @if (acceptForm.get('password')?.hasError('required')) {
+                <mat-error> Password is required </mat-error>
+              }
+              @if (acceptForm.get('password')?.hasError('minlength')) {
+                <mat-error>
+                  Password must be at least
+                  {{ acceptForm.get('password')?.errors?.['minlength']?.requiredLength }} characters
+                </mat-error>
+              }
+              @if (acceptForm.get('password')?.hasError('passwordStrength')) {
+                <mat-error> Password does not meet strength requirements </mat-error>
+              }
+            </mat-form-field>
+
+            <!-- Password Strength Indicator -->
+            <app-password-strength [password]="passwordValue"></app-password-strength>
+
+            <!-- Password Confirmation Field -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Confirm Password</mat-label>
+              <input
+                matInput
+                [type]="hidePasswordConfirmation ? 'password' : 'text'"
+                formControlName="passwordConfirmation"
+                placeholder="Confirm your password"
+                autocomplete="new-password"
+              />
+              <button
+                mat-icon-button
+                matSuffix
+                type="button"
+                (click)="hidePasswordConfirmation = !hidePasswordConfirmation"
+                [attr.aria-label]="'Hide password confirmation'"
+                [attr.aria-pressed]="hidePasswordConfirmation"
+              >
+                <mat-icon>{{ hidePasswordConfirmation ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
+              @if (acceptForm.get('passwordConfirmation')?.hasError('required')) {
+                <mat-error> Password confirmation is required </mat-error>
+              }
+              @if (acceptForm.get('passwordConfirmation')?.hasError('passwordMismatch')) {
+                <mat-error> Passwords do not match </mat-error>
+              }
+            </mat-form-field>
+
+            <!-- Error Message -->
+            @if (error) {
+              <app-message type="error" icon="error">
+                {{ error }}
+              </app-message>
+            }
+
+            <!-- Submit Button -->
+            <button
+              matButton="filled"
+              color="primary"
+              type="submit"
+              class="full-width submit-button"
+              [disabled]="acceptForm.invalid || isSubmitting"
+            >
+              @if (isSubmitting) {
+                <mat-spinner diameter="20" class="button-spinner"></mat-spinner>
+              }
+              @if (!isSubmitting) {
+                <span>Create Account</span>
+              }
+              @if (isSubmitting) {
+                <span>Creating Account...</span>
+              }
+            </button>
+
+            <!-- Login Link -->
+            <div class="login-link">
+              <p>Already have an account? <a routerLink="/login">Log in</a></p>
+            </div>
+          </form>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

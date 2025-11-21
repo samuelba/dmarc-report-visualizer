@@ -23,6 +23,7 @@ import {
   TotpNotEnabledException,
   ExpiredTempTokenException,
 } from '../exceptions/totp.exception';
+import { UserRole } from '../enums/user-role.enum';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -67,11 +68,12 @@ export class AuthService {
     // Hash the password
     const passwordHash = await this.passwordService.hashPassword(password);
 
-    // Create the user
+    // Create the user with administrator role
     const user = this.userRepository.create({
       email,
       passwordHash,
       authProvider: 'local',
+      role: UserRole.ADMINISTRATOR,
     });
 
     return await this.userRepository.save(user);
@@ -167,6 +169,7 @@ export class AuthService {
     const accessToken = this.jwtService.generateAccessToken(
       user.id,
       user.email,
+      user.role,
       user.authProvider,
       user.organizationId,
     );
@@ -471,6 +474,7 @@ export class AuthService {
     const newAccessToken = this.jwtService.generateAccessToken(
       storedToken.user.id,
       storedToken.user.email,
+      storedToken.user.role,
       storedToken.user.authProvider,
       storedToken.user.organizationId,
     );

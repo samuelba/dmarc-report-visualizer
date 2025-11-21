@@ -10,10 +10,13 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { AuthService } from '../../../services/auth.service';
+import { UserService } from '../../../services/user.service';
 import { MessageComponent } from '../../../components/message/message.component';
+import { UserRole } from '../../../models/user-role.enum';
 
 export interface SamlConfigResponse {
   enabled: boolean;
@@ -27,11 +30,14 @@ export interface SamlConfigResponse {
   passwordLoginForceEnabled: boolean;
 }
 
+import { RouterModule } from '@angular/router';
+
 @Component({
   selector: 'app-saml-settings',
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     ReactiveFormsModule,
     MatCardModule,
     MatButtonModule,
@@ -42,6 +48,7 @@ export interface SamlConfigResponse {
     MatRadioModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
     MatTooltipModule,
     MatChipsModule,
     MessageComponent,
@@ -51,6 +58,7 @@ export interface SamlConfigResponse {
 })
 export class SamlSettingsComponent implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
+  private readonly userService = inject(UserService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -77,8 +85,15 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  // UI state
+  protected readonly showNoSamlAdminWarning = signal<boolean>(false);
+  protected readonly passwordLoginError = signal<string | null>(null);
+  hasSamlAdmin = signal(false);
+  checkingUsers = signal(false);
+
   ngOnInit(): void {
     this.loadConfig();
+    this.checkSamlAdmins();
   }
 
   ngOnDestroy(): void {
@@ -100,6 +115,24 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
         console.error('Failed to load SAML configuration:', err);
         this.snackBar.open('Failed to load SAML configuration', 'Close', { duration: 5000 });
         this.loading.set(false);
+      },
+    });
+  }
+
+  checkSamlAdmins(): void {
+    this.checkingUsers.set(true);
+    this.userService.getAllUsers().subscribe({
+      next: (users) => {
+        const hasAdmin = users.some((u) => u.role === UserRole.ADMINISTRATOR && u.authProvider === 'saml');
+        this.hasSamlAdmin.set(hasAdmin);
+        this.showNoSamlAdminWarning.set(!hasAdmin);
+        this.checkingUsers.set(false);
+      },
+      error: (err) => {
+        console.error('Failed to check users:', err);
+        // Fail safe: assume true so we don't block the UI, but log error
+        this.hasSamlAdmin.set(true);
+        this.checkingUsers.set(false);
       },
     });
   }
@@ -302,6 +335,15 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
     }
 
     if (disabled) {
+      // Double check just in case, though UI should be disabled
+      if (!this.hasSamlAdmin()) {
+        this.snackBar.open('Cannot disable password login. At least one SAML administrator is required.', 'Close', {
+          duration: 5000,
+        });
+        event.source.checked = false;
+        return;
+      }
+
       const confirmed = confirm(
         'Warning: Disabling password login will require all users to authenticate via SSO. Ensure SAML is properly configured and tested before proceeding.\n\nAre you sure you want to continue?'
       );
@@ -312,6 +354,8 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
     }
 
     this.loading.set(true);
+    this.passwordLoginError.set(null); // Clear previous errors
+
     const action = disabled ? this.authService.disablePasswordLogin() : this.authService.enablePasswordLogin();
 
     action.subscribe({
@@ -322,7 +366,11 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Failed to toggle password login:', err);
         const errorMessage = err.error?.message || 'Failed to update password login status';
-        this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+
+        // Set error message to be displayed in the UI
+        this.passwordLoginError.set(errorMessage);
+
+        // Revert the toggle state
         event.source.checked = !disabled;
         this.loading.set(false);
       },

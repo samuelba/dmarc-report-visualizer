@@ -30,36 +30,18 @@ mat-card-header {
   }
 }
 
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-lg;
+}
+
 .full-width {
   width: 100%;
 }
 
 mat-form-field {
   margin-bottom: vars.$spacing-base;
-}
-
-.error-message {
-  display: block;
-  margin-bottom: vars.$spacing-base;
-  padding: vars.$spacing-md;
-  background-color: var(--custom-error-bg-color);
-  border-left: vars.$border-thick solid var(--custom-error-color);
-  border-radius: vars.$radius-md;
-  font-size: vars.$font-size-base;
-
-  &.rate-limit-error {
-    background-color: var(--custom-warning-bg-color);
-    border-left-color: var(--custom-warning-color);
-    display: flex;
-    align-items: center;
-    gap: vars.$spacing-sm;
-
-    mat-icon {
-      font-size: vars.$icon-sm;
-      width: vars.$icon-sm;
-      height: vars.$icon-sm;
-    }
-  }
 }
 
 .submit-button-container {

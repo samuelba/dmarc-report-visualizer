@@ -111,9 +111,7 @@ describe('RateLimitGuard', () => {
         expect(error.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
         const response = error.getResponse();
         expect(response.statusCode).toBe(HttpStatus.TOO_MANY_REQUESTS);
-        expect(response.message).toContain(
-          'Too many failed attempts from this IP address',
-        );
+        expect(response.message).toContain('Too many failed attempts');
         expect(response.message).toContain('15 minutes');
         expect(response.retryAfter).toBe(900);
         expect(response.error).toBe('Too Many Requests');

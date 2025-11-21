@@ -1,0 +1,153 @@
+@use '../../../styles/variables' as vars;
+
+.user-management-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: vars.$spacing-lg;
+  gap: vars.$spacing-md;
+}
+
+.users-card,
+.invites-card {
+  margin-bottom: vars.$spacing-lg;
+
+  mat-card-header {
+    margin-bottom: vars.$spacing-md;
+  }
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: vars.$spacing-xl 0;
+  gap: vars.$spacing-md;
+
+  mat-spinner {
+    ::ng-deep circle {
+      stroke: var(--mat-sys-primary);
+    }
+  }
+
+  p {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: vars.$font-size-base;
+  }
+}
+
+.no-data {
+  text-align: center;
+  padding: vars.$spacing-xl 0;
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+  font-size: vars.$font-size-base;
+}
+
+.users-table,
+.invites-table {
+  width: 100%;
+  border-radius: vars.$radius-md;
+  overflow: hidden;
+
+  th {
+    font-weight: 600;
+    font-size: vars.$font-size-base;
+    color: var(--mat-sys-on-surface-variant);
+    background-color: var(--mat-sys-surface-container);
+    padding: vars.$spacing-md vars.$spacing-sm;
+  }
+
+  td {
+    font-size: vars.$font-size-base;
+    color: var(--mat-sys-on-surface);
+    padding: vars.$spacing-md vars.$spacing-sm;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover {
+    background-color: var(--mat-sys-surface-container);
+  }
+
+  .auth-provider {
+    display: inline-block;
+    text-transform: capitalize;
+    padding: vars.$spacing-xs vars.$spacing-md;
+    background-color: var(--mat-sys-surface-container-high);
+    border-radius: vars.$spacing-md;
+    font-size: vars.$font-size-sm;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .actions {
+    display: flex;
+    gap: vars.$spacing-xs;
+    align-items: center;
+
+    .role-select {
+      min-width: 140px;
+      font-size: vars.$font-size-base;
+
+      ::ng-deep .mat-mdc-select-trigger {
+        padding: vars.$spacing-sm vars.$spacing-md;
+      }
+    }
+
+    button[mat-icon-button] {
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        transform: scale(1.1);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+      }
+    }
+  }
+
+  .expiring-soon {
+    color: var(--mat-sys-error);
+    font-weight: 500;
+  }
+
+  .warning-icon {
+    color: var(--mat-sys-error);
+    font-size: vars.$font-size-lg;
+    width: vars.$font-size-lg;
+    height: vars.$font-size-lg;
+    vertical-align: middle;
+    margin-left: vars.$spacing-xs;
+  }
+
+  // Role badge styling
+  mat-chip {
+    font-weight: 500;
+    font-size: vars.$font-size-sm;
+    height: 28px;
+    padding: 0 vars.$spacing-md;
+    border-radius: 14px;
+
+    &[color='primary'] {
+      background-color: var(--mat-sys-primary-container);
+      color: var(--mat-sys-on-primary-container);
+    }
+
+    &[color='accent'] {
+      background-color: var(--mat-sys-secondary-container);
+      color: var(--mat-sys-on-secondary-container);
+    }
+  }
+}

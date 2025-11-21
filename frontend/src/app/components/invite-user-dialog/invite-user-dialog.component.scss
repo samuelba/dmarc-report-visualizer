@@ -1,0 +1,97 @@
+@use '../../../styles/variables' as vars;
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-lg;
+  min-width: 31.25rem; // 500px
+  max-width: 37.5rem; // 600px
+  padding: vars.$spacing-xl;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: vars.$spacing-md;
+}
+
+.invite-result {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-lg;
+
+  .invite-details {
+    padding: vars.$spacing-md;
+    background-color: var(--mat-sys-surface-container);
+    border-radius: vars.$radius-md;
+    border: vars.$border-thin solid var(--mat-sys-outline-variant);
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: vars.$spacing-xs 0;
+
+      &:not(:last-child) {
+        margin-bottom: vars.$spacing-sm;
+      }
+
+      strong {
+        color: var(--mat-sys-on-surface-variant);
+        font-size: vars.$font-size-base;
+        font-weight: 500;
+      }
+
+      span {
+        font-weight: 500;
+        color: var(--mat-sys-on-surface);
+        font-size: vars.$font-size-base;
+      }
+    }
+  }
+
+  .invite-link-field {
+    .secret-code {
+      display: flex;
+      align-items: center;
+      gap: vars.$spacing-sm;
+      padding: vars.$spacing-sm;
+      background: var(--mat-sys-surface-container-high);
+      border-radius: vars.$radius-md;
+      border: vars.$border-thin solid var(--mat-sys-outline-variant);
+
+      input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-family: 'Courier New', monospace;
+        font-size: vars.$font-size-sm;
+        color: var(--mat-sys-on-surface);
+        outline: none;
+        padding: 0;
+      }
+
+      button {
+        flex-shrink: 0;
+      }
+    }
+  }
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: vars.$spacing-3xl vars.$spacing-lg;
+  gap: vars.$spacing-base;
+
+  p {
+    color: var(--mat-sys-on-surface-variant);
+    margin: 0;
+  }
+}
+
+mat-dialog-actions {
+  padding: vars.$spacing-base vars.$spacing-xl;
+  margin: 0;
+}

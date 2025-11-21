@@ -30,6 +30,7 @@ describe('SamlStrategy', () => {
     email: 'user@example.com',
     passwordHash: '',
     authProvider: 'saml',
+    role: 'user' as any,
     organizationId: null,
     totpSecret: null,
     totpEnabled: false,

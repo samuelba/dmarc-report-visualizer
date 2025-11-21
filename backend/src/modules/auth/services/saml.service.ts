@@ -17,6 +17,7 @@ import { createHash } from 'crypto';
 import Redis from 'ioredis';
 import { SamlConfig } from '../entities/saml-config.entity';
 import { User } from '../entities/user.entity';
+import { UserRole } from '../enums/user-role.enum';
 
 export interface SamlConfigDto {
   idpMetadataXml?: string;
@@ -651,6 +652,22 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
     const config = await this.getConfig();
     if (!config) {
       throw new NotFoundException('SAML configuration not found');
+    }
+
+    // If disabling password login, ensure there is at least one SAML admin
+    if (disabled) {
+      const samlAdminCount = await this.userRepository.count({
+        where: {
+          role: UserRole.ADMINISTRATOR,
+          authProvider: 'saml',
+        },
+      });
+
+      if (samlAdminCount === 0) {
+        throw new ConflictException(
+          'Cannot disable password login: No SAML administrators found. Please create a SAML administrator first to prevent lockout.',
+        );
+      }
     }
 
     config.disablePasswordLogin = disabled;

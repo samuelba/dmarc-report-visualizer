@@ -1,0 +1,26 @@
+@use '../../../styles/variables' as vars;
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-lg;
+}
+
+h2[mat-dialog-title] {
+  margin: 0 0 vars.$spacing-md 0;
+  font-size: vars.$font-size-xl;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface);
+}
+
+p {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: vars.$font-size-base;
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+mat-dialog-actions {
+  padding: vars.$spacing-base vars.$spacing-xl;
+  margin: 0;
+}

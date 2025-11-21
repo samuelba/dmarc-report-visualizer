@@ -25,7 +25,7 @@ export class RateLimitGuard implements CanActivate {
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: `Too many failed attempts from this IP address. Please try again in ${Math.ceil(ipCheck.retryAfter! / 60)} minutes.`,
+          message: `Too many failed attempts. Please try again in ${Math.ceil(ipCheck.retryAfter! / 60)} minutes.`,
           retryAfter: ipCheck.retryAfter,
           error: 'Too Many Requests',
         },

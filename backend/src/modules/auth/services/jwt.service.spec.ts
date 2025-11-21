@@ -49,6 +49,7 @@ describe('JwtService', () => {
     it('should generate access token with correct payload', () => {
       const userId = 'user-123';
       const email = 'test@example.com';
+      const role = 'user';
       const authProvider = 'local';
       const organizationId = 'org-456';
       const expectedToken = 'access-token-string';
@@ -58,6 +59,7 @@ describe('JwtService', () => {
       const token = service.generateAccessToken(
         userId,
         email,
+        role,
         authProvider,
         organizationId,
       );
@@ -67,6 +69,7 @@ describe('JwtService', () => {
         {
           sub: userId,
           email,
+          role,
           authProvider,
           organizationId,
         },
@@ -77,18 +80,25 @@ describe('JwtService', () => {
     it('should generate access token without organizationId', () => {
       const userId = 'user-123';
       const email = 'test@example.com';
+      const role = 'user';
       const authProvider = 'local';
       const expectedToken = 'access-token-string';
 
       jest.spyOn(nestJwtService, 'sign').mockReturnValue(expectedToken);
 
-      const token = service.generateAccessToken(userId, email, authProvider);
+      const token = service.generateAccessToken(
+        userId,
+        email,
+        role,
+        authProvider,
+      );
 
       expect(token).toBe(expectedToken);
       expect(nestJwtService.sign).toHaveBeenCalledWith(
         {
           sub: userId,
           email,
+          role,
           authProvider,
           organizationId: undefined,
         },
@@ -99,12 +109,13 @@ describe('JwtService', () => {
     it('should use configured expiration time', () => {
       const userId = 'user-123';
       const email = 'test@example.com';
+      const role = 'user';
       const authProvider = 'local';
 
       jest.spyOn(nestJwtService, 'sign').mockReturnValue('token');
       jest.spyOn(configService, 'get').mockReturnValue('30m');
 
-      service.generateAccessToken(userId, email, authProvider);
+      service.generateAccessToken(userId, email, role, authProvider);
 
       expect(configService.get).toHaveBeenCalledWith(
         'JWT_ACCESS_EXPIRATION',
@@ -241,6 +252,57 @@ describe('JwtService', () => {
 
       expect(() => service.verifyAccessTokenIgnoreExpiration(token)).toThrow(
         UnauthorizedException,
+      );
+    });
+  });
+
+  /**
+   * Property 6: JWT role inclusion
+   * Feature: user-management, Property 6: JWT role inclusion
+   * Validates: Requirements 6.3
+   *
+   * For any authenticated user, the generated access token should contain the user's role in the JWT payload
+   */
+  describe('Property 6: JWT role inclusion', () => {
+    it('should include role in JWT payload for all users', async () => {
+      const fc = await import('fast-check');
+
+      fc.assert(
+        fc.property(
+          // Generate random user data
+          fc.record({
+            userId: fc.uuid(),
+            email: fc.emailAddress(),
+            role: fc.constantFrom('user', 'administrator'),
+            authProvider: fc.constantFrom('local', 'saml'),
+            organizationId: fc.option(fc.uuid(), { nil: null }),
+          }),
+          (userData) => {
+            // Mock the sign method to capture the payload
+            let capturedPayload: any;
+            jest.spyOn(nestJwtService, 'sign').mockImplementation((payload) => {
+              capturedPayload = payload;
+              return 'mocked-token';
+            });
+
+            // Generate access token
+            service.generateAccessToken(
+              userData.userId,
+              userData.email,
+              userData.role,
+              userData.authProvider,
+              userData.organizationId,
+            );
+
+            // Verify the role is included in the payload
+            expect(capturedPayload).toBeDefined();
+            expect(capturedPayload.role).toBe(userData.role);
+            expect(capturedPayload.sub).toBe(userData.userId);
+            expect(capturedPayload.email).toBe(userData.email);
+            expect(capturedPayload.authProvider).toBe(userData.authProvider);
+          },
+        ),
+        { numRuns: 100 },
       );
     });
   });

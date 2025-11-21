@@ -115,6 +115,9 @@ export class TotpService {
         secret: OTPAuth.Secret.fromBase32(secret),
       });
 
+      const currentTime = Date.now();
+      const currentTimeStep = Math.floor(currentTime / (this.totpStep * 1000));
+
       // Validate token with time window first to get the time step delta
       const delta = totp.validate({
         token,
@@ -123,6 +126,16 @@ export class TotpService {
 
       // If code is invalid, reject immediately
       if (delta === null) {
+        this.logger.warn({
+          event: 'totp_validation_failed',
+          userId: userId || 'unknown',
+          reason: 'invalid_code',
+          currentTimeStep,
+          currentTime: new Date(currentTime).toISOString(),
+          totpWindow: this.totpWindow,
+          totpStep: this.totpStep,
+          message: `TOTP code validation failed: code is invalid for current time step ${currentTimeStep} with window ${this.totpWindow}`,
+        });
         return false;
       }
 
@@ -135,12 +148,6 @@ export class TotpService {
 
         if (user?.totpLastUsedAt) {
           const lastUsedTime = user.totpLastUsedAt.getTime();
-          const currentTime = Date.now();
-
-          // Calculate time steps (each step is totpStep seconds)
-          const currentTimeStep = Math.floor(
-            currentTime / (this.totpStep * 1000),
-          );
           const lastUsedTimeStep = Math.floor(
             lastUsedTime / (this.totpStep * 1000),
           );
@@ -151,12 +158,38 @@ export class TotpService {
 
           // If the same time step was already used, reject it (replay attack)
           if (usedTimeStep === lastUsedTimeStep) {
+            this.logger.warn({
+              event: 'totp_validation_failed',
+              userId,
+              reason: 'replay_attack',
+              currentTimeStep,
+              usedTimeStep,
+              lastUsedTimeStep,
+              delta,
+              currentTime: new Date(currentTime).toISOString(),
+              lastUsedTime: new Date(lastUsedTime).toISOString(),
+              timeSinceLastUse: currentTime - lastUsedTime,
+              totpStep: this.totpStep,
+              message: `TOTP code validation failed: replay attack detected. Code from time step ${usedTimeStep} was already used at time step ${lastUsedTimeStep}`,
+            });
             return false;
           }
         }
       }
 
       // Code is valid and not a replay
+      const usedTimeStep = currentTimeStep + delta;
+      this.logger.debug({
+        event: 'totp_validation_success',
+        userId: userId || 'unknown',
+        currentTimeStep,
+        usedTimeStep,
+        delta,
+        currentTime: new Date(currentTime).toISOString(),
+        totpWindow: this.totpWindow,
+        totpStep: this.totpStep,
+        message: `TOTP code validation successful: code from time step ${usedTimeStep} (delta: ${delta}) validated`,
+      });
       return true;
     } catch (error) {
       // Log error for debugging security-critical validation failures

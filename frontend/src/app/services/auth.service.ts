@@ -1,12 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap, map } from 'rxjs';
+import { UserRole } from '../models/user-role.enum';
 import { clearReturnUrl } from '../utils/url-validation.utils';
 
 export interface User {
   id: string;
   email: string;
   authProvider: string;
+  role?: UserRole;
 }
 
 export interface AuthResponse {
@@ -384,5 +386,19 @@ export class AuthService {
    */
   enablePasswordLogin(): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiBase}/auth/saml/config/enable-password-login`, {});
+  }
+
+  /**
+   * Get the current user's role
+   */
+  getCurrentUserRole(): Observable<UserRole | null> {
+    return this.currentUser$.pipe(map((user) => user?.role || null));
+  }
+
+  /**
+   * Check if the current user is an administrator
+   */
+  isAdministrator(): Observable<boolean> {
+    return this.getCurrentUserRole().pipe(map((role) => role === UserRole.ADMINISTRATOR));
   }
 }

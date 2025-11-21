@@ -1,6 +1,7 @@
 export interface JwtPayload {
   sub: string; // user id
   email: string;
+  role: string; // user role
   authProvider: string;
   organizationId?: string;
   iat?: number;

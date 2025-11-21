@@ -65,6 +65,7 @@ describe('SamlService', () => {
             findOne: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
+            count: jest.fn(),
           },
         },
         {
@@ -585,6 +586,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
+        role: 'user' as any,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -620,6 +622,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
+        role: 'user' as any,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -646,6 +649,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: 'hashed-password',
         authProvider: 'local',
+        role: 'user' as any,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -718,6 +722,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
+        role: 'user' as any,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -756,6 +761,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
+        role: 'user' as any,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -786,11 +792,22 @@ describe('SamlService', () => {
           ...config,
           disablePasswordLogin: true,
         });
+        jest.spyOn(userRepository, 'count').mockResolvedValue(1);
 
         await service.setPasswordLoginDisabled(true);
 
         expect(repository.save).toHaveBeenCalledWith(
           expect.objectContaining({ disablePasswordLogin: true }),
+        );
+      });
+
+      it('should throw ConflictException when disabling password login with no SAML admins', async () => {
+        const config = { ...mockSamlConfig, disablePasswordLogin: false };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(userRepository, 'count').mockResolvedValue(0);
+
+        await expect(service.setPasswordLoginDisabled(true)).rejects.toThrow(
+          'Cannot disable password login: No SAML administrators found. Please create a SAML administrator first to prevent lockout.',
         );
       });
 

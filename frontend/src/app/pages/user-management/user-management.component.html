@@ -1,0 +1,157 @@
+<div class="user-management-container">
+  @if (passwordLoginAllowed()) {
+    <div class="header">
+      <button matButton="tonal" color="primary" (click)="openInviteDialog()">
+        <mat-icon>person_add</mat-icon>
+        Invite User
+      </button>
+    </div>
+  }
+
+  <!-- Users Section -->
+  <mat-card class="users-card">
+    <mat-card-header>
+      <mat-card-title>Users</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @if (loading()) {
+        <div class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Loading users...</p>
+        </div>
+      } @else if (users().length === 0) {
+        <p class="no-data">No users found</p>
+      } @else {
+        <table mat-table [dataSource]="users()" class="users-table">
+          <!-- Email Column -->
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+          </ng-container>
+
+          <!-- Role Column -->
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef>Role</th>
+            <td mat-cell *matCellDef="let user">
+              <mat-chip [color]="getRoleBadgeColor(user.role)" highlighted>
+                {{ getRoleLabel(user.role) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Auth Provider Column -->
+          <ng-container matColumnDef="authProvider">
+            <th mat-header-cell *matHeaderCellDef>Auth Provider</th>
+            <td mat-cell *matCellDef="let user">
+              <span class="auth-provider">{{ user.authProvider }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Created At Column -->
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>Created</th>
+            <td mat-cell *matCellDef="let user">{{ formatDate(user.createdAt) }}</td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let user">
+              <div class="actions">
+                <!-- Role Change Dropdown -->
+                <mat-select
+                  [value]="user.role"
+                  (selectionChange)="changeUserRole(user, $event.value)"
+                  [disabled]="!canModifyUser(user)"
+                  [matTooltip]="isLastAdmin(user) ? 'Cannot modify last administrator' : 'Change role'"
+                  class="role-select"
+                >
+                  <mat-option [value]="UserRole.USER">User</mat-option>
+                  <mat-option [value]="UserRole.ADMINISTRATOR">Administrator</mat-option>
+                </mat-select>
+
+                <!-- Delete Button -->
+                <button
+                  mat-icon-button
+                  color="warn"
+                  (click)="deleteUser(user)"
+                  [disabled]="!canModifyUser(user)"
+                  [matTooltip]="isLastAdmin(user) ? 'Cannot delete last administrator' : 'Delete user'"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="userDisplayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: userDisplayedColumns"></tr>
+        </table>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Pending Invitations Section -->
+  <mat-card class="invites-card">
+    <mat-card-header>
+      <mat-card-title>Pending Invitations</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @if (invitesLoading()) {
+        <div class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Loading invitations...</p>
+        </div>
+      } @else if (invites().length === 0) {
+        <p class="no-data">No pending invitations</p>
+      } @else {
+        <table mat-table [dataSource]="invites()" class="invites-table">
+          <!-- Email Column -->
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <td mat-cell *matCellDef="let invite">{{ invite.email }}</td>
+          </ng-container>
+
+          <!-- Role Column -->
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef>Role</th>
+            <td mat-cell *matCellDef="let invite">
+              <mat-chip [color]="getRoleBadgeColor(invite.role)" highlighted>
+                {{ getRoleLabel(invite.role) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <!-- Expires At Column -->
+          <ng-container matColumnDef="expiresAt">
+            <th mat-header-cell *matHeaderCellDef>Expires</th>
+            <td mat-cell *matCellDef="let invite">
+              <span [class.expiring-soon]="isExpiringSoon(invite.expiresAt)">
+                {{ formatDate(invite.expiresAt) }}
+              </span>
+              @if (isExpiringSoon(invite.expiresAt)) {
+                <mat-icon class="warning-icon" matTooltip="Expires within 24 hours">warning</mat-icon>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Actions Column -->
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let invite">
+              <div class="actions">
+                <!-- Revoke Button -->
+                <button mat-icon-button color="warn" (click)="revokeInvite(invite)" matTooltip="Revoke invitation">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="inviteDisplayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: inviteDisplayedColumns"></tr>
+        </table>
+      }
+    </mat-card-content>
+  </mat-card>
+</div>

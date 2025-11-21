@@ -2,7 +2,10 @@ import {
   Controller,
   Post,
   Get,
+  Put,
+  Delete,
   Body,
+  Param,
   Req,
   Res,
   UseGuards,
@@ -10,16 +13,19 @@ import {
   HttpStatus,
   BadRequestException,
   UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './services/auth.service';
+import { UserService } from './services/user.service';
 import { SamlService } from './services/saml.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { JwtService } from './services/jwt.service';
 import { TotpService } from './services/totp.service';
 import { RecoveryCodeService } from './services/recovery-code.service';
+import { InviteService } from './services/invite.service';
 import { SetupDto } from './dto/setup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -33,9 +39,19 @@ import {
   RecoveryCodeVerifyDto,
   TotpStatusResponseDto,
 } from './dto/totp.dto';
+import {
+  UpdateRoleDto,
+  UserResponse,
+  CreateInviteDto,
+  AcceptInviteDto,
+  InviteResponse,
+  InviteTokenResponse,
+  InviteDetailsResponse,
+} from './dto/user-management.dto';
 import { SetupGuard } from './guards/setup.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { SamlEnabledGuard } from './guards/saml-enabled.guard';
+import { AdminGuard } from './guards/admin.guard';
 import { Public } from './decorators/public.decorator';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { User } from './entities/user.entity';
@@ -54,12 +70,14 @@ import {
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
+    private readonly userService: UserService,
     private readonly samlService: SamlService,
     private readonly rateLimiterService: RateLimiterService,
     private readonly jwtService: JwtService,
     private readonly totpService: TotpService,
     private readonly recoveryCodeService: RecoveryCodeService,
     private readonly configService: ConfigService,
+    private readonly inviteService: InviteService,
   ) {}
 
   /**
@@ -291,13 +309,19 @@ export class AuthController {
   async getCurrentUser(
     @Req()
     request: Request & {
-      user: { id: string; email: string; authProvider: string };
+      user: { id: string; email: string; authProvider: string; role: string };
     },
-  ): Promise<{ id: string; email: string; authProvider: string }> {
+  ): Promise<{
+    id: string;
+    email: string;
+    authProvider: string;
+    role: string;
+  }> {
     return {
       id: request.user.id,
       email: request.user.email,
       authProvider: request.user.authProvider,
+      role: request.user.role,
     };
   }
 
@@ -617,6 +641,7 @@ export class AuthController {
    * Returns current SAML configuration status and SP details
    */
   @Get('saml/config')
+  @UseGuards(AdminGuard)
   async getSamlConfig(): Promise<SamlConfigResponse> {
     const config = await this.samlService.getConfig();
     const spEntityId = this.configService.get<string>('SAML_ENTITY_ID', '');
@@ -663,6 +688,7 @@ export class AuthController {
    * Accepts metadata XML or manual field entry
    */
   @Post('saml/config')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async updateSamlConfig(
     @Body() dto: SamlConfigDto,
@@ -701,6 +727,7 @@ export class AuthController {
    * Enable SAML authentication endpoint
    */
   @Post('saml/config/enable')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async enableSaml(): Promise<{ message: string }> {
     await this.samlService.enableSaml();
@@ -711,6 +738,7 @@ export class AuthController {
    * Disable SAML authentication endpoint
    */
   @Post('saml/config/disable')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async disableSaml(): Promise<{ message: string }> {
     await this.samlService.disableSaml();
@@ -723,6 +751,7 @@ export class AuthController {
    * Allows testing even when SAML is disabled for regular users
    */
   @Post('saml/config/test')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async testSamlConfig(): Promise<{
     success: boolean;
@@ -768,6 +797,7 @@ export class AuthController {
    * Requires SAML to be enabled before disabling password login
    */
   @Post('saml/config/disable-password-login')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async disablePasswordLogin(): Promise<{ message: string }> {
     // Check if SAML is enabled
@@ -790,6 +820,7 @@ export class AuthController {
    * Enable password-based login endpoint
    */
   @Post('saml/config/enable-password-login')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   async enablePasswordLogin(): Promise<{ message: string }> {
     await this.samlService.setPasswordLoginDisabled(false);
@@ -1151,5 +1182,212 @@ export class AuthController {
       lastUsed: user?.totpLastUsedAt || null,
       recoveryCodesRemaining,
     };
+  }
+
+  /**
+   * Get all users endpoint
+   * Returns list of all users with their roles and details
+   * Admin only
+   */
+  @Get('users')
+  @UseGuards(AdminGuard)
+  async getAllUsers(): Promise<UserResponse[]> {
+    const users = await this.userService.findAll();
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      authProvider: user.authProvider,
+      createdAt: user.createdAt,
+      totpEnabled: user.totpEnabled,
+    }));
+  }
+
+  /**
+   * Update user role endpoint
+   * Changes a user's role with last admin protection
+   * Admin only
+   */
+  @Put('users/:id/role')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async updateUserRole(
+    @Param('id') id: string,
+    @Body() dto: UpdateRoleDto,
+  ): Promise<User> {
+    return this.userService.updateRole(id, dto.role);
+  }
+
+  /**
+   * Delete user endpoint
+   * Deletes a user with last admin protection
+   * Admin only
+   */
+  @Delete('users/:id')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteUser(@Param('id') id: string): Promise<void> {
+    await this.userService.deleteUser(id);
+  }
+
+  /**
+   * Create invite endpoint
+   * Generates an invite link for a new user
+   * Admin only
+   */
+  @Post('users/invite')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createInvite(
+    @Body() dto: CreateInviteDto,
+    @Req() request: Request & { user: { id: string } },
+  ): Promise<InviteResponse> {
+    // Create the invite
+    const invite = await this.inviteService.createInvite(
+      dto.email,
+      dto.role,
+      request.user.id,
+    );
+
+    // Build the invite link URL
+    const frontendUrl = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:4200',
+    );
+    const inviteLink = `${frontendUrl}/invite/${invite.token}`;
+
+    return {
+      id: invite.id,
+      email: invite.email,
+      role: invite.role,
+      token: invite.token,
+      inviteLink,
+      expiresAt: invite.expiresAt,
+    };
+  }
+
+  /**
+   * Get active invites endpoint
+   * Returns all non-expired, unused invites
+   * Admin only
+   */
+  @Get('invites')
+  @UseGuards(AdminGuard)
+  async getActiveInvites(): Promise<InviteTokenResponse[]> {
+    const invites = await this.inviteService.findAllActive();
+
+    return invites.map((invite) => ({
+      id: invite.id,
+      email: invite.email,
+      role: invite.role,
+      expiresAt: invite.expiresAt,
+      used: invite.used,
+      createdAt: invite.createdAt,
+    }));
+  }
+
+  /**
+   * Revoke invite endpoint
+   * Marks an invite as used to prevent acceptance
+   * Admin only
+   */
+  @Delete('invites/:id')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeInvite(@Param('id') id: string): Promise<void> {
+    await this.inviteService.revokeInvite(id);
+  }
+
+  /**
+   * Get invite details endpoint
+   * Returns invite information for display on acceptance page
+   * Public endpoint
+   */
+  @Public()
+  @Get('invite/:token')
+  @UseGuards(RateLimitGuard)
+  async getInviteDetails(
+    @Param('token') token: string,
+    @Req() request: Request,
+  ): Promise<InviteDetailsResponse> {
+    const validation = await this.inviteService.validateInvite(token);
+
+    if (!validation.valid) {
+      // Record failed attempt for rate limiting
+      const ip = request.ip || request.connection?.remoteAddress || 'unknown';
+      await this.rateLimiterService.recordFailedAttempt(ip, 'invite-check');
+
+      return {
+        valid: false,
+        error: validation.error,
+      };
+    }
+
+    return {
+      valid: true,
+      email: validation.invite!.email,
+      role: validation.invite!.role,
+      expiresAt: validation.invite!.expiresAt,
+    };
+  }
+
+  /**
+   * Accept invite endpoint
+   * Creates a user account from an invite and returns auth tokens
+   * Public endpoint
+   */
+  @Public()
+  @Post('invite/:token/accept')
+  @UseGuards(RateLimitGuard)
+  @HttpCode(HttpStatus.OK)
+  async acceptInvite(
+    @Param('token') token: string,
+    @Body() dto: AcceptInviteDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<AuthResponse> {
+    // Validate password confirmation matches
+    if (dto.password !== dto.passwordConfirmation) {
+      throw new BadRequestException('Password and confirmation do not match');
+    }
+
+    try {
+      // Accept the invite and create user
+      const user = await this.inviteService.acceptInvite(token, dto.password);
+
+      // Generate tokens (new users never have TOTP enabled)
+      const loginResult = await this.authService.login(user);
+
+      // Should never require TOTP for new user
+      if ('totpRequired' in loginResult) {
+        throw new Error('Unexpected TOTP requirement for new user');
+      }
+
+      const { accessToken, refreshToken, user: userInfo } = loginResult;
+
+      // Get cookie expiry time
+      const cookieMaxAge = this.jwtService.getRefreshTokenExpiryMs();
+
+      // Set refresh token cookie
+      this.setRefreshTokenCookie(response, refreshToken, cookieMaxAge);
+
+      // Set access token cookie
+      this.setAccessTokenCookie(response, accessToken, cookieMaxAge);
+
+      // Return user info
+      return {
+        user: userInfo,
+      };
+    } catch (error) {
+      // Record failed attempt for rate limiting if invite is invalid
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        const ip = request.ip || request.connection?.remoteAddress || 'unknown';
+        await this.rateLimiterService.recordFailedAttempt(ip, 'invite-accept');
+      }
+      throw error;
+    }
   }
 }
