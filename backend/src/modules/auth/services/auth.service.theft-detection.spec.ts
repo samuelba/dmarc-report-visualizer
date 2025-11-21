@@ -29,6 +29,7 @@ describe('AuthService - Theft Detection', () => {
     email: 'test@example.com',
     passwordHash: 'bcrypt$hashedpassword',
     authProvider: 'local',
+    role: 'user' as any,
     organizationId: null,
     totpSecret: null,
     totpEnabled: false,

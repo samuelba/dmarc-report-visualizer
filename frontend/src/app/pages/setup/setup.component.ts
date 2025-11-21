@@ -117,11 +117,22 @@ export class SetupComponent implements OnInit {
 
     this.authService.setup(email, password, passwordConfirmation).subscribe({
       next: () => {
-        // Clear any stored return URL (setup should always go to dashboard)
-        clearReturnUrl();
-
-        // Navigate to dashboard on success
-        this.router.navigate(['/dashboard']);
+        // Fetch full user info (including role) before navigating
+        // The setup response doesn't include role, so we need to fetch it from /me
+        this.authService.fetchCurrentUser().subscribe({
+          next: () => {
+            // Clear any stored return URL (setup should always go to dashboard)
+            clearReturnUrl();
+            // Navigate to dashboard on success
+            this.router.navigate(['/dashboard']);
+          },
+          error: (error) => {
+            console.error('Failed to fetch user info after setup:', error);
+            // Still navigate even if fetch fails (user is authenticated)
+            clearReturnUrl();
+            this.router.navigate(['/dashboard']);
+          },
+        });
       },
       error: (error) => {
         this.isSubmitting = false;

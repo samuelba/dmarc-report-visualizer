@@ -54,6 +54,7 @@ export class App implements OnInit {
     '/domains': 'Domain Review',
     '/reports': 'Reports',
     '/upload': 'Upload',
+    '/users': 'User Management',
     '/settings': 'Settings',
     '/profile': 'Profile',
     '/login': 'Login',

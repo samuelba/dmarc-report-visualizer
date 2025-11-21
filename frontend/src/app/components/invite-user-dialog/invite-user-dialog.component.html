@@ -1,0 +1,101 @@
+<div class="invite-dialog">
+  <h2 mat-dialog-title>Invite User</h2>
+
+  <mat-dialog-content>
+    <!-- Error Message -->
+    @if (errorMessage) {
+      <app-message type="error" icon="error">
+        {{ errorMessage }}
+      </app-message>
+    }
+
+    <!-- Invite Form -->
+    @if (!generatedInvite) {
+      <app-message type="info" icon="info">
+        Generate an invite link for a new user to join the platform. The user must use the specified email address.
+      </app-message>
+
+      <form [formGroup]="inviteForm">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email Address</mat-label>
+          <input matInput type="email" formControlName="email" placeholder="user@example.com" />
+          @if (inviteForm.get('email')?.hasError('required')) {
+            <mat-error>Email is required</mat-error>
+          }
+          @if (inviteForm.get('email')?.hasError('email')) {
+            <mat-error>Please enter a valid email</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+          <mat-label>Role</mat-label>
+          <mat-select formControlName="role">
+            <mat-option *ngFor="let role of roles" [value]="role.value">
+              {{ role.label }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </form>
+    }
+
+    <!-- Generated Invite Display -->
+    @if (generatedInvite) {
+      <div class="invite-result">
+        <app-message type="success" icon="check_circle"> Invite created successfully! </app-message>
+
+        <div class="invite-details">
+          <div class="detail-row">
+            <strong>Email:</strong>
+            <span>{{ generatedInvite.email }}</span>
+          </div>
+          <div class="detail-row">
+            <strong>Role:</strong>
+            <span>{{ generatedInvite.role === 'administrator' ? 'Administrator' : 'User' }}</span>
+          </div>
+          <div class="detail-row">
+            <strong>Expires:</strong>
+            <span>{{ expirationDate }}</span>
+          </div>
+        </div>
+
+        <div class="invite-link-field">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: var(--mat-sys-on-surface-variant); font-weight: 500">
+            Invite Link
+          </p>
+          <div class="secret-code">
+            <input [value]="generatedInvite.inviteLink" readonly />
+            <button mat-icon-button (click)="copyLink()" matTooltip="Copy to clipboard">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <app-message type="warning" icon="warning"> Copy the invite link and share it with the user. </app-message>
+      </div>
+    }
+
+    <!-- Loading Spinner -->
+    @if (isLoading) {
+      <div class="loading-container">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Creating invite...</p>
+      </div>
+    }
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="close()" [disabled]="isLoading">
+      {{ generatedInvite ? 'Done' : 'Cancel' }}
+    </button>
+    @if (!generatedInvite) {
+      <button
+        matButton="filled"
+        color="primary"
+        (click)="generateInvite()"
+        [disabled]="inviteForm.invalid || isLoading || generatedInvite !== null"
+      >
+        Generate Invite
+      </button>
+    }
+  </mat-dialog-actions>
+</div>

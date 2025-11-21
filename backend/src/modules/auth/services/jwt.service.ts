@@ -14,18 +14,22 @@ export class JwtService {
    * Generate an access token with 15-minute expiration
    * @param userId User ID
    * @param email User email
+   * @param role User role
+   * @param authProvider Authentication provider
    * @param organizationId Optional organization ID for multi-tenant support
    * @returns JWT access token string
    */
   generateAccessToken(
     userId: string,
     email: string,
+    role: string,
     authProvider: string,
     organizationId?: string | null,
   ): string {
     const payload: any = {
       sub: userId,
       email,
+      role,
       authProvider,
       organizationId,
     };

@@ -9,6 +9,8 @@ import { JwtService } from './services/jwt.service';
 import { SamlService } from './services/saml.service';
 import { TotpService } from './services/totp.service';
 import { RecoveryCodeService } from './services/recovery-code.service';
+import { UserService } from './services/user.service';
+import { InviteService } from './services/invite.service';
 import { User } from './entities/user.entity';
 
 describe('AuthController', () => {
@@ -21,6 +23,7 @@ describe('AuthController', () => {
     email: 'test@example.com',
     passwordHash: 'bcrypt$2b$10$hashedpassword',
     authProvider: 'local',
+    role: 'user' as any,
     organizationId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -77,6 +80,21 @@ describe('AuthController', () => {
     getRemainingCodesCount: jest.fn(),
   };
 
+  const mockUserService = {
+    findAll: jest.fn(),
+    findById: jest.fn(),
+    updateRole: jest.fn(),
+    deleteUser: jest.fn(),
+  };
+
+  const mockInviteService = {
+    createInvite: jest.fn(),
+    findAllActive: jest.fn(),
+    revokeInvite: jest.fn(),
+    validateInvite: jest.fn(),
+    acceptInvite: jest.fn(),
+  };
+
   const mockResponse = () => {
     const res: Partial<Response> = {
       cookie: jest.fn(),
@@ -126,10 +144,19 @@ describe('AuthController', () => {
               const config = {
                 COOKIE_SECURE: 'false',
                 COOKIE_DOMAIN: 'localhost',
+                FRONTEND_URL: 'http://localhost:4200',
               };
               return config[key] ?? defaultValue;
             }),
           },
+        },
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
+        {
+          provide: InviteService,
+          useValue: mockInviteService,
         },
       ],
     })
@@ -138,6 +165,8 @@ describe('AuthController', () => {
       .overrideGuard(require('./guards/rate-limit.guard').RateLimitGuard)
       .useValue({ canActivate: () => true })
       .overrideGuard(require('./guards/jwt-auth.guard').JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(require('./guards/admin.guard').AdminGuard)
       .useValue({ canActivate: () => true })
       .compile();
 
@@ -808,6 +837,199 @@ describe('AuthController', () => {
           lastUsed: null,
           recoveryCodesRemaining: 0,
         });
+      });
+    });
+  });
+
+  describe('Invite Management Endpoints', () => {
+    describe('createInvite', () => {
+      it('should create an invite and return invite link', async () => {
+        const dto = {
+          email: 'newuser@example.com',
+          role: 'user' as any,
+        };
+        const request = { user: { id: 'admin-id' } } as any;
+
+        const mockInvite = {
+          id: 'invite-id',
+          token: 'secure-token-123',
+          email: 'newuser@example.com',
+          role: 'user',
+          expiresAt: new Date('2025-01-01'),
+        };
+
+        mockInviteService.createInvite.mockResolvedValue(mockInvite);
+
+        const result = await controller.createInvite(dto, request);
+
+        expect(mockInviteService.createInvite).toHaveBeenCalledWith(
+          dto.email,
+          dto.role,
+          'admin-id',
+        );
+        expect(result).toEqual({
+          id: 'invite-id',
+          email: 'newuser@example.com',
+          role: 'user',
+          token: 'secure-token-123',
+          inviteLink: 'http://localhost:4200/invite/secure-token-123',
+          expiresAt: mockInvite.expiresAt,
+        });
+      });
+    });
+
+    describe('getActiveInvites', () => {
+      it('should return list of active invites with tokens', async () => {
+        const mockInvites = [
+          {
+            id: 'invite-1',
+            token: 'token-1',
+            email: 'user1@example.com',
+            role: 'user',
+            expiresAt: new Date('2025-01-01'),
+            used: false,
+            createdAt: new Date('2024-12-01'),
+          },
+          {
+            id: 'invite-2',
+            token: 'token-2',
+            email: 'user2@example.com',
+            role: 'administrator',
+            expiresAt: new Date('2025-01-02'),
+            used: false,
+            createdAt: new Date('2024-12-02'),
+          },
+        ];
+
+        mockInviteService.findAllActive.mockResolvedValue(mockInvites);
+
+        const result = await controller.getActiveInvites();
+
+        expect(mockInviteService.findAllActive).toHaveBeenCalled();
+        expect(result).toHaveLength(2);
+        expect(result[0].id).toBe('invite-1');
+        expect(result[0].email).toBe('user1@example.com');
+        expect(result[0].role).toBe('user');
+        expect(result[0].used).toBe(false);
+        expect(result[0].expiresAt).toEqual(new Date('2025-01-01'));
+        expect(result[0].createdAt).toEqual(new Date('2024-12-01'));
+        expect(result[1].id).toBe('invite-2');
+        expect(result[1].email).toBe('user2@example.com');
+        expect(result[1].role).toBe('administrator');
+        expect(result[1].used).toBe(false);
+        expect(result[1].expiresAt).toEqual(new Date('2025-01-02'));
+        expect(result[1].createdAt).toEqual(new Date('2024-12-02'));
+      });
+    });
+
+    describe('revokeInvite', () => {
+      it('should revoke an invite', async () => {
+        const inviteId = 'invite-id';
+
+        mockInviteService.revokeInvite.mockResolvedValue(undefined);
+
+        await controller.revokeInvite(inviteId);
+
+        expect(mockInviteService.revokeInvite).toHaveBeenCalledWith(inviteId);
+      });
+    });
+
+    describe('getInviteDetails', () => {
+      it('should return invite details for valid token', async () => {
+        const token = 'valid-token';
+        const mockValidation = {
+          valid: true,
+          invite: {
+            email: 'user@example.com',
+            role: 'user',
+            expiresAt: new Date('2025-01-01'),
+          },
+        };
+
+        mockInviteService.validateInvite.mockResolvedValue(mockValidation);
+
+        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const result = await controller.getInviteDetails(token, request);
+
+        expect(mockInviteService.validateInvite).toHaveBeenCalledWith(token);
+        expect(result).toEqual({
+          valid: true,
+          email: 'user@example.com',
+          role: 'user',
+          expiresAt: mockValidation.invite.expiresAt,
+        });
+      });
+
+      it('should return error for invalid token', async () => {
+        const token = 'invalid-token';
+        const mockValidation = {
+          valid: false,
+          error: 'Invalid invitation token',
+        };
+
+        mockInviteService.validateInvite.mockResolvedValue(mockValidation);
+
+        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const result = await controller.getInviteDetails(token, request);
+
+        expect(result).toEqual({
+          valid: false,
+          error: 'Invalid invitation token',
+        });
+      });
+    });
+
+    describe('acceptInvite', () => {
+      it('should accept invite and return auth tokens', async () => {
+        const token = 'valid-token';
+        const dto = {
+          password: 'SecurePass123!',
+          passwordConfirmation: 'SecurePass123!',
+        };
+        const response = mockResponse();
+
+        const newUser = {
+          id: 'new-user-id',
+          email: 'newuser@example.com',
+          authProvider: 'local',
+        };
+
+        mockInviteService.acceptInvite.mockResolvedValue(newUser);
+        mockAuthService.login.mockResolvedValue({
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          user: newUser,
+        });
+
+        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const result = await controller.acceptInvite(
+          token,
+          dto,
+          request,
+          response,
+        );
+
+        expect(mockInviteService.acceptInvite).toHaveBeenCalledWith(
+          token,
+          dto.password,
+        );
+        expect(mockAuthService.login).toHaveBeenCalledWith(newUser);
+        expect(result).toEqual({ user: newUser });
+        expect(response.cookie).toHaveBeenCalledTimes(2);
+      });
+
+      it('should throw error if passwords do not match', async () => {
+        const token = 'valid-token';
+        const dto = {
+          password: 'SecurePass123!',
+          passwordConfirmation: 'DifferentPass123!',
+        };
+        const response = mockResponse();
+
+        const request = { ip: '127.0.0.1', connection: {} } as any;
+        await expect(
+          controller.acceptInvite(token, dto, request, response),
+        ).rejects.toThrow(BadRequestException);
       });
     });
   });

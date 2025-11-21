@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, setupGuard } from './guards';
+import { authGuard, setupGuard, adminGuard } from './guards';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -53,8 +53,18 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
-    canActivate: [authGuard],
+    canActivate: [authGuard, adminGuard],
     loadComponent: () => import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
+  },
+  {
+    path: 'users',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () =>
+      import('./pages/user-management/user-management.component').then((m) => m.UserManagementComponent),
+  },
+  {
+    path: 'invite/:token',
+    loadComponent: () => import('./pages/invite-accept/invite-accept.component').then((m) => m.InviteAcceptComponent),
   },
   { path: '**', redirectTo: 'dashboard' },
 ];

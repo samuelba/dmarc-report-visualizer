@@ -1,0 +1,147 @@
+@use '../../../styles/variables' as vars;
+
+.invite-accept-container {
+  display: flex;
+  justify-content: center;
+}
+
+.invite-accept-card {
+  width: 100%;
+  max-width: 32.5rem; // 520px
+  padding: vars.$spacing-lg;
+  border-radius: vars.$spacing-base; // 16px
+}
+
+mat-card-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: vars.$spacing-lg;
+}
+
+mat-card-title {
+  font-size: vars.$font-size-3xl;
+  font-weight: 600;
+  text-align: center;
+  color: var(--mat-sys-on-surface);
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: vars.$spacing-xl vars.$spacing-md;
+  text-align: center;
+  gap: vars.$spacing-md;
+
+  mat-spinner {
+    ::ng-deep circle {
+      stroke: var(--mat-sys-primary);
+    }
+  }
+
+  p {
+    color: var(--mat-sys-on-surface-variant);
+    margin: 0;
+    font-size: vars.$font-size-base;
+  }
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: vars.$spacing-lg;
+}
+
+.invite-form-container {
+  padding: vars.$spacing-md 0;
+}
+
+.info-label {
+  margin: 0 0 vars.$spacing-sm 0;
+  font-size: vars.$font-size-sm;
+  text-transform: uppercase;
+}
+
+.invite-info {
+  margin-bottom: vars.$spacing-xl;
+  padding: vars.$spacing-md;
+  background-color: var(--custom-info-bg-color);
+  border-radius: vars.$radius-lg;
+  border-left: vars.$border-thick solid var(--custom-info-color);
+
+  .invite-details {
+    display: flex;
+    flex-direction: column;
+    gap: vars.$spacing-sm;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    gap: vars.$spacing-sm;
+    padding: vars.$spacing-xs;
+    border-radius: vars.$radius-md;
+
+    mat-icon {
+      color: var(--custom-info-color);
+      font-size: vars.$icon-sm;
+      width: vars.$icon-sm;
+      height: vars.$icon-sm;
+    }
+
+    .detail-value {
+      font-size: vars.$font-size-md;
+      font-weight: 600;
+    }
+  }
+}
+
+.accept-form {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-md;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.submit-button {
+  .button-spinner {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+
+    ::ng-deep circle {
+      stroke: white;
+    }
+  }
+}
+
+.login-link {
+  text-align: center;
+  margin-top: vars.$spacing-md;
+  padding-top: vars.$spacing-md;
+  border-top: vars.$border-thin solid var(--mat-sys-outline-variant);
+
+  p {
+    margin: 0;
+    font-size: vars.$font-size-base;
+    color: var(--mat-sys-on-surface-variant);
+
+    a {
+      color: var(--mat-sys-primary);
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.2s ease;
+
+      &:hover {
+        text-decoration: underline;
+        color: var(--mat-sys-primary);
+      }
+    }
+  }
+}

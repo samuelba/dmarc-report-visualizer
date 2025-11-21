@@ -1,5 +1,5 @@
 <div class="saml-settings-container">
-  @if (loading()) {
+  @if (loading() && !config()) {
     <div class="loading-container">
       <mat-spinner></mat-spinner>
     </div>
@@ -299,7 +299,12 @@
                 [checked]="config()!.disablePasswordLogin"
                 (change)="togglePasswordLogin($event)"
                 color="warn"
-                [disabled]="loading() || (!config()!.enabled && !config()!.disablePasswordLogin)"
+                [disabled]="
+                  loading() ||
+                  checkingUsers() ||
+                  (!config()!.enabled && !config()!.disablePasswordLogin) ||
+                  (!hasSamlAdmin() && !config()!.disablePasswordLogin)
+                "
                 [matTooltip]="
                   !config()!.enabled && !config()!.disablePasswordLogin
                     ? 'SAML must be enabled before disabling password login'
@@ -323,6 +328,22 @@
                   </app-message>
                 }
               } @else {
+                @if (passwordLoginError()) {
+                  <app-message type="error" icon="error">
+                    <strong>Error</strong>
+                    <p>{{ passwordLoginError() }}</p>
+                  </app-message>
+                }
+                @if (showNoSamlAdminWarning()) {
+                  <app-message type="error" icon="error">
+                    <strong>Cannot disable password login</strong>
+                    <p>
+                      At least one administrator with SAML authentication is required before you can disable password
+                      login. Please promote a SAML user to administrator in the
+                      <a routerLink="/users">User Management</a> section.
+                    </p>
+                  </app-message>
+                }
                 <app-message type="info" icon="info">
                   Password-based login is enabled. Users can sign in with either their password or SSO (if SAML is
                   enabled).

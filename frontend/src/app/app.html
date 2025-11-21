@@ -91,6 +91,7 @@
             routerLinkActive="active-link"
             matTooltip="Settings"
             matTooltipPosition="right"
+            *ngIf="authService.isAdministrator() | async"
           >
             <mat-icon matListItemIcon>settings</mat-icon>
             <span class="label" matListItemTitle>Settings</span>
@@ -105,6 +106,17 @@
           >
             <mat-icon matListItemIcon>person</mat-icon>
             <span class="label" matListItemTitle>Profile</span>
+          </a>
+          <a
+            mat-list-item
+            routerLink="/users"
+            routerLinkActive="active-link"
+            matTooltip="Users"
+            matTooltipPosition="right"
+            *ngIf="authService.isAdministrator() | async"
+          >
+            <mat-icon matListItemIcon>group</mat-icon>
+            <span class="label" matListItemTitle>Users</span>
           </a>
           <a
             mat-list-item
