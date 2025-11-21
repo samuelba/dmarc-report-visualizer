@@ -20,6 +20,7 @@ import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/ap
 import { ThirdPartySenderDialogComponent } from './third-party-sender-dialog.component';
 import { SamlSettingsComponent } from './saml-settings/saml-settings.component';
 import { timer, takeWhile } from 'rxjs';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../components/confirm-dialog/confirm-dialog.component';
 import { MessageComponent } from '../../components/message/message.component';
 
 @Component({
@@ -159,19 +160,31 @@ export class SettingsComponent implements OnInit {
   }
 
   deleteSender(sender: ThirdPartySender) {
-    if (!confirm(`Are you sure you want to delete "${sender.name}"?`)) {
-      return;
-    }
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Delete Third-Party Sender',
+        message: `Are you sure you want to delete "${sender.name}"?`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmColor: 'warn',
+      } as ConfirmDialogData,
+    });
 
-    this.api.deleteThirdPartySender(sender.id).subscribe({
-      next: () => {
-        this.loadThirdPartySenders();
-        this.snackBar.open('Third-party sender deleted successfully', 'Close', { duration: 3000 });
-      },
-      error: (err) => {
-        console.error('Failed to delete sender:', err);
-        this.snackBar.open('Failed to delete sender', 'Close', { duration: 5000 });
-      },
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.api.deleteThirdPartySender(sender.id).subscribe({
+        next: () => {
+          this.loadThirdPartySenders();
+          this.snackBar.open('Third-party sender deleted successfully', 'Close', { duration: 3000 });
+        },
+        error: (err) => {
+          console.error('Failed to delete sender:', err);
+          this.snackBar.open('Failed to delete sender', 'Close', { duration: 5000 });
+        },
+      });
     });
   }
 
@@ -224,24 +237,36 @@ export class SettingsComponent implements OnInit {
       rangeText = `records up to ${to.toLocaleDateString()}`;
     }
 
-    if (!confirm(`This will reprocess ${rangeText} and may take several minutes/hours. Continue?`)) {
-      return;
-    }
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Start Reprocessing',
+        message: `This will reprocess ${rangeText} and may take several minutes/hours. Continue?`,
+        confirmText: 'Start',
+        cancelText: 'Cancel',
+        confirmColor: 'primary',
+      } as ConfirmDialogData,
+    });
 
-    const fromStr = from ? from.toISOString() : undefined;
-    const toStr = to ? to.toISOString() : undefined;
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
 
-    this.api.startReprocessing(fromStr, toStr).subscribe({
-      next: (job) => {
-        this.currentJob.set(job);
-        this.isReprocessing.set(true);
-        this.snackBar.open('Reprocessing started', 'Close', { duration: 3000 });
-        this.pollJobStatus(job.id);
-      },
-      error: (err) => {
-        console.error('Failed to start reprocessing:', err);
-        this.snackBar.open('Failed to start reprocessing', 'Close', { duration: 5000 });
-      },
+      const fromStr = from ? from.toISOString() : undefined;
+      const toStr = to ? to.toISOString() : undefined;
+
+      this.api.startReprocessing(fromStr, toStr).subscribe({
+        next: (job) => {
+          this.currentJob.set(job);
+          this.isReprocessing.set(true);
+          this.snackBar.open('Reprocessing started', 'Close', { duration: 3000 });
+          this.pollJobStatus(job.id);
+        },
+        error: (err) => {
+          console.error('Failed to start reprocessing:', err);
+          this.snackBar.open('Failed to start reprocessing', 'Close', { duration: 5000 });
+        },
+      });
     });
   }
 
@@ -251,19 +276,31 @@ export class SettingsComponent implements OnInit {
       return;
     }
 
-    if (!confirm('Are you sure you want to cancel the reprocessing job?')) {
-      return;
-    }
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Cancel Reprocessing',
+        message: 'Are you sure you want to cancel the reprocessing job?',
+        confirmText: 'Cancel Job',
+        cancelText: 'Keep Running',
+        confirmColor: 'warn',
+      } as ConfirmDialogData,
+    });
 
-    this.api.cancelReprocessing(job.id).subscribe({
-      next: () => {
-        this.snackBar.open('Reprocessing cancellation requested', 'Close', { duration: 3000 });
-        // Continue polling to see the cancellation complete
-      },
-      error: (err) => {
-        console.error('Failed to cancel reprocessing:', err);
-        this.snackBar.open('Failed to cancel reprocessing', 'Close', { duration: 5000 });
-      },
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.api.cancelReprocessing(job.id).subscribe({
+        next: () => {
+          this.snackBar.open('Reprocessing cancellation requested', 'Close', { duration: 3000 });
+          // Continue polling to see the cancellation complete
+        },
+        error: (err) => {
+          console.error('Failed to cancel reprocessing:', err);
+          this.snackBar.open('Failed to cancel reprocessing', 'Close', { duration: 5000 });
+        },
+      });
     });
   }
 
@@ -381,26 +418,36 @@ export class SettingsComponent implements OnInit {
     }
 
     const dateStr = olderThan.toLocaleDateString();
-    const confirmMessage = `Are you sure you want to delete ALL reports created before ${dateStr}?\n\nThis action cannot be undone!`;
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Delete Old Reports',
+        message: `Are you sure you want to delete ALL reports created before ${dateStr}?\n\nThis action cannot be undone!`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        confirmColor: 'warn',
+      } as ConfirmDialogData,
+    });
 
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
 
-    this.isDeletingReports.set(true);
+      this.isDeletingReports.set(true);
 
-    this.api.deleteOldReports(olderThan).subscribe({
-      next: (result) => {
-        this.isDeletingReports.set(false);
-        this.snackBar.open(`Successfully deleted ${result.deletedCount} old reports`, 'Close', { duration: 5000 });
-        // Reset the date field
-        this.deleteOlderThan.set(null);
-      },
-      error: (err) => {
-        console.error('Failed to delete old reports:', err);
-        this.isDeletingReports.set(false);
-        this.snackBar.open('Failed to delete old reports', 'Close', { duration: 5000 });
-      },
+      this.api.deleteOldReports(olderThan).subscribe({
+        next: (result) => {
+          this.isDeletingReports.set(false);
+          this.snackBar.open(`Successfully deleted ${result.deletedCount} old reports`, 'Close', { duration: 5000 });
+          // Reset the date field
+          this.deleteOlderThan.set(null);
+        },
+        error: (err) => {
+          console.error('Failed to delete old reports:', err);
+          this.isDeletingReports.set(false);
+          this.snackBar.open('Failed to delete old reports', 'Close', { duration: 5000 });
+        },
+      });
     });
   }
 

@@ -12,6 +12,7 @@ import {
 import { DomainCardComponent } from '../../components/domain-card/domain-card.component';
 import { DomainListItemComponent } from '../../components/domain-list-item/domain-list-item';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../components/confirm-dialog/confirm-dialog.component';
 import { MessageComponent } from '../../components/message/message.component';
 
 @Component({
@@ -158,19 +159,31 @@ export class DomainsComponent implements OnInit {
       return;
     }
 
-    if (!confirm(`Are you sure you want to remove ${stat.domain} from your managed domains?`)) {
-      return;
-    }
+    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Remove Domain',
+        message: `Are you sure you want to remove ${stat.domain} from your managed domains?`,
+        confirmText: 'Remove',
+        cancelText: 'Cancel',
+        confirmColor: 'warn',
+      } as ConfirmDialogData,
+    });
 
-    this.api.deleteDomain(stat.id).subscribe({
-      next: () => {
-        this.snackBar.open('Domain removed successfully', 'Close', { duration: 3000 });
-        this.loadStatistics();
-      },
-      error: (err) => {
-        console.error('Error removing domain:', err);
-        this.snackBar.open('Error removing domain', 'Close', { duration: 3000 });
-      },
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+
+      this.api.deleteDomain(stat.id!).subscribe({
+        next: () => {
+          this.snackBar.open('Domain removed successfully', 'Close', { duration: 3000 });
+          this.loadStatistics();
+        },
+        error: (err) => {
+          console.error('Error removing domain:', err);
+          this.snackBar.open('Error removing domain', 'Close', { duration: 3000 });
+        },
+      });
     });
   }
 }
