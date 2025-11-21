@@ -8,10 +8,9 @@
     <mat-card-content>
       <!-- Password Login Disabled Message -->
       @if (!showPasswordForm && passwordLoginDisabledMessage) {
-        <div class="password-disabled-message">
-          <mat-icon>info</mat-icon>
-          <p>{{ passwordLoginDisabledMessage }}</p>
-        </div>
+        <app-message type="info" icon="info">
+          {{ passwordLoginDisabledMessage }}
+        </app-message>
       }
 
       <!-- Password Login Form -->

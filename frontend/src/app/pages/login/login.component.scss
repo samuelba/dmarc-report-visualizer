@@ -30,6 +30,12 @@ mat-card-header {
   }
 }
 
+mat-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-lg;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
@@ -58,30 +64,6 @@ mat-form-field {
   margin-right: vars.$spacing-sm;
 }
 
-.password-disabled-message {
-  display: flex;
-  align-items: center;
-  gap: vars.$spacing-md;
-  padding: vars.$spacing-base;
-  margin-bottom: vars.$spacing-base;
-  background-color: var(--custom-info-bg-color);
-  border-left: vars.$border-thick solid var(--custom-info-color);
-  border-radius: vars.$radius-lg;
-
-  mat-icon {
-    font-size: vars.$icon-md;
-    width: vars.$icon-md;
-    height: vars.$icon-md;
-    color: var(--custom-info-color);
-  }
-
-  p {
-    margin: 0;
-    font-size: vars.$font-size-base;
-    line-height: 1.5;
-  }
-}
-
 .sso-section {
   display: flex;
   flex-direction: column;
@@ -91,7 +73,7 @@ mat-form-field {
     display: flex;
     align-items: center;
     text-align: center;
-    margin: vars.$spacing-xl 0;
+    margin: 0 0 vars.$spacing-lg 0;
 
     &::before,
     &::after {
