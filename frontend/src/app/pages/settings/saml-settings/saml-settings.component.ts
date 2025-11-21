@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -16,6 +17,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { AuthService } from '../../../services/auth.service';
 import { UserService } from '../../../services/user.service';
 import { MessageComponent } from '../../../components/message/message.component';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../components/confirm-dialog/confirm-dialog.component';
 import { UserRole } from '../../../models/user-role.enum';
 
 export interface SamlConfigResponse {
@@ -46,6 +48,7 @@ import { RouterModule } from '@angular/router';
     MatInputModule,
     MatSlideToggleModule,
     MatRadioModule,
+    MatDialogModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
     MatProgressBarModule,
@@ -60,6 +63,7 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly userService = inject(UserService);
   private readonly fb = inject(FormBuilder);
+  private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
 
   config = signal<SamlConfigResponse | null>(null);
@@ -260,15 +264,32 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
     }
 
     if (!enabled) {
-      const confirmed = confirm(
-        'Are you sure you want to disable SAML authentication? Users will not be able to sign in with SSO until it is re-enabled.'
-      );
-      if (!confirmed) {
-        event.source.checked = true;
-        return;
-      }
+      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        data: {
+          title: 'Disable SAML Authentication',
+          message:
+            'Are you sure you want to disable SAML authentication? Users will not be able to sign in with SSO until it is re-enabled.',
+          confirmText: 'Disable',
+          cancelText: 'Cancel',
+          confirmColor: 'warn',
+        } as ConfirmDialogData,
+      });
+
+      dialogRef.afterClosed().subscribe((confirmed) => {
+        if (!confirmed) {
+          event.source.checked = true;
+          return;
+        }
+
+        this.performSamlToggle(enabled, event);
+      });
+      return;
     }
 
+    this.performSamlToggle(enabled, event);
+  }
+
+  private performSamlToggle(enabled: boolean, event: any): void {
     this.loading.set(true);
     const action = enabled ? this.authService.enableSaml() : this.authService.disableSaml();
 
@@ -344,15 +365,32 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const confirmed = confirm(
-        'Warning: Disabling password login will require all users to authenticate via SSO. Ensure SAML is properly configured and tested before proceeding.\n\nAre you sure you want to continue?'
-      );
-      if (!confirmed) {
-        event.source.checked = false;
-        return;
-      }
+      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+        data: {
+          title: 'Disable Password Login',
+          message:
+            'Warning: Disabling password login will require all users to authenticate via SSO. Ensure SAML is properly configured and tested before proceeding.\n\nAre you sure you want to continue?',
+          confirmText: 'Disable',
+          cancelText: 'Cancel',
+          confirmColor: 'warn',
+        } as ConfirmDialogData,
+      });
+
+      dialogRef.afterClosed().subscribe((confirmed) => {
+        if (!confirmed) {
+          event.source.checked = false;
+          return;
+        }
+
+        this.performPasswordLoginToggle(disabled, event);
+      });
+      return;
     }
 
+    this.performPasswordLoginToggle(disabled, event);
+  }
+
+  private performPasswordLoginToggle(disabled: boolean, event: any): void {
     this.loading.set(true);
     this.passwordLoginError.set(null); // Clear previous errors
 
