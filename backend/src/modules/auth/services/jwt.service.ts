@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService as NestJwtService } from '@nestjs/jwt';
+import { JwtService as NestJwtService, JwtSignOptions } from '@nestjs/jwt';
 import { RefreshTokenPayload } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -26,7 +26,7 @@ export class JwtService {
     authProvider: string,
     organizationId?: string | null,
   ): string {
-    const payload: any = {
+    const payload = {
       sub: userId,
       email,
       role,
@@ -40,7 +40,7 @@ export class JwtService {
     );
 
     return this.nestJwtService.sign(payload, {
-      expiresIn: expiresIn as any,
+      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
     });
   }
 
@@ -51,7 +51,7 @@ export class JwtService {
    * @returns JWT refresh token string
    */
   generateRefreshToken(userId: string, tokenId: string): string {
-    const payload: any = {
+    const payload = {
       sub: userId,
       tokenId,
     };
@@ -62,7 +62,7 @@ export class JwtService {
     );
 
     return this.nestJwtService.sign(payload, {
-      expiresIn: expiresIn as any,
+      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
     });
   }
 
@@ -156,7 +156,7 @@ export class JwtService {
    * @returns JWT temporary token string
    */
   generateTempToken(userId: string, email: string): string {
-    const payload: any = {
+    const payload = {
       sub: userId,
       email,
       type: 'totp_temp',
@@ -175,7 +175,11 @@ export class JwtService {
    */
   verifyTempToken(token: string): { sub: string; email: string } {
     try {
-      const payload = this.nestJwtService.verify<any>(token);
+      const payload = this.nestJwtService.verify<{
+        sub: string;
+        email: string;
+        type: string;
+      }>(token);
 
       // Verify it's a temp token
       if (payload.type !== 'totp_temp') {

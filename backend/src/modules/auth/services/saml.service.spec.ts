@@ -10,6 +10,7 @@ import {
 import { SamlService } from './saml.service';
 import { SamlConfig } from '../entities/saml-config.entity';
 import { User } from '../entities/user.entity';
+import { UserRole } from '../enums/user-role.enum';
 
 describe('SamlService', () => {
   let service: SamlService;
@@ -140,7 +141,7 @@ describe('SamlService', () => {
       const userId = 'user-123';
 
       jest.spyOn(repository, 'find').mockResolvedValue([]);
-      jest.spyOn(repository, 'create').mockReturnValue(mockSamlConfig as any);
+      jest.spyOn(repository, 'create').mockReturnValue(mockSamlConfig);
       jest.spyOn(repository, 'save').mockResolvedValue(mockSamlConfig);
 
       const result = await service.createOrUpdateConfig(dto, userId);
@@ -168,7 +169,7 @@ describe('SamlService', () => {
       const userId = 'user-123';
 
       jest.spyOn(repository, 'find').mockResolvedValue([]);
-      jest.spyOn(repository, 'create').mockReturnValue(mockSamlConfig as any);
+      jest.spyOn(repository, 'create').mockReturnValue(mockSamlConfig);
       jest.spyOn(repository, 'save').mockResolvedValue(mockSamlConfig);
 
       const result = await service.createOrUpdateConfig(dto, userId);
@@ -402,12 +403,10 @@ describe('SamlService', () => {
       expect(result).toContain('index="1"');
     });
 
-    it('should throw error when environment variables are missing', async () => {
+    it('should throw error when environment variables are missing', () => {
       jest.spyOn(configService, 'get').mockReturnValue(undefined);
 
-      await expect(service.generateSpMetadata()).rejects.toThrow(
-        BadRequestException,
-      );
+      expect(() => service.generateSpMetadata()).toThrow(BadRequestException);
     });
   });
 
@@ -586,7 +585,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
-        role: 'user' as any,
+        role: UserRole.USER,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -599,7 +598,7 @@ describe('SamlService', () => {
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
-      jest.spyOn(userRepository, 'create').mockReturnValue(newUser as any);
+      jest.spyOn(userRepository, 'create').mockReturnValue(newUser);
       jest.spyOn(userRepository, 'save').mockResolvedValue(newUser);
 
       const result = await service.handleSamlLogin(mockSamlProfile);
@@ -622,7 +621,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
-        role: 'user' as any,
+        role: UserRole.USER,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -649,7 +648,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: 'hashed-password',
         authProvider: 'local',
-        role: 'user' as any,
+        role: UserRole.USER,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -722,7 +721,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
-        role: 'user' as any,
+        role: UserRole.USER,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -735,7 +734,7 @@ describe('SamlService', () => {
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
-      jest.spyOn(userRepository, 'create').mockReturnValue(newUser as any);
+      jest.spyOn(userRepository, 'create').mockReturnValue(newUser);
       jest.spyOn(userRepository, 'save').mockResolvedValue(newUser);
 
       await service.handleSamlLogin(profileWithUppercaseEmail);
@@ -761,7 +760,7 @@ describe('SamlService', () => {
         email: 'user@example.com',
         passwordHash: '',
         authProvider: 'saml',
-        role: 'user' as any,
+        role: UserRole.USER,
         organizationId: null,
         totpSecret: null,
         totpEnabled: false,
@@ -774,7 +773,7 @@ describe('SamlService', () => {
       };
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(null);
-      jest.spyOn(userRepository, 'create').mockReturnValue(newUser as any);
+      jest.spyOn(userRepository, 'create').mockReturnValue(newUser);
       jest.spyOn(userRepository, 'save').mockResolvedValue(newUser);
 
       const result = await service.handleSamlLogin(profileWithoutExpiration);

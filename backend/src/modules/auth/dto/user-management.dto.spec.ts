@@ -80,7 +80,7 @@ describe('User Management DTOs', () => {
       it('should fail with invalid role', async () => {
         const dto = plainToClass(CreateInviteDto, {
           email: 'test@example.com',
-          role: 'invalid-role' as any,
+          role: 'invalid-role',
         });
 
         const errors = await validate(dto);
@@ -124,7 +124,7 @@ describe('User Management DTOs', () => {
 
       it('should fail with invalid role', async () => {
         const dto = plainToClass(UpdateRoleDto, {
-          role: 'superadmin' as any,
+          role: 'superadmin',
         });
 
         const errors = await validate(dto);

@@ -648,21 +648,21 @@ describe('GmailDownloaderService', () => {
   });
 
   describe('onModuleDestroy', () => {
-    it('should clear interval when service is destroyed', async () => {
+    it('should clear interval when service is destroyed', () => {
       // Set up a fake interval
       (service as any).intervalHandle = setInterval(() => {}, 1000);
       const _intervalId = (service as any).intervalHandle;
 
-      await service.onModuleDestroy();
+      service.onModuleDestroy();
 
       expect((service as any).intervalHandle).toBeNull();
       // Note: We can't easily test that clearInterval was called on the exact ID
       // but we verify the handle is nulled
     });
 
-    it('should handle destruction when no interval is set', async () => {
+    it('should handle destruction when no interval is set', () => {
       (service as any).intervalHandle = null;
-      await expect(service.onModuleDestroy()).resolves.not.toThrow();
+      expect(() => service.onModuleDestroy()).not.toThrow();
     });
   });
 });

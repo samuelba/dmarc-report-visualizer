@@ -334,7 +334,7 @@ describe('InviteService', () => {
 
             jest
               .spyOn(inviteTokenRepository, 'create')
-              .mockImplementation((data: any) => {
+              .mockImplementation((data: Partial<InviteToken>) => {
                 return {
                   ...data,
                   id: Math.random().toString(),
@@ -344,8 +344,8 @@ describe('InviteService', () => {
 
             jest
               .spyOn(inviteTokenRepository, 'save')
-              .mockImplementation(async (invite: InviteToken) => {
-                return invite;
+              .mockImplementation((invite: InviteToken) => {
+                return Promise.resolve(invite);
               });
 
             for (const request of inviteRequests) {

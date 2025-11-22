@@ -5,6 +5,7 @@ import { SamlStrategy } from './saml.strategy';
 import { SamlService } from '../services/saml.service';
 import { User } from '../entities/user.entity';
 import { Profile } from '@node-saml/passport-saml';
+import { UserRole } from '../enums/user-role.enum';
 
 describe('SamlStrategy', () => {
   let strategy: SamlStrategy;
@@ -30,7 +31,7 @@ describe('SamlStrategy', () => {
     email: 'user@example.com',
     passwordHash: '',
     authProvider: 'saml',
-    role: 'user' as any,
+    role: UserRole.USER,
     organizationId: null,
     totpSecret: null,
     totpEnabled: false,

@@ -18,30 +18,44 @@ export class GeoipLiteProvider implements IpLookupProvider {
     return 'geoip-lite';
   }
 
-  async lookup(ip: string): Promise<GeoLocationData | null> {
+  lookup(ip: string): Promise<GeoLocationData | null> {
     try {
       const geo = geoip.lookup(ip);
       if (!geo) {
-        return null;
+        return Promise.resolve(null);
       }
 
-      return {
-        country: geo.country,
-        countryName: this.getCountryName(geo.country),
-        region: geo.region,
-        city: geo.city,
+      const countryCode: string =
+        typeof geo.country === 'string' ? geo.country : '';
+      const region = typeof geo.region === 'string' ? geo.region : undefined;
+      const city = typeof geo.city === 'string' ? geo.city : undefined;
+      const rawTimezone = (geo as Record<string, unknown>).timezone;
+      const timezone: string | undefined =
+        typeof rawTimezone === 'string' ? rawTimezone : undefined;
+
+      const countryName: string = this.getCountryName(countryCode);
+      const result: GeoLocationData = {
+        country: countryCode,
+        countryName,
+        region,
+        city,
         latitude: geo.ll?.[0],
         longitude: geo.ll?.[1],
-        timezone: geo.timezone,
+        timezone,
         // geoip-lite doesn't provide ISP or org information
         isp: undefined,
         org: undefined,
       };
-    } catch (error) {
-      this.logger.warn(
-        `Failed to lookup IP ${ip}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      return null;
+      return Promise.resolve(result);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'string'
+            ? err
+            : String(err);
+      this.logger.warn(`Failed to lookup IP ${ip}: ${message}`);
+      return Promise.resolve(null);
     }
   }
 

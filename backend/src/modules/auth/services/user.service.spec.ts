@@ -6,6 +6,7 @@ import { UserService } from './user.service';
 import { User } from '../entities/user.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { UserRole } from '../enums/user-role.enum';
+import { RevocationReason } from '../entities/refresh-token.entity';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('UserService', () => {
@@ -119,7 +120,7 @@ describe('UserService', () => {
       expect(result.role).toBe(UserRole.ADMINISTRATOR);
       expect(refreshTokenRepository.update).toHaveBeenCalledWith(
         { userId: '1', revoked: false },
-        { revoked: true, revocationReason: 'password_change' },
+        { revoked: true, revocationReason: RevocationReason.PASSWORD_CHANGE },
       );
     });
 
@@ -359,7 +360,10 @@ describe('UserService', () => {
             // Verify that refresh tokens were invalidated
             expect(updateSpy).toHaveBeenCalledWith(
               { userId, revoked: false },
-              { revoked: true, revocationReason: 'password_change' },
+              {
+                revoked: true,
+                revocationReason: RevocationReason.PASSWORD_CHANGE,
+              },
             );
           },
         ),

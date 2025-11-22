@@ -61,7 +61,7 @@ export class InviteService {
     return {
       ...savedInvite,
       token,
-    } as InviteToken & { token: string };
+    };
   }
 
   /**

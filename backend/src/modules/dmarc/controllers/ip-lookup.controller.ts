@@ -196,7 +196,7 @@ export class IpLookupController {
     status: 200,
     description: 'Processing status breakdown',
   })
-  async getProcessingStatus() {
+  getProcessingStatus() {
     // This would be better implemented in a dedicated service
     // For now, return basic stats from queue
     return {

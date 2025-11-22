@@ -68,27 +68,27 @@ export class RateLimiterService {
    * @param ip - The IP address to check
    * @returns Object with allowed status and optional retryAfter in seconds
    */
-  async checkIpRateLimit(
+  checkIpRateLimit(
     ip: string,
   ): Promise<{ allowed: boolean; retryAfter?: number }> {
     const now = Date.now();
     const entry = this.ipAttempts.get(ip);
 
     if (!entry) {
-      return { allowed: true };
+      return Promise.resolve({ allowed: true });
     }
 
     // Check if locked
     if (entry.lockedUntil && entry.lockedUntil > now) {
       const retryAfter = Math.ceil((entry.lockedUntil - now) / 1000);
-      return { allowed: false, retryAfter };
+      return Promise.resolve({ allowed: false, retryAfter });
     }
 
     // Check if window has expired
     if (now - entry.firstAttemptAt > this.IP_WINDOW_MS) {
       // Window expired, clean up
       this.ipAttempts.delete(ip);
-      return { allowed: true };
+      return Promise.resolve({ allowed: true });
     }
 
     // Check if attempts exceeded
@@ -98,7 +98,7 @@ export class RateLimiterService {
       const retryAfter = Math.ceil(this.LOCK_DURATION_MS / 1000);
 
       // Audit log: IP rate limit violation
-      this.logger.warn({
+      this.logger.warn('Rate limit violation detected', {
         event: 'rate_limit_violation',
         type: 'ip_login',
         ipAddress: ip,
@@ -106,10 +106,10 @@ export class RateLimiterService {
         timestamp: new Date().toISOString(),
       });
 
-      return { allowed: false, retryAfter };
+      return Promise.resolve({ allowed: false, retryAfter });
     }
 
-    return { allowed: true };
+    return Promise.resolve({ allowed: true });
   }
 
   /**
@@ -117,27 +117,27 @@ export class RateLimiterService {
    * @param email - The email address to check
    * @returns Object with locked status and optional retryAfter in seconds
    */
-  async checkAccountLock(
+  checkAccountLock(
     email: string,
   ): Promise<{ locked: boolean; retryAfter?: number }> {
     const now = Date.now();
     const entry = this.accountAttempts.get(email.toLowerCase());
 
     if (!entry) {
-      return { locked: false };
+      return Promise.resolve({ locked: false });
     }
 
     // Check if locked
     if (entry.lockedUntil && entry.lockedUntil > now) {
       const retryAfter = Math.ceil((entry.lockedUntil - now) / 1000);
-      return { locked: true, retryAfter };
+      return Promise.resolve({ locked: true, retryAfter });
     }
 
     // Check if window has expired
     if (now - entry.firstAttemptAt > this.ACCOUNT_WINDOW_MS) {
       // Window expired, clean up
       this.accountAttempts.delete(email.toLowerCase());
-      return { locked: false };
+      return Promise.resolve({ locked: false });
     }
 
     // Check if attempts exceeded
@@ -147,7 +147,7 @@ export class RateLimiterService {
       const retryAfter = Math.ceil(this.LOCK_DURATION_MS / 1000);
 
       // Audit log: Account rate limit violation
-      this.logger.warn({
+      this.logger.warn('Rate limit violation detected', {
         event: 'rate_limit_violation',
         type: 'account_login',
         email: email.toLowerCase(),
@@ -155,10 +155,10 @@ export class RateLimiterService {
         timestamp: new Date().toISOString(),
       });
 
-      return { locked: true, retryAfter };
+      return Promise.resolve({ locked: true, retryAfter });
     }
 
-    return { locked: false };
+    return Promise.resolve({ locked: false });
   }
 
   /**
@@ -166,7 +166,7 @@ export class RateLimiterService {
    * @param ip - The IP address
    * @param email - The email address
    */
-  async recordFailedAttempt(ip: string, email: string): Promise<void> {
+  recordFailedAttempt(ip: string, email: string): Promise<void> {
     const now = Date.now();
     const normalizedEmail = email.toLowerCase();
 
@@ -198,15 +198,17 @@ export class RateLimiterService {
       // Increment attempts in current window
       accountEntry.attempts++;
     }
+    return Promise.resolve();
   }
 
   /**
    * Reset attempts for an account after successful login
    * @param email - The email address
    */
-  async resetAttempts(email: string): Promise<void> {
+  resetAttempts(email: string): Promise<void> {
     const normalizedEmail = email.toLowerCase();
     this.accountAttempts.delete(normalizedEmail);
+    return Promise.resolve();
   }
 
   /**
@@ -214,7 +216,7 @@ export class RateLimiterService {
    * @param userId - The user ID
    * @returns Object with allowed status and optional retryAfter in seconds
    */
-  async checkTotpVerificationLimit(
+  checkTotpVerificationLimit(
     userId: string,
   ): Promise<{ allowed: boolean; retryAfter?: number }> {
     const result = this.checkRateLimit(
@@ -227,7 +229,7 @@ export class RateLimiterService {
     // Audit log if rate limit exceeded
     if (!result.allowed) {
       const entry = this.totpVerificationAttempts.get(userId);
-      this.logger.warn({
+      this.logger.warn('Rate limit violation detected', {
         event: 'rate_limit_violation',
         type: 'totp_verification',
         userId,
@@ -236,27 +238,29 @@ export class RateLimiterService {
       });
     }
 
-    return result;
+    return Promise.resolve(result);
   }
 
   /**
    * Record a failed TOTP verification attempt
    * @param userId - The user ID
    */
-  async recordTotpVerificationAttempt(userId: string): Promise<void> {
+  recordTotpVerificationAttempt(userId: string): Promise<void> {
     this.recordAttempt(
       this.totpVerificationAttempts,
       userId,
       this.TOTP_VERIFY_WINDOW_MS,
     );
+    return Promise.resolve();
   }
 
   /**
    * Reset TOTP verification attempts for a user
    * @param userId - The user ID
    */
-  async resetTotpVerificationAttempts(userId: string): Promise<void> {
+  resetTotpVerificationAttempts(userId: string): Promise<void> {
     this.totpVerificationAttempts.delete(userId);
+    return Promise.resolve();
   }
 
   /**
@@ -264,7 +268,7 @@ export class RateLimiterService {
    * @param userId - The user ID
    * @returns Object with allowed status and optional retryAfter in seconds
    */
-  async checkRecoveryCodeLimit(
+  checkRecoveryCodeLimit(
     userId: string,
   ): Promise<{ allowed: boolean; retryAfter?: number }> {
     const result = this.checkRateLimit(
@@ -277,7 +281,7 @@ export class RateLimiterService {
     // Audit log if rate limit exceeded
     if (!result.allowed) {
       const entry = this.recoveryCodeAttempts.get(userId);
-      this.logger.warn({
+      this.logger.warn('Rate limit violation detected', {
         event: 'rate_limit_violation',
         type: 'recovery_code_verification',
         userId,
@@ -286,27 +290,29 @@ export class RateLimiterService {
       });
     }
 
-    return result;
+    return Promise.resolve(result);
   }
 
   /**
    * Record a failed recovery code verification attempt
    * @param userId - The user ID
    */
-  async recordRecoveryCodeAttempt(userId: string): Promise<void> {
+  recordRecoveryCodeAttempt(userId: string): Promise<void> {
     this.recordAttempt(
       this.recoveryCodeAttempts,
       userId,
       this.RECOVERY_CODE_WINDOW_MS,
     );
+    return Promise.resolve();
   }
 
   /**
    * Reset recovery code verification attempts for a user
    * @param userId - The user ID
    */
-  async resetRecoveryCodeAttempts(userId: string): Promise<void> {
+  resetRecoveryCodeAttempts(userId: string): Promise<void> {
     this.recoveryCodeAttempts.delete(userId);
+    return Promise.resolve();
   }
 
   /**
@@ -314,7 +320,7 @@ export class RateLimiterService {
    * @param userId - The user ID
    * @returns Object with allowed status and optional retryAfter in seconds
    */
-  async checkTotpSetupLimit(
+  checkTotpSetupLimit(
     userId: string,
   ): Promise<{ allowed: boolean; retryAfter?: number }> {
     const result = this.checkRateLimit(
@@ -327,7 +333,7 @@ export class RateLimiterService {
     // Audit log if rate limit exceeded
     if (!result.allowed) {
       const entry = this.totpSetupAttempts.get(userId);
-      this.logger.warn({
+      this.logger.warn('Rate limit violation detected', {
         event: 'rate_limit_violation',
         type: 'totp_setup',
         userId,
@@ -336,27 +342,29 @@ export class RateLimiterService {
       });
     }
 
-    return result;
+    return Promise.resolve(result);
   }
 
   /**
    * Record a failed TOTP setup verification attempt
    * @param userId - The user ID
    */
-  async recordTotpSetupAttempt(userId: string): Promise<void> {
+  recordTotpSetupAttempt(userId: string): Promise<void> {
     this.recordAttempt(
       this.totpSetupAttempts,
       userId,
       this.TOTP_SETUP_WINDOW_MS,
     );
+    return Promise.resolve();
   }
 
   /**
    * Reset TOTP setup verification attempts for a user
    * @param userId - The user ID
    */
-  async resetTotpSetupAttempts(userId: string): Promise<void> {
+  resetTotpSetupAttempts(userId: string): Promise<void> {
     this.totpSetupAttempts.delete(userId);
+    return Promise.resolve();
   }
 
   /**

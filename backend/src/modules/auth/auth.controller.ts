@@ -224,14 +224,14 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     // Get refresh token from cookie
-    const refreshToken = request.cookies?.refreshToken;
+    const refreshToken = request.cookies?.refreshToken as string | undefined;
 
     if (!refreshToken) {
       throw new BadRequestException('Refresh token not found');
     }
 
     // Get access token from cookie (may be expired, but required for validation)
-    const accessToken = request.cookies?.accessToken;
+    const accessToken = request.cookies?.accessToken as string | undefined;
 
     if (!accessToken) {
       throw new BadRequestException('Access token not found');
@@ -290,7 +290,7 @@ export class AuthController {
 
     if (refreshToken) {
       // Revoke the refresh token
-      await this.authService.logout(request.user.id, refreshToken);
+      await this.authService.logout(request.user.id, String(refreshToken));
     }
 
     // Clear refresh token cookie
@@ -306,17 +306,17 @@ export class AuthController {
    * Get current user endpoint - returns authenticated user information
    */
   @Get('me')
-  async getCurrentUser(
+  getCurrentUser(
     @Req()
     request: Request & {
       user: { id: string; email: string; authProvider: string; role: string };
     },
-  ): Promise<{
+  ): {
     id: string;
     email: string;
     authProvider: string;
     role: string;
-  }> {
+  } {
     return {
       id: request.user.id,
       email: request.user.email,
@@ -956,7 +956,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponse> {
     // Get temp token from cookie
-    const tempToken = request.cookies?.totpTempToken;
+    const tempToken = request.cookies?.totpTempToken as string | undefined;
 
     if (!tempToken) {
       throw new UnauthorizedException(
@@ -1028,7 +1028,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponse> {
     // Get temp token from cookie
-    const tempToken = request.cookies?.totpTempToken;
+    const tempToken = request.cookies?.totpTempToken as string | undefined;
 
     if (!tempToken) {
       throw new UnauthorizedException(

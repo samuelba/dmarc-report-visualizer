@@ -86,17 +86,20 @@ async function createBackup(config: BackupConfig): Promise<string> {
       }
     };
 
-    pgDump.on('error', (err: any) => {
-      console.error('✗ Failed to start pg_dump:', err.message);
-      safeReject(new Error(err && err.message ? err.message : String(err)));
+    pgDump.on('error', (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('✗ Failed to start pg_dump:', message);
+      safeReject(new Error(message));
     });
-    gzip.on('error', (err: any) => {
-      console.error('✗ Failed to start gzip:', err.message);
-      safeReject(new Error(err && err.message ? err.message : String(err)));
+    gzip.on('error', (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('✗ Failed to start gzip:', message);
+      safeReject(new Error(message));
     });
-    outStream.on('error', (err: any) => {
-      console.error('✗ Failed to write backup file:', err.message);
-      safeReject(new Error(err && err.message ? err.message : String(err)));
+    outStream.on('error', (err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('✗ Failed to write backup file:', message);
+      safeReject(new Error(message));
     });
 
     outStream.on('finish', () => {
@@ -109,11 +112,10 @@ async function createBackup(config: BackupConfig): Promise<string> {
             const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
             console.log(`  Backup size: ${fileSizeInMB} MB (compressed)`);
             safeResolve(backupFilePath);
-          } catch (err: any) {
-            console.error('✗ Failed to read backup file stats:', err.message);
-            safeReject(
-              new Error(err && err.message ? err.message : String(err)),
-            );
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error('✗ Failed to read backup file stats:', message);
+            safeReject(new Error(message));
           }
         })();
       }
@@ -224,9 +226,9 @@ async function main() {
     await cleanOldBackups(config.backupDir, keepBackups);
 
     console.log('=== Backup completed successfully ===\n');
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('=== Backup failed ===');
-    console.error(error);
+    console.error(error instanceof Error ? error.message : String(error));
 
     // Check if backup is mandatory
     const backupMandatory = process.env.BACKUP_MANDATORY !== 'false';
@@ -243,8 +245,9 @@ async function main() {
 
 // Run the backup if this script is executed directly
 if (require.main === module) {
-  main().catch((error) => {
-    console.error('Fatal error:', error);
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Fatal error:', message);
     process.exit(1);
   });
 }

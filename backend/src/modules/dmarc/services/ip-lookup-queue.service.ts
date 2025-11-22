@@ -45,7 +45,7 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async onModuleDestroy() {
+  onModuleDestroy() {
     // Nothing to clean up - event-driven processing
     this.logger.log('IP lookup queue service shutting down');
   }
@@ -56,11 +56,7 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
    * @param recordIds - The DMARC record IDs that use this IP
    * @param priority - 0 = high, 1 = normal, 2 = low
    */
-  async queueIpLookup(
-    ip: string,
-    recordIds: string[],
-    priority: number = 1,
-  ): Promise<void> {
+  queueIpLookup(ip: string, recordIds: string[], priority: number = 1): void {
     // Check if this IP is already in the queue
     const existing = this.queue.find((item) => item.ip === ip);
 
@@ -96,9 +92,9 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Queue multiple IPs at once
    */
-  async queueMultipleIps(
+  queueMultipleIps(
     items: Array<{ ip: string; recordIds: string[]; priority?: number }>,
-  ): Promise<void> {
+  ): void {
     // Add all items to queue without triggering processing each time
     for (const item of items) {
       const ip = item.ip;
@@ -479,7 +475,10 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
       updateData.geoLookupCompletedAt = new Date();
     }
 
-    await this.dmarcRecordRepository.update(recordIds, updateData);
+    await this.dmarcRecordRepository.update(
+      recordIds,
+      updateData as Record<string, unknown>,
+    );
 
     if (errorMessage) {
       this.logger.warn(
@@ -531,7 +530,7 @@ export class IpLookupQueueService implements OnModuleInit, OnModuleDestroy {
       priority: 2, // Low priority for backfill
     }));
 
-    await this.queueMultipleIps(items);
+    this.queueMultipleIps(items);
 
     this.logger.log(
       `Queued ${items.length} unique IPs for ${records.length} records`,

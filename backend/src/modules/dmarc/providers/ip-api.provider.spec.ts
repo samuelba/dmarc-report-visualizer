@@ -50,7 +50,7 @@ describe('IpApiProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('8.8.8.8');
@@ -80,7 +80,7 @@ describe('IpApiProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('192.168.1.1');
@@ -119,7 +119,7 @@ describe('IpApiProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('8.8.8.8');

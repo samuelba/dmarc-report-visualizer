@@ -224,18 +224,18 @@ describe('DmarcParserService', () => {
     });
 
     it('should throw BadRequestException for invalid XML content', async () => {
-      await expect(service.parseXmlReport(null as any)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.parseXmlReport(undefined as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.parseXmlReport(null as unknown as string),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.parseXmlReport(undefined as unknown as string),
+      ).rejects.toThrow(BadRequestException);
       await expect(service.parseXmlReport('')).rejects.toThrow(
         BadRequestException,
       );
-      await expect(service.parseXmlReport(123 as any)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.parseXmlReport(123 as unknown as string),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should parse malformed but parseable XML', async () => {
@@ -395,14 +395,14 @@ describe('DmarcParserService', () => {
     });
 
     it('should throw BadRequestException for invalid buffer', async () => {
-      await expect(service.unzipReport(null as any, 'xml')).rejects.toThrow(
-        BadRequestException,
-      );
       await expect(
-        service.unzipReport(undefined as any, 'xml'),
+        service.unzipReport(null as unknown as Buffer, 'xml'),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.unzipReport('not a buffer' as any, 'xml'),
+        service.unzipReport(undefined as unknown as Buffer, 'xml'),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.unzipReport('not a buffer' as unknown as Buffer, 'xml'),
       ).rejects.toThrow(BadRequestException);
     });
 

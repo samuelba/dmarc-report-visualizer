@@ -29,13 +29,13 @@ export class AddTokenFamilyTracking1740200000000 implements MigrationInterface {
     `);
 
     // Verify backfill - this query should return 0
-    const result = await queryRunner.query(`
+    const result = (await queryRunner.query(`
       SELECT COUNT(*) as count 
       FROM "refresh_tokens" 
       WHERE "family_id" IS NULL;
-    `);
+    `)) as { count: string }[];
 
-    const nullCount = parseInt(result[0].count, 10);
+    const nullCount = parseInt(String(result[0]?.count ?? '0'), 10);
     if (nullCount > 0) {
       throw new Error(
         `Backfill verification failed: ${nullCount} tokens still have NULL family_id`,

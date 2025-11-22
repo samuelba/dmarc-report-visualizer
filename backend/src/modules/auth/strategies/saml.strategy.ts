@@ -1,6 +1,10 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, Profile } from '@node-saml/passport-saml';
+import {
+  Strategy,
+  Profile,
+  SamlConfig as PassportSamlConfig,
+} from '@node-saml/passport-saml';
 import { ConfigService } from '@nestjs/config';
 import { SamlService } from '../services/saml.service';
 import { User } from '../entities/user.entity';
@@ -47,9 +51,9 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
 
         // Request configuration callback - loads IdP config dynamically
         passReqToCallback: false,
-      } as any, // Type assertion to bypass strict type checking for dynamic config
+      } as PassportSamlConfig,
       // Verify callback - this is required by passport-saml
-      async (profile: Profile, done: any) => {
+      async (profile: Profile, done: (err: any, user?: any) => void) => {
         try {
           const user = await this.validate(profile);
           done(null, user);
@@ -100,6 +104,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
         });
 
         // Call parent authenticate method
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         super.authenticate(req, options);
       })
       .catch((error) => {

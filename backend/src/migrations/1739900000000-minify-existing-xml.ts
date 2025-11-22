@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // Import xml-formatter at module level for better performance
-
+// Using require() for CommonJS compatibility in migration context
 const xmlFormatter = require('xml-formatter');
 
 export class MinifyExistingXml1739900000000 implements MigrationInterface {
@@ -12,12 +12,12 @@ export class MinifyExistingXml1739900000000 implements MigrationInterface {
     // The minification process removes unnecessary whitespace while preserving XML structure
 
     // Get total count first
-    const countResult = await queryRunner.query(`
+    const countResult = (await queryRunner.query(`
       SELECT COUNT(*) as total 
       FROM dmarc_reports 
       WHERE "originalXml" IS NOT NULL AND "originalXml" != ''
-    `);
-    const totalRecords = parseInt(countResult[0]?.total || '0', 10);
+    `)) as { total: string }[];
+    const totalRecords = parseInt(String(countResult[0]?.total ?? '0'), 10);
     console.log(`Found ${totalRecords} reports with XML data to minify`);
 
     if (totalRecords === 0) {
@@ -32,7 +32,7 @@ export class MinifyExistingXml1739900000000 implements MigrationInterface {
     let spaceSavedBytes = 0;
 
     for (let offset = 0; offset < totalRecords; offset += batchSize) {
-      const reports = await queryRunner.query(
+      const reports = (await queryRunner.query(
         `
         SELECT id, "originalXml"
         FROM dmarc_reports 
@@ -41,11 +41,11 @@ export class MinifyExistingXml1739900000000 implements MigrationInterface {
         LIMIT $1 OFFSET $2
       `,
         [batchSize, offset],
-      );
+      )) as { id: string; originalXml: string }[];
 
       for (const report of reports) {
         try {
-          const originalXml = report.originalXml;
+          const originalXml: string = report.originalXml;
           const originalSize = originalXml.length;
 
           // Minify the XML using xml-formatter's built-in minify function
@@ -102,5 +102,6 @@ export class MinifyExistingXml1739900000000 implements MigrationInterface {
     console.log(
       'This migration cannot be reversed. The XML content is preserved in minified form.',
     );
+    await Promise.resolve();
   }
 }

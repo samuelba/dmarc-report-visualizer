@@ -170,8 +170,8 @@ export class DmarcReportController {
   }
 
   @Get('stats/test-new-endpoint')
-  async testNewEndpoint(): Promise<{ message: string }> {
-    return { message: 'New endpoint working in stats!' };
+  testNewEndpoint(): Promise<{ message: string }> {
+    return Promise.resolve({ message: 'New endpoint working in stats!' });
   }
 
   @Post()
@@ -215,15 +215,16 @@ export class DmarcReportController {
         try {
           const filePath = path.join(dir, file);
           const buffer = await fs.readFile(filePath);
-          const ext = file.split('.').pop()?.toLowerCase() || '';
-
+          const ext: string = (file.split('.').pop() || '').toLowerCase();
           const xmlContent = await this.dmarcReportService.unzipReport(
-            buffer,
+            buffer as Buffer,
             ext,
           );
+          // xmlContent is already a string; no need for extra typeof check
           const parsed =
             await this.dmarcReportService.parseXmlReport(xmlContent);
-          (parsed as any).originalXml = minifyXml(xmlContent);
+          (parsed as Record<string, unknown>).originalXml =
+            minifyXml(xmlContent);
           const result =
             await this.dmarcReportService.createOrUpdateByReportId(parsed);
 
@@ -238,8 +239,8 @@ export class DmarcReportController {
   }
 
   @Get('test-endpoint')
-  async testEndpoint(): Promise<{ message: string }> {
-    return { message: 'Test endpoint working!' };
+  testEndpoint(): Promise<{ message: string }> {
+    return Promise.resolve({ message: 'Test endpoint working!' });
   }
 
   @Get('report/:id/xml')

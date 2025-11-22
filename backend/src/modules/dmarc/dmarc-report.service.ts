@@ -181,7 +181,7 @@ export class DmarcReportService {
 
     // Queue IP lookups if using async mode
     if (savedRecords.length > 0) {
-      await this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
+      this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
     }
 
     // Return the report with all relations loaded
@@ -235,7 +235,7 @@ export class DmarcReportService {
 
       // Queue IP lookups if using async mode
       if (savedRecords.length > 0) {
-        await this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
+        this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
       }
 
       const updatedReport = await this.findByCompositeKey(

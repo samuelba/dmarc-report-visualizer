@@ -88,7 +88,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     this.intervalHandle = setInterval(() => void this.pollOnce(), intervalMs);
   }
 
-  async onModuleDestroy(): Promise<void> {
+  onModuleDestroy(): void {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
@@ -201,7 +201,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     return { clientEmail, privateKey, delegatedUser };
   }
 
-  private async initializeGmailClientServiceAccount(
+  private initializeGmailClientServiceAccount(
     auth: GmailAuthConfig,
   ): Promise<void> {
     const jwt = new google.auth.JWT({
@@ -211,9 +211,10 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       subject: auth.delegatedUser,
     });
     this.gmailClient = google.gmail({ version: 'v1', auth: jwt });
+    return Promise.resolve();
   }
 
-  private async loadOauthConfig(): Promise<GmailOauthConfig | null> {
+  private loadOauthConfig(): Promise<GmailOauthConfig | null> {
     const clientId = this.config.get<string>('GMAIL_OAUTH_CLIENT_ID') || '';
     const clientSecret =
       this.config.get<string>('GMAIL_OAUTH_CLIENT_SECRET') || '';
@@ -225,14 +226,17 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         'Missing GMAIL_OAUTH_CLIENT_ID / GMAIL_OAUTH_CLIENT_SECRET / GMAIL_OAUTH_REFRESH_TOKEN',
       );
-      return null;
+      return Promise.resolve(null);
     }
-    return { clientId, clientSecret, refreshToken, redirectUri };
+    return Promise.resolve({
+      clientId,
+      clientSecret,
+      refreshToken,
+      redirectUri,
+    });
   }
 
-  private async initializeGmailClientOauth(
-    authCfg: GmailOauthConfig,
-  ): Promise<void> {
+  private initializeGmailClientOauth(authCfg: GmailOauthConfig): Promise<void> {
     const oauth2Client: OAuth2Client = new google.auth.OAuth2(
       authCfg.clientId,
       authCfg.clientSecret,
@@ -240,6 +244,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     );
     oauth2Client.setCredentials({ refresh_token: authCfg.refreshToken });
     this.gmailClient = google.gmail({ version: 'v1', auth: oauth2Client });
+    return Promise.resolve();
   }
 
   private async ensureLabel(name: string): Promise<string | null> {
