@@ -14,6 +14,16 @@ import {
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
 
+interface RawDomainStatsRow {
+  domain: string;
+  uniqueSources: string;
+  totalMessages: string;
+  passedMessages: string;
+  failedMessages: string;
+  spfPassed: string;
+  dkimPassed: string;
+}
+
 @Injectable()
 export class DomainService {
   constructor(
@@ -125,7 +135,7 @@ export class DomainService {
       .andWhere('record.headerFrom IS NOT NULL')
       .andWhere('record.headerFrom != :empty', { empty: '' })
       .groupBy('LOWER(record.headerFrom)')
-      .getRawMany();
+      .getRawMany<RawDomainStatsRow>();
 
     // Create result array combining managed and unmanaged domains
     const resultMap = new Map<string, DomainStatisticsDto>();
@@ -152,12 +162,12 @@ export class DomainService {
     // Then, add or update with actual statistics
     for (const stat of stats) {
       const domainLower = stat.domain.toLowerCase();
-      const totalMessages = parseInt(stat.totalMessages) || 0;
-      const passedMessages = parseInt(stat.passedMessages) || 0;
-      const failedMessages = parseInt(stat.failedMessages) || 0;
-      const spfPassed = parseInt(stat.spfPassed) || 0;
-      const dkimPassed = parseInt(stat.dkimPassed) || 0;
-      const uniqueSources = parseInt(stat.uniqueSources) || 0;
+      const totalMessages = parseInt(stat.totalMessages, 10) || 0;
+      const passedMessages = parseInt(stat.passedMessages, 10) || 0;
+      const failedMessages = parseInt(stat.failedMessages, 10) || 0;
+      const spfPassed = parseInt(stat.spfPassed, 10) || 0;
+      const dkimPassed = parseInt(stat.dkimPassed, 10) || 0;
+      const uniqueSources = parseInt(stat.uniqueSources, 10) || 0;
 
       const isManaged = managedDomainsMap.has(domainLower);
       const managedDomain = managedDomainsMap.get(domainLower);

@@ -42,7 +42,7 @@ export class ThirdPartySender {
   /**
    * Test if a domain matches the DKIM pattern
    */
-  matchesDkim(domain: string): boolean {
+  matchesDkim(domain: string | null | undefined): boolean {
     if (!this.enabled || !this.dkimPattern || !domain) {
       return false;
     }
@@ -59,7 +59,7 @@ export class ThirdPartySender {
   /**
    * Test if a domain matches the SPF pattern
    */
-  matchesSpf(domain: string): boolean {
+  matchesSpf(domain: string | null | undefined): boolean {
     if (!this.enabled || !this.spfPattern || !domain) {
       return false;
     }

@@ -12,7 +12,7 @@ describe('PasswordService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string, defaultValue?: any) => {
+            get: jest.fn((key: string, defaultValue?: unknown) => {
               if (key === 'BCRYPT_ROUNDS') {
                 return 10;
               }

@@ -66,7 +66,7 @@ describe('IpWhoisProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('8.8.8.8');
@@ -96,7 +96,7 @@ describe('IpWhoisProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('192.168.1.1');
@@ -126,7 +126,7 @@ describe('IpWhoisProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       await provider.lookup('8.8.8.8');
@@ -147,7 +147,7 @@ describe('IpWhoisProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       await provider.lookup('8.8.8.8');
@@ -168,7 +168,7 @@ describe('IpWhoisProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('8.8.8.8');
@@ -187,7 +187,7 @@ describe('IpWhoisProvider', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => mockResponse,
+        json: () => Promise.resolve(mockResponse),
       } as Response);
 
       const result = await provider.lookup('8.8.8.8');

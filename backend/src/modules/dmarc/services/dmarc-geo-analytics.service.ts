@@ -3,6 +3,51 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DmarcRecord } from '../entities/dmarc-record.entity';
 
+// Raw query result interfaces (column aliases are normalized to lowercase keys by TypeORM)
+interface RawTopCountryRow {
+  country: string;
+  count: string; // aggregated SUM(count)
+  dmarcpasscount: string; // SUM(...) as dmarcPassCount
+  dkimpasscount: string;
+  spfpasscount: string;
+}
+
+interface RawTotalRow {
+  total: string;
+}
+
+interface RawGeoHeatmapRow {
+  country: string;
+  latitude: string | null;
+  longitude: string | null;
+  count: string;
+  passcount: string;
+  failcount: string;
+}
+
+interface RawTopIpRow {
+  sourceip: string;
+  country: string | null;
+  city: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  isp: string | null;
+  org: string | null;
+  count: string;
+  passcount: string;
+  failcount: string;
+  dkimpasscount: string;
+  spfpasscount: string;
+}
+
+interface RawHeaderFromRow {
+  headerfrom: string;
+  count: string;
+  dmarcpasscount: string;
+  dkimpasscount: string;
+  spfpasscount: string;
+}
+
 @Injectable()
 export class DmarcGeoAnalyticsService {
   constructor(
@@ -56,7 +101,7 @@ export class DmarcGeoAnalyticsService {
       query = query.andWhere('report.endDate <= :to', { to });
     }
 
-    const result = await query.getRawMany();
+    const result = await query.getRawMany<RawTopCountryRow>();
     return result.map((r) => ({
       country: r.country,
       count: parseInt(r.count, 10),
@@ -108,8 +153,8 @@ export class DmarcGeoAnalyticsService {
       .clone()
       .select('COUNT(DISTINCT record.geoCountry) as total');
 
-    const totalResult = await totalQuery.getRawOne();
-    const total = parseInt(totalResult.total, 10);
+    const totalResult = await totalQuery.getRawOne<RawTotalRow>();
+    const total = totalResult ? parseInt(totalResult.total, 10) : 0;
 
     // Get paginated data
     const dataQuery = baseQuery
@@ -126,7 +171,7 @@ export class DmarcGeoAnalyticsService {
       .offset((page - 1) * pageSize)
       .limit(pageSize);
 
-    const result = await dataQuery.getRawMany();
+    const result = await dataQuery.getRawMany<RawTopCountryRow>();
     const data = result.map((r) => ({
       country: r.country,
       count: parseInt(r.count, 10),
@@ -185,11 +230,11 @@ export class DmarcGeoAnalyticsService {
       query = query.andWhere('report.endDate <= :to', { to });
     }
 
-    const result = await query.getRawMany();
+    const result = await query.getRawMany<RawGeoHeatmapRow>();
     return result.map((r) => ({
       country: r.country,
-      latitude: parseFloat(r.latitude),
-      longitude: parseFloat(r.longitude),
+      latitude: r.latitude ? parseFloat(r.latitude) : 0,
+      longitude: r.longitude ? parseFloat(r.longitude) : 0,
       count: parseInt(r.count, 10),
       passCount: parseInt(r.passcount, 10),
       failCount: parseInt(r.failcount, 10),
@@ -246,8 +291,8 @@ export class DmarcGeoAnalyticsService {
       'COUNT(DISTINCT record.sourceIp)',
       'total',
     );
-    const totalResult = await totalQuery.getRawOne();
-    const total = parseInt(totalResult.total, 10);
+    const totalResult = await totalQuery.getRawOne<RawTotalRow>();
+    const total = totalResult ? parseInt(totalResult.total, 10) : 0;
 
     // Get paginated data
     const dataQuery = baseQuery
@@ -273,7 +318,7 @@ export class DmarcGeoAnalyticsService {
       .offset((page - 1) * pageSize)
       .limit(pageSize);
 
-    const result = await dataQuery.getRawMany();
+    const result = await dataQuery.getRawMany<RawTopIpRow>();
 
     const data = result.map((r) => ({
       sourceIp: r.sourceip,
@@ -282,12 +327,12 @@ export class DmarcGeoAnalyticsService {
       failCount: parseInt(r.failcount, 10),
       dkimPassCount: parseInt(r.dkimpasscount, 10),
       spfPassCount: parseInt(r.spfpasscount, 10),
-      country: r.country || undefined,
-      city: r.city || undefined,
+      country: r.country ?? undefined,
+      city: r.city ?? undefined,
       latitude: r.latitude ? parseFloat(r.latitude) : undefined,
       longitude: r.longitude ? parseFloat(r.longitude) : undefined,
-      isp: r.isp || undefined,
-      org: r.org || undefined,
+      isp: r.isp ?? undefined,
+      org: r.org ?? undefined,
     }));
 
     return {
@@ -339,8 +384,8 @@ export class DmarcGeoAnalyticsService {
     const totalQuery = baseQuery
       .clone()
       .select('COUNT(DISTINCT record.headerFrom) as total');
-    const totalResult = await totalQuery.getRawOne();
-    const total = parseInt(totalResult.total, 10) || 0;
+    const totalResult = await totalQuery.getRawOne<RawTotalRow>();
+    const total = totalResult ? parseInt(totalResult.total, 10) || 0 : 0;
 
     // Paginated data
     const dataQuery = baseQuery
@@ -357,7 +402,7 @@ export class DmarcGeoAnalyticsService {
       .offset((page - 1) * pageSize)
       .limit(pageSize);
 
-    const result = await dataQuery.getRawMany();
+    const result = await dataQuery.getRawMany<RawHeaderFromRow>();
 
     const data = result.map((r) => ({
       headerFrom: r.headerfrom,

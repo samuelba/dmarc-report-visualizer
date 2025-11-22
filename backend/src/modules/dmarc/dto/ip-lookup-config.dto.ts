@@ -15,6 +15,16 @@ class ApiKeysDto {
   @IsOptional()
   @IsString()
   iplocate?: string;
+
+  @ApiPropertyOptional({ description: 'API key for ipapi.co service' })
+  @IsOptional()
+  @IsString()
+  ipapico?: string;
+
+  @ApiPropertyOptional({ description: 'API key for IPWhois service' })
+  @IsOptional()
+  @IsString()
+  ipwhois?: string;
 }
 
 export class IpLookupConfigDto {

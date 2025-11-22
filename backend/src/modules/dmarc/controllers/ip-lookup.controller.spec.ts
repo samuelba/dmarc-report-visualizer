@@ -5,6 +5,7 @@ import { IpLookupQueueService } from '../services/ip-lookup-queue.service';
 import { DmarcParserService } from '../services/dmarc-parser.service';
 import { IpLookupProviderType } from '../config/ip-lookup.config';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { IpLookupConfigDto } from '../dto/ip-lookup-config.dto';
 
 describe('IpLookupController', () => {
   let controller: IpLookupController;
@@ -153,7 +154,7 @@ describe('IpLookupController', () => {
     });
 
     it('should update only specified configuration fields', () => {
-      const partialConfig = {
+      const partialConfig: Partial<IpLookupConfigDto> = {
         provider: IpLookupProviderType.IPLOCATE,
       };
 
@@ -162,7 +163,9 @@ describe('IpLookupController', () => {
         provider: IpLookupProviderType.IPLOCATE,
       });
 
-      const result = controller.updateConfig(partialConfig as any);
+      const result = controller.updateConfig(
+        partialConfig as IpLookupConfigDto,
+      );
 
       expect(geolocationService.setConfig).toHaveBeenCalledWith(partialConfig);
 
@@ -365,10 +368,10 @@ describe('IpLookupController', () => {
   });
 
   describe('getProcessingStatus', () => {
-    it('should return processing status with queue stats', async () => {
+    it('should return processing status with queue stats', () => {
       ipLookupQueueService.getQueueStats.mockReturnValue(mockQueueStats);
 
-      const result = await controller.getProcessingStatus();
+      const result = controller.getProcessingStatus();
 
       expect(result).toEqual({
         queue: mockQueueStats,

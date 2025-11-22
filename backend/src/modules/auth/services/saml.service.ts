@@ -363,7 +363,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
    * Generate SP metadata XML
    * @returns SAML 2.0 SP metadata XML string
    */
-  async generateSpMetadata(): Promise<string> {
+  generateSpMetadata(): Promise<string> {
     const spEntityId = this.configService.get<string>('SAML_ENTITY_ID');
     const spAcsUrl = this.configService.get<string>('SAML_ACS_URL');
 
@@ -393,7 +393,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       .up()
       .up();
 
-    return doc.end({ prettyPrint: true });
+    return Promise.resolve(doc.end({ prettyPrint: true }));
   }
 
   /**
@@ -403,7 +403,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
    * @param assertion SAML assertion object from passport-saml
    * @returns Validation result with errors if invalid
    */
-  async validateSamlAssertion(assertion: any): Promise<ValidationResult> {
+  async validateSamlAssertion(
+    assertion: SamlProfile,
+  ): Promise<ValidationResult> {
     const errors: string[] = [];
     const config = await this.getConfig();
 
@@ -436,14 +438,14 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
     const clockSkewMs = 5000; // 5 seconds clock skew tolerance
 
     if (assertion.notBefore) {
-      const notBefore = new Date(assertion.notBefore);
+      const notBefore = new Date(assertion.notBefore as string);
       if (now.getTime() < notBefore.getTime() - clockSkewMs) {
         errors.push('Assertion not yet valid (NotBefore)');
       }
     }
 
     if (assertion.notOnOrAfter) {
-      const notOnOrAfter = new Date(assertion.notOnOrAfter);
+      const notOnOrAfter = new Date(assertion.notOnOrAfter as string);
       if (now.getTime() >= notOnOrAfter.getTime() + clockSkewMs) {
         errors.push('Assertion expired (NotOnOrAfter)');
       }
@@ -451,7 +453,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
     // Validate SessionNotOnOrAfter if present
     if (assertion.sessionNotOnOrAfter) {
-      const sessionNotOnOrAfter = new Date(assertion.sessionNotOnOrAfter);
+      const sessionNotOnOrAfter = new Date(
+        assertion.sessionNotOnOrAfter as string,
+      );
       if (now.getTime() >= sessionNotOnOrAfter.getTime() + clockSkewMs) {
         errors.push('Session expired (SessionNotOnOrAfter)');
       }
@@ -592,7 +596,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (assertionId) {
-      const isReplay = await this.checkAssertionReplay(assertionId);
+      const isReplay = await this.checkAssertionReplay(assertionId as string);
       if (isReplay) {
         throw new UnauthorizedException(
           'SAML authentication failed: Assertion has already been processed. Please try again.',
@@ -603,10 +607,10 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       const notOnOrAfter =
         profile['sessionNotOnOrAfter'] || profile['notOnOrAfter'];
       const expiresAt = notOnOrAfter
-        ? new Date(notOnOrAfter)
+        ? new Date(notOnOrAfter as string)
         : new Date(Date.now() + 24 * 60 * 60 * 1000); // Default 24 hours
 
-      await this.markAssertionProcessed(assertionId, expiresAt);
+      await this.markAssertionProcessed(assertionId as string, expiresAt);
     }
 
     // Find existing user by email

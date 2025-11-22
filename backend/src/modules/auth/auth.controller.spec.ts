@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthController } from './auth.controller';
 import { AuthService } from './services/auth.service';
 import { RateLimiterService } from './services/rate-limiter.service';
@@ -12,6 +12,7 @@ import { RecoveryCodeService } from './services/recovery-code.service';
 import { UserService } from './services/user.service';
 import { InviteService } from './services/invite.service';
 import { User } from './entities/user.entity';
+import { UserRole } from './enums/user-role.enum';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -23,7 +24,7 @@ describe('AuthController', () => {
     email: 'test@example.com',
     passwordHash: 'bcrypt$2b$10$hashedpassword',
     authProvider: 'local',
-    role: 'user' as any,
+    role: UserRole.USER,
     organizationId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -259,7 +260,7 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'SecurePass123!',
       };
-      const request = { ip: '127.0.0.1', connection: {} } as any;
+      const request = { ip: '127.0.0.1', connection: {} } as unknown as Request;
 
       mockAuthService.validateUser.mockResolvedValue(mockUser);
       mockAuthService.login.mockResolvedValue({
@@ -298,7 +299,7 @@ describe('AuthController', () => {
         email: 'test@example.com',
         password: 'WrongPassword!',
       };
-      const request = { ip: '127.0.0.1', connection: {} } as any;
+      const request = { ip: '127.0.0.1', connection: {} } as unknown as Request;
 
       mockAuthService.validateUser.mockResolvedValue(null);
 
@@ -325,7 +326,7 @@ describe('AuthController', () => {
         ip: '192.168.1.1',
         socket: {},
         headers: {},
-      } as any;
+      } as unknown as Request;
 
       mockAuthService.refreshTokens.mockResolvedValue({
         accessToken: 'new-access-token',
@@ -361,7 +362,7 @@ describe('AuthController', () => {
         ip: undefined,
         headers: { 'x-forwarded-for': '10.0.0.1, 192.168.1.1' },
         socket: {},
-      } as any;
+      } as unknown as Request;
 
       mockAuthService.refreshTokens.mockResolvedValue({
         accessToken: 'new-access-token',
@@ -387,7 +388,7 @@ describe('AuthController', () => {
         ip: undefined,
         headers: {},
         socket: { remoteAddress: '172.16.0.1' },
-      } as any;
+      } as unknown as Request;
 
       mockAuthService.refreshTokens.mockResolvedValue({
         accessToken: 'new-access-token',
@@ -413,7 +414,7 @@ describe('AuthController', () => {
         ip: undefined,
         headers: {},
         socket: {},
-      } as any;
+      } as unknown as Request;
 
       mockAuthService.refreshTokens.mockResolvedValue({
         accessToken: 'new-access-token',
@@ -431,7 +432,7 @@ describe('AuthController', () => {
     });
 
     it('should throw error when refresh token is missing', async () => {
-      const request = { cookies: {} } as any;
+      const request = { cookies: {} } as unknown as Request;
       const response = mockResponse();
 
       await expect(controller.refresh(request, response)).rejects.toThrow(
@@ -446,7 +447,7 @@ describe('AuthController', () => {
           refreshToken: 'old-refresh-token',
           // No accessToken provided
         },
-      } as any;
+      } as unknown as Request;
       const response = mockResponse();
 
       await expect(controller.refresh(request, response)).rejects.toThrow(
@@ -467,7 +468,7 @@ describe('AuthController', () => {
         ip: '192.168.1.1',
         socket: {},
         headers: {},
-      } as any;
+      } as unknown as Request;
 
       // Simulate authentication error (e.g., theft detection, expired token, invalid token)
       mockAuthService.refreshTokens.mockRejectedValue(
@@ -506,7 +507,7 @@ describe('AuthController', () => {
         ip: '192.168.1.1',
         socket: {},
         headers: {},
-      } as any;
+      } as unknown as Request;
 
       // Simulate a transient error (e.g., database connection issue)
       mockAuthService.refreshTokens.mockRejectedValue(
@@ -529,7 +530,7 @@ describe('AuthController', () => {
       const request = {
         user: { id: mockUser.id },
         cookies: { refreshToken: 'refresh-token' },
-      } as any;
+      } as unknown as Request & { user: { id: string } };
 
       mockAuthService.logout.mockResolvedValue(undefined);
 
@@ -551,7 +552,7 @@ describe('AuthController', () => {
       const request = {
         user: { id: mockUser.id },
         cookies: {},
-      } as any;
+      } as unknown as Request & { user: { id: string } };
 
       const response = mockResponse();
       const result = await controller.logout(request, response);
@@ -578,8 +579,8 @@ describe('AuthController', () => {
       };
       const request = {
         user: { id: mockUser.id, email: mockUser.email },
-      } as any;
-      const response = { cookie: jest.fn() } as any;
+      } as unknown as Request & { user: { id: string; email: string } };
+      const response = { cookie: jest.fn() } as unknown as Response;
 
       mockAuthService.changePassword.mockResolvedValue(mockUser);
       mockAuthService.login.mockResolvedValue({
@@ -621,8 +622,8 @@ describe('AuthController', () => {
       };
       const request = {
         user: { id: mockUser.id, email: mockUser.email },
-      } as any;
-      const response = { cookie: jest.fn() } as any;
+      } as unknown as Request & { user: { id: string; email: string } };
+      const response = { cookie: jest.fn() } as unknown as Response;
 
       await expect(
         controller.changePassword(changePasswordDto, request, response),
@@ -635,7 +636,7 @@ describe('AuthController', () => {
     describe('login with password login disabled', () => {
       it('should reject password login when disabled', async () => {
         const loginDto = { email: 'test@example.com', password: 'password' };
-        const request = { ip: '127.0.0.1' } as any;
+        const request = { ip: '127.0.0.1' } as unknown as Request;
         const response = mockResponse();
 
         // Mock password login as disabled
@@ -651,7 +652,8 @@ describe('AuthController', () => {
 
       it('should allow password login when password login is enabled', async () => {
         const loginDto = { email: 'user@example.com', password: 'password' };
-        const request = { ip: '127.0.0.1' } as any;
+        // Minimal request stub cast via unknown to Request
+        const request = { ip: '127.0.0.1' } as unknown as Request;
         const response = mockResponse();
 
         // Mock password login as enabled
@@ -738,7 +740,9 @@ describe('AuthController', () => {
             email: samlUser.email,
             authProvider: 'saml',
           },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; email: string; authProvider: string };
+        };
 
         await expect(controller.setupTotp(request)).rejects.toThrow(
           "Two-factor authentication is managed by your organization's Identity Provider",
@@ -752,7 +756,9 @@ describe('AuthController', () => {
             email: localUser.email,
             authProvider: 'local',
           },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; email: string; authProvider: string };
+        };
 
         mockTotpService.isTotpEnabled.mockResolvedValue(false);
         mockTotpService.generateSecret.mockReturnValue({
@@ -775,7 +781,9 @@ describe('AuthController', () => {
       it('should throw SamlUserTotpException for SAML users', async () => {
         const request = {
           user: { id: samlUser.id, authProvider: 'saml' },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; authProvider: string };
+        };
         const dto = { secret: 'test-secret', token: '123456' };
 
         await expect(controller.enableTotp(dto, request)).rejects.toThrow(
@@ -788,7 +796,9 @@ describe('AuthController', () => {
       it('should throw SamlUserTotpException for SAML users', async () => {
         const request = {
           user: { id: samlUser.id, authProvider: 'saml' },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; authProvider: string };
+        };
         const dto = { password: 'password', token: '123456' };
 
         await expect(controller.disableTotp(dto, request)).rejects.toThrow(
@@ -801,7 +811,9 @@ describe('AuthController', () => {
       it('should throw SamlUserTotpException for SAML users', async () => {
         const request = {
           user: { id: samlUser.id, authProvider: 'saml' },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; authProvider: string };
+        };
         const body = { token: '123456' };
 
         await expect(
@@ -816,7 +828,9 @@ describe('AuthController', () => {
       it('should throw SamlUserTotpException for SAML users', async () => {
         const request = {
           user: { id: samlUser.id, authProvider: 'saml' },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; authProvider: string };
+        };
 
         await expect(controller.getTotpStatus(request)).rejects.toThrow(
           "Two-factor authentication is managed by your organization's Identity Provider",
@@ -826,7 +840,9 @@ describe('AuthController', () => {
       it('should return status for local users', async () => {
         const request = {
           user: { id: localUser.id, authProvider: 'local' },
-        } as any;
+        } as unknown as Request & {
+          user: { id: string; authProvider: string };
+        };
 
         mockTotpService.isTotpEnabled.mockResolvedValue(false);
 
@@ -846,9 +862,11 @@ describe('AuthController', () => {
       it('should create an invite and return invite link', async () => {
         const dto = {
           email: 'newuser@example.com',
-          role: 'user' as any,
+          role: UserRole.USER,
         };
-        const request = { user: { id: 'admin-id' } } as any;
+        const request = {
+          user: { id: 'admin-id' },
+        } as unknown as Request & { user: { id: string } };
 
         const mockInvite = {
           id: 'invite-id',
@@ -948,7 +966,10 @@ describe('AuthController', () => {
 
         mockInviteService.validateInvite.mockResolvedValue(mockValidation);
 
-        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const request = {
+          ip: '127.0.0.1',
+          connection: {},
+        } as unknown as Request;
         const result = await controller.getInviteDetails(token, request);
 
         expect(mockInviteService.validateInvite).toHaveBeenCalledWith(token);
@@ -969,7 +990,10 @@ describe('AuthController', () => {
 
         mockInviteService.validateInvite.mockResolvedValue(mockValidation);
 
-        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const request = {
+          ip: '127.0.0.1',
+          connection: {},
+        } as unknown as Request;
         const result = await controller.getInviteDetails(token, request);
 
         expect(result).toEqual({
@@ -1001,7 +1025,10 @@ describe('AuthController', () => {
           user: newUser,
         });
 
-        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const request = {
+          ip: '127.0.0.1',
+          connection: {},
+        } as unknown as Request;
         const result = await controller.acceptInvite(
           token,
           dto,
@@ -1026,7 +1053,10 @@ describe('AuthController', () => {
         };
         const response = mockResponse();
 
-        const request = { ip: '127.0.0.1', connection: {} } as any;
+        const request = {
+          ip: '127.0.0.1',
+          connection: {},
+        } as unknown as Request;
         await expect(
           controller.acceptInvite(token, dto, request, response),
         ).rejects.toThrow(BadRequestException);

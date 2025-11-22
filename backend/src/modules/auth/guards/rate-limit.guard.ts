@@ -5,6 +5,11 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Request } from 'express';
+// Extended request interface to include clientIp without any casts
+interface RequestWithClientIp extends Request {
+  clientIp?: string;
+}
 import { RateLimiterService } from '../services/rate-limiter.service';
 
 @Injectable()
@@ -12,9 +17,9 @@ export class RateLimitGuard implements CanActivate {
   constructor(private readonly rateLimiterService: RateLimiterService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const ip = request.ip || request.connection.remoteAddress || 'unknown';
-    const email = request.body?.email;
+    const request = context.switchToHttp().getRequest<RequestWithClientIp>();
+    const ip = request.ip || request.socket?.remoteAddress || 'unknown';
+    const email = request.body?.email as string | undefined;
 
     // Store IP in request for potential audit logging
     request.clientIp = ip;

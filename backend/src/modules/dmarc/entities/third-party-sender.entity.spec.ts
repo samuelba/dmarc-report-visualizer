@@ -59,13 +59,13 @@ describe('ThirdPartySender Entity', () => {
     it('should return false when domain is null', () => {
       sender.dkimPattern = '.*\\.google\\.com$';
 
-      expect(sender.matchesDkim(null as any)).toBe(false);
+      expect(sender.matchesDkim(null)).toBe(false);
     });
 
     it('should return false when domain is undefined', () => {
       sender.dkimPattern = '.*\\.google\\.com$';
 
-      expect(sender.matchesDkim(undefined as any)).toBe(false);
+      expect(sender.matchesDkim(undefined)).toBe(false);
     });
 
     it('should handle complex regex patterns', () => {
@@ -163,13 +163,13 @@ describe('ThirdPartySender Entity', () => {
     it('should return false when domain is null', () => {
       sender.spfPattern = '^172\\.253\\.';
 
-      expect(sender.matchesSpf(null as any)).toBe(false);
+      expect(sender.matchesSpf(null)).toBe(false);
     });
 
     it('should return false when domain is undefined', () => {
       sender.spfPattern = '^172\\.253\\.';
 
-      expect(sender.matchesSpf(undefined as any)).toBe(false);
+      expect(sender.matchesSpf(undefined)).toBe(false);
     });
 
     it('should handle CIDR-like patterns', () => {

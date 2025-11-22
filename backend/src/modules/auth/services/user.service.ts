@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { UserRole } from '../enums/user-role.enum';
+import { RevocationReason } from '../entities/refresh-token.entity';
 
 @Injectable()
 export class UserService {
@@ -51,7 +52,7 @@ export class UserService {
     // Invalidate all refresh tokens for this user to force re-authentication
     await this.refreshTokenRepository.update(
       { userId: id, revoked: false },
-      { revoked: true, revocationReason: 'password_change' as any },
+      { revoked: true, revocationReason: RevocationReason.PASSWORD_CHANGE },
     );
 
     return user;

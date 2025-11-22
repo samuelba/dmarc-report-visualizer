@@ -378,14 +378,20 @@ export class DmarcSearchService {
       const rows = await qb.orderBy('v', 'ASC').getRawMany();
       return rows.map((r) => r.v).filter(Boolean);
     }
-    const map: any = {
+    type DistinctField =
+      | 'sourceIp'
+      | 'envelopeTo'
+      | 'envelopeFrom'
+      | 'headerFrom'
+      | 'country';
+    const map: Record<DistinctField, string> = {
       sourceIp: 'rec.sourceIp',
       envelopeTo: 'rec.envelopeTo',
       envelopeFrom: 'rec.envelopeFrom',
       headerFrom: 'rec.headerFrom',
       country: 'rec.geoCountry',
     };
-    const col = map[field];
+    const col = map[field as DistinctField];
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep')
@@ -397,8 +403,10 @@ export class DmarcSearchService {
     if (to) {
       qb.andWhere('rep.beginDate <= :to', { to });
     }
-    const rows = await qb.orderBy('v', 'ASC').getRawMany();
-    return rows.map((r: any) => r.v).filter(Boolean);
+    const rows = await qb
+      .orderBy('v', 'ASC')
+      .getRawMany<{ v: string | null }>();
+    return rows.map((r) => r.v).filter((v): v is string => Boolean(v));
   }
 
   async getDomains(): Promise<string[]> {
@@ -407,19 +415,27 @@ export class DmarcSearchService {
       .createQueryBuilder('report')
       .select('DISTINCT report.domain', 'domain')
       .where('report.domain IS NOT NULL')
-      .getRawMany();
+      .getRawMany<{ domain: string | null }>();
 
     // Get domains from records (header from)
     const headerFromDomains = await this.dmarcRecordRepository
       .createQueryBuilder('record')
       .select('DISTINCT record.headerFrom', 'domain')
       .where('record.headerFrom IS NOT NULL')
-      .getRawMany();
+      .getRawMany<{ domain: string | null }>();
 
     // Combine and deduplicate
     const allDomains = new Set<string>();
-    reportDomains.forEach((r) => allDomains.add(r.domain));
-    headerFromDomains.forEach((r) => allDomains.add(r.domain));
+    reportDomains.forEach((r) => {
+      if (r.domain) {
+        allDomains.add(r.domain);
+      }
+    });
+    headerFromDomains.forEach((r) => {
+      if (r.domain) {
+        allDomains.add(r.domain);
+      }
+    });
 
     return Array.from(allDomains).sort();
   }
@@ -431,8 +447,10 @@ export class DmarcSearchService {
       .select('DISTINCT report.domain', 'domain')
       .where('report.domain IS NOT NULL')
       .orderBy('domain', 'ASC')
-      .getRawMany();
+      .getRawMany<{ domain: string | null }>();
 
-    return reportDomains.map((r) => r.domain).filter(Boolean);
+    return reportDomains
+      .map((r) => r.domain)
+      .filter((d): d is string => Boolean(d));
   }
 }

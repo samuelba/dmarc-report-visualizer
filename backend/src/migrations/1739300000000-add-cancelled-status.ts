@@ -18,5 +18,7 @@ export class AddCancelledStatus1739300000000 implements MigrationInterface {
     console.log(
       'Warning: Cannot remove enum value "cancelled" in PostgreSQL. Manual intervention required if needed.',
     );
+    // Intentionally no reversible action; ensure await for lint rule
+    return Promise.resolve();
   }
 }

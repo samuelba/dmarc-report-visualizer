@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GeolocationService } from './geolocation.service';
 import { IpLookupProviderType } from '../config/ip-lookup.config';
+import { IpLookupConfigDto } from '../dto/ip-lookup-config.dto';
 
 /**
  * Service to initialize the IP lookup configuration on application startup
@@ -48,7 +49,8 @@ export class IpLookupInitService implements OnModuleInit {
         true,
       );
 
-      const apiKeys: any = {};
+      const apiKeys: { iplocate?: string; ipapico?: string; ipwhois?: string } =
+        {};
       if (iplocateApiKey) {
         apiKeys.iplocate = iplocateApiKey;
       }
@@ -59,7 +61,7 @@ export class IpLookupInitService implements OnModuleInit {
         apiKeys.ipwhois = ipwhoisApiKey;
       }
 
-      const config = {
+      const config: IpLookupConfigDto = {
         provider: provider as IpLookupProviderType,
         fallbackProviders:
           fallbackProviders.length > 0 ? fallbackProviders : undefined,

@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, X2jOptions } from 'fast-xml-parser';
 import * as zlib from 'zlib';
 const AdmZip = require('adm-zip');
 import * as unzipper from 'unzipper';
@@ -43,7 +43,7 @@ export class DmarcParserService {
       throw new BadRequestException('Invalid XML content');
     }
 
-    const parser = new XMLParser({
+    const options: Partial<X2jOptions> = {
       ignoreAttributes: false,
       attributeNamePrefix: '@_',
       allowBooleanAttributes: true,
@@ -55,15 +55,13 @@ export class DmarcParserService {
         _jPath: string,
         _isLeafNode: boolean,
         _isAttribute: boolean,
-      ): boolean => {
-        return (
-          tagName === 'record' ||
-          tagName === 'dkim' ||
-          tagName === 'spf' ||
-          tagName === 'reason'
-        );
-      },
-    } as any);
+      ): boolean =>
+        tagName === 'record' ||
+        tagName === 'dkim' ||
+        tagName === 'spf' ||
+        tagName === 'reason',
+    };
+    const parser = new XMLParser(options);
 
     let parsed: any;
     try {
@@ -102,7 +100,7 @@ export class DmarcParserService {
       const authResults = recordData.auth_results || {};
       const policyEvaluated = row.policy_evaluated || {};
 
-      const normalizePassFail = (v: any): 'pass' | 'fail' | undefined => {
+      const normalizePassFail = (v: unknown): 'pass' | 'fail' | undefined => {
         // Handle both string and array formats (some XML parsers return arrays)
         const value = Array.isArray(v) ? v[0] : v;
         if (typeof value !== 'string') {
@@ -119,14 +117,14 @@ export class DmarcParserService {
       };
 
       const normalizeDisposition = (
-        v: any,
+        v: unknown,
       ): 'none' | 'quarantine' | 'reject' | undefined => {
         if (typeof v !== 'string') {
           return undefined;
         }
         const val = v.toLowerCase();
         if (val === 'none' || val === 'quarantine' || val === 'reject') {
-          return val as any;
+          return val;
         }
         return undefined;
       };
@@ -140,16 +138,31 @@ export class DmarcParserService {
 
       // Create the main record
       const dmarcRecord: Partial<DmarcRecord> = {
-        sourceIp: row.source_ip,
-        count: row.count ? parseInt(row.count.toString()) : undefined,
+        sourceIp: typeof row.source_ip === 'string' ? row.source_ip : undefined,
+        count: row.count ? parseInt(String(row.count), 10) : undefined,
         disposition: normalizeDisposition(policyEvaluated.disposition),
         dmarcDkim: normalizePassFail(policyEvaluated.dkim),
         dmarcSpf: normalizePassFail(policyEvaluated.spf),
-        envelopeTo: identifiers.envelope_to,
-        envelopeFrom: identifiers.envelope_from,
-        headerFrom: identifiers.header_from,
-        reasonType: primaryReason?.type,
-        reasonComment: primaryReason?.comment,
+        envelopeTo:
+          typeof identifiers.envelope_to === 'string'
+            ? identifiers.envelope_to
+            : undefined,
+        envelopeFrom:
+          typeof identifiers.envelope_from === 'string'
+            ? identifiers.envelope_from
+            : undefined,
+        headerFrom:
+          typeof identifiers.header_from === 'string'
+            ? identifiers.header_from
+            : undefined,
+        reasonType:
+          typeof primaryReason?.type === 'string'
+            ? primaryReason.type
+            : undefined,
+        reasonComment:
+          typeof primaryReason?.comment === 'string'
+            ? primaryReason.comment
+            : undefined,
       };
 
       // Parse DKIM results
@@ -157,13 +170,14 @@ export class DmarcParserService {
       const dkimArray = this.coerceToArray(authResults.dkim || []);
       for (const dkim of dkimArray) {
         if (dkim && typeof dkim === 'object') {
+          const dkimResultValue =
+            typeof dkim.result === 'string'
+              ? dkim.result.toLowerCase()
+              : undefined;
           dkimResults.push({
             domain: dkim.domain,
             selector: dkim.selector,
-            result:
-              typeof dkim.result === 'string'
-                ? ((dkim.result as string).toLowerCase() as any)
-                : undefined,
+            result: dkimResultValue,
             humanResult: dkim.human_result,
           });
         }
@@ -177,12 +191,13 @@ export class DmarcParserService {
       const spfArray = this.coerceToArray(authResults.spf || []);
       for (const spf of spfArray) {
         if (spf && typeof spf === 'object') {
+          const spfResultValue =
+            typeof spf.result === 'string'
+              ? spf.result.toLowerCase()
+              : undefined;
           spfResults.push({
             domain: spf.domain,
-            result:
-              typeof spf.result === 'string'
-                ? ((spf.result as string).toLowerCase() as any)
-                : undefined,
+            result: spfResultValue,
           });
         }
       }
@@ -335,7 +350,7 @@ export class DmarcParserService {
         );
         if (xmlEntry) {
           this.logger.debug(`Found XML entry: ${xmlEntry.entryName}`);
-          const data = xmlEntry.getData();
+          const data: Buffer = xmlEntry.getData() as Buffer;
           const result = data.toString('utf8');
           this.logger.debug(
             `AdmZip extraction successful: ${result.length} characters`,
@@ -350,7 +365,7 @@ export class DmarcParserService {
         );
         if (gzEntry) {
           this.logger.debug(`Found GZ entry: ${gzEntry.entryName}`);
-          const data = gzEntry.getData();
+          const data: Buffer = gzEntry.getData() as Buffer;
           const result = this.decompressGzipToString(data);
           this.logger.debug(
             `AdmZip GZ extraction successful: ${result.length} characters`,
@@ -361,7 +376,7 @@ export class DmarcParserService {
         this.logger.debug(
           `Using first entry as fallback: ${entries[0].entryName}`,
         );
-        const data = entries[0].getData();
+        const data: Buffer = entries[0].getData() as Buffer;
         const result = data.toString('utf8');
         this.logger.debug(
           `AdmZip fallback extraction successful: ${result.length} characters`,
@@ -369,17 +384,28 @@ export class DmarcParserService {
         return result;
       } catch (admZipError) {
         // Log the AdmZip error for debugging
-        this.logger.warn(`AdmZip failed for file: ${admZipError.message}`);
-        this.logger.debug(`AdmZip error stack: ${admZipError.stack}`);
+        const admZipMsg =
+          admZipError instanceof Error
+            ? admZipError.message
+            : String(admZipError);
+        this.logger.warn(`AdmZip failed for file: ${admZipMsg}`);
+        this.logger.debug(
+          `AdmZip error stack: ${
+            admZipError instanceof Error && admZipError.stack
+              ? admZipError.stack
+              : 'no-stack'
+          }`,
+        );
 
         // Only fallback to unzipper for specific ZIP format errors
         // For other errors (like data extraction issues), re-throw immediately
         const isZipFormatError =
-          admZipError.message.includes('Invalid or unsupported zip format') ||
-          admZipError.message.includes('Invalid CEN header') ||
-          admZipError.message.includes('Invalid LOC header') ||
-          admZipError.message.includes('bad signature') ||
-          admZipError.message.includes('Invalid zip file');
+          admZipError instanceof Error &&
+          (admZipError.message.includes('Invalid or unsupported zip format') ||
+            admZipError.message.includes('Invalid CEN header') ||
+            admZipError.message.includes('Invalid LOC header') ||
+            admZipError.message.includes('bad signature') ||
+            admZipError.message.includes('Invalid zip file'));
 
         if (!isZipFormatError) {
           // This is likely a data processing error, not a ZIP format issue
@@ -412,7 +438,7 @@ export class DmarcParserService {
         );
         if (xmlFile) {
           this.logger.debug(`Found XML file: ${xmlFile.path}`);
-          const xmlBuf = await xmlFile.buffer();
+          const xmlBuf: Buffer = (await xmlFile.buffer()) as Buffer;
           const result = xmlBuf.toString('utf8');
           this.logger.debug(
             `Unzipper extraction successful: ${result.length} characters`,
@@ -427,7 +453,7 @@ export class DmarcParserService {
         );
         if (gzFile) {
           this.logger.debug(`Found GZ file: ${gzFile.path}`);
-          const gzBuf = await gzFile.buffer();
+          const gzBuf: Buffer = (await gzFile.buffer()) as Buffer;
           const result = this.decompressGzipToString(gzBuf);
           this.logger.debug(
             `Unzipper GZ extraction successful: ${result.length} characters`,
@@ -436,15 +462,21 @@ export class DmarcParserService {
         }
         // Fallback: first file as text
         this.logger.debug(`Using first file as fallback: ${files[0].path}`);
-        const xmlBuf = await files[0].buffer();
+        const xmlBuf: Buffer = (await files[0].buffer()) as Buffer;
         const result = xmlBuf.toString('utf8');
         this.logger.debug(
           `Unzipper fallback extraction successful: ${result.length} characters`,
         );
         return result;
-      } catch (err) {
-        this.logger.warn(`Unzipper failed: ${err.message}`);
-        this.logger.debug(`Unzipper error stack: ${err.stack}`);
+      } catch (err: unknown) {
+        this.logger.warn(
+          `Unzipper failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        this.logger.debug(
+          `Unzipper error stack: ${
+            err instanceof Error && err.stack ? err.stack : 'no-stack'
+          }`,
+        );
         // As a last resort, if signature says gzip, attempt gzip again
         if (looksLikeGzip) {
           this.logger.debug('Attempting final GZIP fallback');
@@ -454,8 +486,12 @@ export class DmarcParserService {
               `GZIP fallback successful: ${result.length} characters`,
             );
             return result;
-          } catch (gzipErr) {
-            this.logger.debug(`GZIP fallback failed: ${gzipErr.message}`);
+          } catch (gzipErr: unknown) {
+            this.logger.debug(
+              `GZIP fallback failed: ${
+                gzipErr instanceof Error ? gzipErr.message : String(gzipErr)
+              }`,
+            );
           }
         }
         throw new BadRequestException('Failed to read ZIP archive');
@@ -542,7 +578,7 @@ export class DmarcParserService {
    * Call this after records have been saved to the database
    * @param records - Array of saved DMARC records with IDs
    */
-  async queueIpLookupsForRecords(records: DmarcRecord[]): Promise<void> {
+  queueIpLookupsForRecords(records: DmarcRecord[]): void {
     if (!this.useAsyncIpLookup) {
       return; // Not using async mode
     }
@@ -577,7 +613,7 @@ export class DmarcParserService {
       priority: 0, // High priority for new records
     }));
 
-    await this.ipLookupQueueService.queueMultipleIps(items);
+    this.ipLookupQueueService.queueMultipleIps(items);
 
     this.logger.log(
       `Queued ${items.length} unique IPs for ${records.length} records`,

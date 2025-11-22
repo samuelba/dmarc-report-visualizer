@@ -75,8 +75,8 @@ describe('IpLookupQueueService', () => {
   });
 
   describe('queueIpLookup', () => {
-    it('should add new IP to queue', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1', 'record2'], 1);
+    it('should add new IP to queue', () => {
+      service.queueIpLookup('1.2.3.4', ['record1', 'record2'], 1);
 
       const stats = service.getQueueStats();
       expect(stats.queueSize).toBe(1);
@@ -84,9 +84,9 @@ describe('IpLookupQueueService', () => {
       expect(stats.totalRecords).toBe(2);
     });
 
-    it('should merge records for duplicate IP', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1', 'record2'], 1);
-      await service.queueIpLookup('1.2.3.4', ['record3'], 1);
+    it('should merge records for duplicate IP', () => {
+      service.queueIpLookup('1.2.3.4', ['record1', 'record2'], 1);
+      service.queueIpLookup('1.2.3.4', ['record3'], 1);
 
       const stats = service.getQueueStats();
       expect(stats.queueSize).toBe(1);
@@ -94,19 +94,19 @@ describe('IpLookupQueueService', () => {
       expect(stats.totalRecords).toBe(3);
     });
 
-    it('should upgrade priority for duplicate IP', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1'], 2); // low priority
-      await service.queueIpLookup('1.2.3.4', ['record2'], 0); // high priority
+    it('should upgrade priority for duplicate IP', () => {
+      service.queueIpLookup('1.2.3.4', ['record1'], 2); // low priority
+      service.queueIpLookup('1.2.3.4', ['record2'], 0); // high priority
 
       const stats = service.getQueueStats();
       expect(stats.itemsByPriority.high).toBe(1);
       expect(stats.itemsByPriority.low).toBe(0);
     });
 
-    it('should sort queue by priority', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1'], 2); // low
-      await service.queueIpLookup('5.6.7.8', ['record2'], 0); // high
-      await service.queueIpLookup('9.10.11.12', ['record3'], 1); // normal
+    it('should sort queue by priority', () => {
+      service.queueIpLookup('1.2.3.4', ['record1'], 2); // low
+      service.queueIpLookup('5.6.7.8', ['record2'], 0); // high
+      service.queueIpLookup('9.10.11.12', ['record3'], 1); // normal
 
       const stats = service.getQueueStats();
       expect(stats.itemsByPriority.high).toBe(1);
@@ -114,8 +114,8 @@ describe('IpLookupQueueService', () => {
       expect(stats.itemsByPriority.low).toBe(1);
     });
 
-    it('should use default priority when not specified', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1']);
+    it('should use default priority when not specified', () => {
+      service.queueIpLookup('1.2.3.4', ['record1']);
 
       const stats = service.getQueueStats();
       expect(stats.itemsByPriority.normal).toBe(1);
@@ -123,8 +123,8 @@ describe('IpLookupQueueService', () => {
   });
 
   describe('queueMultipleIps', () => {
-    it('should queue multiple IPs', async () => {
-      await service.queueMultipleIps([
+    it('should queue multiple IPs', () => {
+      service.queueMultipleIps([
         { ip: '1.2.3.4', recordIds: ['record1'] },
         { ip: '5.6.7.8', recordIds: ['record2', 'record3'] },
       ]);
@@ -134,15 +134,15 @@ describe('IpLookupQueueService', () => {
       expect(stats.totalRecords).toBe(3);
     });
 
-    it('should respect custom priorities', async () => {
+    it('should respect custom priorities', () => {
       // Queue low priority first
-      await service.queueIpLookup('1.2.3.4', ['record1'], 2);
+      service.queueIpLookup('1.2.3.4', ['record1'], 2);
 
       const statsBefore = service.getQueueStats();
       expect(statsBefore.itemsByPriority.low).toBe(1);
 
       // Queue high priority second - should be sorted to front
-      await service.queueIpLookup('5.6.7.8', ['record2'], 0);
+      service.queueIpLookup('5.6.7.8', ['record2'], 0);
 
       const stats = service.getQueueStats();
       expect(stats.itemsByPriority.high).toBe(1);
@@ -152,14 +152,10 @@ describe('IpLookupQueueService', () => {
   });
 
   describe('getQueueStats', () => {
-    it('should return correct queue statistics', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1', 'record2'], 0);
-      await service.queueIpLookup('5.6.7.8', ['record3'], 1);
-      await service.queueIpLookup(
-        '9.10.11.12',
-        ['record4', 'record5', 'record6'],
-        2,
-      );
+    it('should return correct queue statistics', () => {
+      service.queueIpLookup('1.2.3.4', ['record1', 'record2'], 0);
+      service.queueIpLookup('5.6.7.8', ['record3'], 1);
+      service.queueIpLookup('9.10.11.12', ['record4', 'record5', 'record6'], 2);
 
       const stats = service.getQueueStats();
 
@@ -186,9 +182,9 @@ describe('IpLookupQueueService', () => {
   });
 
   describe('clearQueue', () => {
-    it('should clear all items from queue', async () => {
-      await service.queueIpLookup('1.2.3.4', ['record1'], 1);
-      await service.queueIpLookup('5.6.7.8', ['record2'], 1);
+    it('should clear all items from queue', () => {
+      service.queueIpLookup('1.2.3.4', ['record1'], 1);
+      service.queueIpLookup('5.6.7.8', ['record2'], 1);
 
       service.clearQueue();
 
@@ -311,10 +307,10 @@ describe('IpLookupQueueService', () => {
   });
 
   describe('event-driven processing', () => {
-    it('should trigger processing when items are queued', async () => {
+    it('should trigger processing when items are queued', () => {
       const triggerSpy = jest.spyOn(service as any, 'triggerProcessing');
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 1);
+      service.queueIpLookup('1.2.3.4', ['record1'], 1);
 
       expect(triggerSpy).toHaveBeenCalled();
     });
@@ -363,7 +359,7 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       // Wait for setImmediate and promises
       await jest.runAllTimersAsync();
@@ -396,7 +392,7 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       await jest.runAllTimersAsync();
 
@@ -423,7 +419,7 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       // Run only one cycle of timers (not all, to avoid infinite loop)
       await jest.advanceTimersByTimeAsync(0); // Process setImmediate
@@ -452,7 +448,7 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       await jest.runAllTimersAsync();
 
@@ -481,8 +477,8 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
-      await service.queueIpLookup('5.6.7.8', ['record2'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('5.6.7.8', ['record2'], 0);
 
       // Start processing first item
       await jest.advanceTimersByTimeAsync(0);
@@ -528,8 +524,8 @@ describe('IpLookupQueueService', () => {
           },
         });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
-      await service.queueIpLookup('5.6.7.8', ['record2'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('5.6.7.8', ['record2'], 0);
 
       // Process both items
       await jest.runAllTimersAsync();
@@ -561,7 +557,7 @@ describe('IpLookupQueueService', () => {
           },
         });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       // Start processing
       await jest.advanceTimersByTimeAsync(0);
@@ -599,7 +595,7 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       // Run only one cycle of timers (not all, to avoid infinite loop)
       await jest.advanceTimersByTimeAsync(0); // Process setImmediate
@@ -632,7 +628,7 @@ describe('IpLookupQueueService', () => {
         },
       });
 
-      await service.queueIpLookup('1.2.3.4', ['record1'], 0);
+      service.queueIpLookup('1.2.3.4', ['record1'], 0);
 
       // Process 4 cycles in total: 3 failed attempts and 1 final attempt (with geoip-lite)
       for (let i = 0; i < 4; i++) {
@@ -665,7 +661,7 @@ describe('IpLookupQueueService', () => {
         geolocationService,
       );
 
-      const triggerSpy = jest.spyOn(freshService as any, 'triggerProcessing');
+      const queueSpy = jest.spyOn(freshService as any, 'queueMultipleIps');
 
       await freshService.onModuleInit();
 
@@ -674,7 +670,7 @@ describe('IpLookupQueueService', () => {
 
       const stats = freshService.getQueueStats();
       expect(stats.queueSize).toBeGreaterThanOrEqual(0); // May have processed already
-      expect(triggerSpy).toHaveBeenCalled(); // Processing should be triggered
+      expect(queueSpy).toHaveBeenCalled(); // Queue should be populated
     });
   });
 });

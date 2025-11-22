@@ -126,7 +126,7 @@ export class TotpService {
 
       // If code is invalid, reject immediately
       if (delta === null) {
-        this.logger.warn({
+        this.logger.warn('TOTP validation failed: invalid code', {
           event: 'totp_validation_failed',
           userId: userId || 'unknown',
           reason: 'invalid_code',
@@ -158,7 +158,7 @@ export class TotpService {
 
           // If the same time step was already used, reject it (replay attack)
           if (usedTimeStep === lastUsedTimeStep) {
-            this.logger.warn({
+            this.logger.warn('TOTP validation failed: replay attack detected', {
               event: 'totp_validation_failed',
               userId,
               reason: 'replay_attack',
@@ -179,7 +179,7 @@ export class TotpService {
 
       // Code is valid and not a replay
       const usedTimeStep = currentTimeStep + delta;
-      this.logger.debug({
+      this.logger.debug('TOTP validation successful', {
         event: 'totp_validation_success',
         userId: userId || 'unknown',
         currentTimeStep,
@@ -307,7 +307,7 @@ export class TotpService {
     await this.userRepository.save(user);
 
     // Audit log: TOTP enabled
-    this.logger.log({
+    this.logger.log('TOTP enabled', {
       event: 'totp_enabled',
       userId: user.id,
       email: user.email,
@@ -362,7 +362,7 @@ export class TotpService {
     await this.userRepository.save(user);
 
     // Audit log: TOTP disabled
-    this.logger.log({
+    this.logger.log('TOTP disabled', {
       event: 'totp_disabled',
       userId: user.id,
       email: user.email,

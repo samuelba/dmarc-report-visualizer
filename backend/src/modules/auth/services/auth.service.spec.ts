@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { Repository, UpdateResult } from 'typeorm';
 import {
   ConflictException,
   UnauthorizedException,
@@ -395,9 +395,11 @@ describe('AuthService', () => {
       jest
         .spyOn(refreshTokenRepository, 'findOne')
         .mockResolvedValue(storedToken);
-      jest
-        .spyOn(refreshTokenRepository, 'update')
-        .mockResolvedValue({ affected: 1 } as any);
+      jest.spyOn(refreshTokenRepository, 'update').mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      } as UpdateResult);
       jest.spyOn(refreshTokenRepository, 'save').mockResolvedValue(storedToken);
       jest
         .spyOn(jwtService, 'generateAccessToken')
@@ -609,7 +611,11 @@ describe('AuthService', () => {
         .spyOn(passwordService, 'hashPassword')
         .mockResolvedValue(newPasswordHash);
       jest.spyOn(userRepository, 'save').mockResolvedValue(userCopy);
-      jest.spyOn(refreshTokenRepository, 'update').mockResolvedValue({} as any);
+      jest.spyOn(refreshTokenRepository, 'update').mockResolvedValue({
+        affected: 1,
+        raw: [],
+        generatedMaps: [],
+      } as UpdateResult);
 
       await service.changePassword(mockUser.id, currentPassword, newPassword);
 

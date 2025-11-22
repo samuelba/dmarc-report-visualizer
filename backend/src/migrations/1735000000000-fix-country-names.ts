@@ -29,10 +29,14 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
         !currentName ||
         (currentName.length === 2 && currentName === currentName.toUpperCase());
 
-      if (needsUpdate) {
+      if (needsUpdate && typeof countryCode === 'string') {
         try {
           const properName = regionNames.of(countryCode.toUpperCase());
-          if (properName && properName !== countryCode) {
+          if (
+            properName &&
+            properName !== countryCode &&
+            typeof record.id === 'string'
+          ) {
             await queryRunner.query(
               `UPDATE dmarc_records SET "geoCountryName" = $1 WHERE id = $2`,
               [properName, record.id],
@@ -68,10 +72,14 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
         !currentName ||
         (currentName.length === 2 && currentName === currentName.toUpperCase());
 
-      if (needsUpdate) {
+      if (needsUpdate && typeof countryCode === 'string') {
         try {
           const properName = regionNames.of(countryCode.toUpperCase());
-          if (properName && properName !== countryCode) {
+          if (
+            properName &&
+            properName !== countryCode &&
+            typeof location.id === 'string'
+          ) {
             await queryRunner.query(
               `UPDATE ip_locations SET "countryName" = $1 WHERE id = $2`,
               [properName, location.id],
@@ -97,5 +105,6 @@ export class FixCountryNames1735000000000 implements MigrationInterface {
     console.log(
       'Skipping rollback - country names are more correct after migration',
     );
+    await Promise.resolve();
   }
 }

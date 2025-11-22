@@ -269,12 +269,12 @@ describe('DmarcReportController', () => {
   describe('File Upload Operations', () => {
     describe('uploadDmarcReport', () => {
       it('should throw BadRequestException if no file uploaded', async () => {
-        await expect(controller.uploadDmarcReport(null as any)).rejects.toThrow(
-          BadRequestException,
-        );
-        await expect(controller.uploadDmarcReport(null as any)).rejects.toThrow(
-          'No file uploaded',
-        );
+        await expect(
+          controller.uploadDmarcReport(null as unknown as Express.Multer.File),
+        ).rejects.toThrow(BadRequestException);
+        await expect(
+          controller.uploadDmarcReport(null as unknown as Express.Multer.File),
+        ).rejects.toThrow('No file uploaded');
       });
 
       it('should process uploaded XML file', async () => {

@@ -321,7 +321,7 @@ export class GeolocationService {
     return stats;
   }
 
-  async getTopCountries(params: {
+  getTopCountries(params: {
     domain?: string;
     from?: Date;
     to?: Date;
@@ -344,10 +344,10 @@ export class GeolocationService {
 
     // This would be implemented with a proper query builder
     // For now, return a placeholder
-    return [];
+    return Promise.resolve([]);
   }
 
-  async getGeoHeatmapData(_params: {
+  getGeoHeatmapData(_params: {
     domain?: string;
     from?: Date;
     to?: Date;
@@ -362,6 +362,6 @@ export class GeolocationService {
   > {
     // This would be implemented with a proper query builder
     // For now, return a placeholder
-    return [];
+    return Promise.resolve([]);
   }
 }
