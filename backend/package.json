@@ -31,6 +31,7 @@
     "migrate:safe": "npm run build && node dist/src/scripts/pre-migration-backup.js && npm run typeorm:run"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -43,6 +44,7 @@
     "@node-saml/passport-saml": "^5.1.0",
     "adm-zip": "^0.5.16",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.64.1",
     "chokidar": "^4.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -50,7 +52,9 @@
     "fast-xml-parser": "^5.2.5",
     "geoip-lite": "^1.4.10",
     "googleapis": "^131.0.0",
+    "handlebars": "^4.7.8",
     "ioredis": "^5.8.2",
+    "nodemailer": "^7.0.10",
     "otpauth": "^9.4.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -79,6 +83,7 @@
     "@types/jest": "^29.5.14",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
+    "@types/nodemailer": "^7.0.4",
     "@types/passport-jwt": "^4.0.1",
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^6.0.2",

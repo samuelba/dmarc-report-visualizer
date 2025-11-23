@@ -1,0 +1,189 @@
+@use '../../../../styles/variables' as vars;
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 25rem; // 400px
+}
+
+mat-card {
+  margin-bottom: vars.$spacing-xl;
+}
+
+mat-card-header {
+  margin-bottom: vars.$spacing-xl;
+}
+
+.status-section {
+  margin-bottom: vars.$spacing-2xl;
+  padding: vars.$spacing-base;
+  background-color: var(--custom-list-item-background);
+  border-radius: vars.$radius-lg;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: vars.$spacing-base;
+    font-weight: 500;
+  }
+
+  .status-badges {
+    display: flex;
+    gap: vars.$spacing-base;
+    flex-wrap: wrap;
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: vars.$spacing-xs;
+      font-weight: 500;
+      padding: vars.$spacing-xs vars.$spacing-sm;
+      border-radius: vars.$radius-md;
+      font-size: vars.$font-size-base;
+
+      .status-icon {
+        font-size: vars.$font-size-lg;
+        width: auto;
+        height: auto;
+        vertical-align: middle;
+      }
+    }
+
+    .status-configured {
+      color: var(--custom-success-color);
+      background-color: var(--custom-success-bg-color);
+
+      .status-icon {
+        color: var(--custom-success-color);
+      }
+    }
+
+    .status-not-configured {
+      color: var(--custom-warning-color);
+      background-color: var(--custom-warning-bg-color);
+
+      .status-icon {
+        color: var(--custom-warning-color);
+      }
+    }
+  }
+}
+
+.server-config-section,
+.auth-config-section,
+.email-config-section,
+.test-section {
+  margin-bottom: vars.$spacing-2xl;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: vars.$spacing-sm;
+    font-weight: 500;
+  }
+}
+
+.server-config-fields,
+.auth-config-fields,
+.email-config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: vars.$spacing-xl;
+  padding: vars.$spacing-base;
+  background-color: var(--custom-list-item-background);
+  border-radius: vars.$radius-lg;
+}
+
+.smtp-form {
+  .form-row {
+    &.two-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(15.625rem, 1fr)); // 250px
+      gap: vars.$spacing-base;
+    }
+  }
+
+  .full-width {
+    width: 100%;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: vars.$spacing-base;
+  margin-top: vars.$spacing-xl;
+
+  button {
+    mat-icon {
+      margin-right: vars.$spacing-sm;
+    }
+  }
+}
+
+.test-section {
+  .test-container {
+    display: flex;
+    flex-direction: column;
+    gap: vars.$spacing-xl;
+    padding: vars.$spacing-base;
+    background-color: var(--custom-list-item-background);
+    border-radius: vars.$radius-lg;
+
+    .test-info {
+      display: flex;
+      align-items: center;
+      gap: vars.$spacing-base;
+
+      mat-icon {
+        flex-shrink: 0;
+        font-size: vars.$icon-lg;
+        width: vars.$icon-lg;
+        height: vars.$icon-lg;
+      }
+
+      p {
+        margin: 0;
+        color: var(--mat-sys-on-surface-variant);
+      }
+    }
+
+    .test-form {
+      display: flex;
+      gap: vars.$spacing-base;
+      align-items: center;
+
+      .test-email-field {
+        flex: 1;
+      }
+
+      button {
+        mat-icon {
+          margin-right: vars.$spacing-sm;
+        }
+      }
+    }
+  }
+
+  .test-progress {
+    margin-top: vars.$spacing-base;
+  }
+
+  .test-result {
+    .diagnostics {
+      margin-top: vars.$spacing-base;
+
+      p {
+        margin-bottom: vars.$spacing-xs;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: vars.$spacing-xl;
+
+        li {
+          margin-bottom: vars.$spacing-xs;
+        }
+      }
+    }
+  }
+}

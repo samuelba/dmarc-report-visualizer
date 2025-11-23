@@ -14,7 +14,7 @@ services:
       - dmarc-network
     restart: unless-stopped
 
-  # Enable Redis if using SAML/SSO features
+  # Enable Redis if using SAML/SSO or SMTP features
   # redis:
   #   image: redis:7-alpine
   #   container_name: dmarc-redis
@@ -124,7 +124,7 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
 
-      # Redis Configuration (enable if using SAML/SSO)
+      # Redis Configuration (enable if using SAML/SSO or SMTP features)
       # REDIS_HOST: ${REDIS_HOST:-redis}
       # REDIS_PORT: ${REDIS_PORT:-6379}
       # REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -133,9 +133,12 @@ services:
       #SAML_ENTITY_ID: ${SAML_ENTITY_ID}
       #SAML_ACS_URL: ${SAML_ACS_URL}
       #FRONTEND_URL: ${FRONTEND_URL}
+
+      # SMTP Configuration
+      SMTP_ENCRYPTION_KEY: ${SMTP_ENCRYPTION_KEY:-your-smtp-encryption-key}
     depends_on:
       - postgres
-      # Enable Redis if using SAML/SSO features
+      # Enable Redis if using SAML/SSO or SMTP features
       # - redis
     volumes:
       - ./logs:/app/logs
@@ -166,5 +169,5 @@ networks:
 
 volumes:
   dmarc_postgres_data:
-  # Redis database storage (enable if using SAML/SSO)
+  # Redis database storage (enable if using SAML/SSO or SMTP features)
   # dmarc_redis_data:

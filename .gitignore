@@ -25,12 +25,17 @@ node_modules
 /DATABASE_NORMALIZATION.md
 /DOMAINS*.md
 /FRONTEND_ENHANCEMENTS.md
+/REDIS_SECURITY.md
+/SMART_AUTH_INTERCEPTOR.md
 /SMART_FALLBACK_STRATEGY.md
 /TASKS_GMAIL_ATTACHEMENT_DOWNLOAD.md
 /TASKS.md
-/TODOs.md
+TODOs.md
+TOTP_*.md
+/backend/src/modules/auth/exceptions/README.md
 
 # Other stuff
+/docker-compose.testing.yml
 /backend/reports
 /bump-version.sh
 /deploy.sh

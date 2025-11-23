@@ -87,6 +87,7 @@ describe('InviteUserDialogComponent', () => {
         role: UserRole.USER,
         inviteLink: 'https://app.example.com/invite/abc123token',
         expiresAt: new Date('2024-01-08'),
+        emailStatus: 'sent',
       };
 
       userService.createInvite.and.returnValue(of(mockResponse));
@@ -104,6 +105,7 @@ describe('InviteUserDialogComponent', () => {
         role: UserRole.USER,
         inviteLink: 'https://app.example.com/invite/abc123token',
         expiresAt: new Date('2024-01-08'),
+        emailStatus: 'sent',
       };
 
       userService.createInvite.and.returnValue(of(mockResponse));
@@ -148,6 +150,7 @@ describe('InviteUserDialogComponent', () => {
         role: UserRole.USER,
         inviteLink: 'https://app.example.com/invite/abc123token',
         expiresAt: new Date('2024-01-08'),
+        emailStatus: 'sent',
       };
 
       userService.createInvite.and.returnValue(of(mockResponse));
@@ -172,6 +175,7 @@ describe('InviteUserDialogComponent', () => {
         role: UserRole.USER,
         inviteLink: 'https://app.example.com/invite/abc123token',
         expiresAt: new Date('2024-01-08T12:00:00Z'),
+        emailStatus: 'sent',
       };
 
       userService.createInvite.and.returnValue(of(mockResponse));
@@ -235,6 +239,7 @@ describe('InviteUserDialogComponent', () => {
         role: UserRole.USER,
         inviteLink: 'https://app.example.com/invite/abc123token',
         expiresAt: new Date('2024-01-08'),
+        emailStatus: 'sent',
       };
 
       component.close();

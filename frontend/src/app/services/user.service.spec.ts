@@ -113,6 +113,7 @@ describe('UserService', () => {
         role,
         inviteLink: 'https://app.example.com/invite/abc123token',
         expiresAt: new Date('2024-01-08'),
+        emailStatus: 'sent',
       };
 
       service.createInvite(email, role).subscribe((invite) => {
@@ -135,6 +136,7 @@ describe('UserService', () => {
           id: 'invite-1',
           email: 'user1@example.com',
           role: UserRole.USER,
+          token: 'token-1',
           expiresAt: new Date('2024-01-08'),
           used: false,
           createdAt: new Date('2024-01-01'),
@@ -143,6 +145,7 @@ describe('UserService', () => {
           id: 'invite-2',
           email: 'admin@example.com',
           role: UserRole.ADMINISTRATOR,
+          token: 'token-2',
           expiresAt: new Date('2024-01-09'),
           used: false,
           createdAt: new Date('2024-01-02'),

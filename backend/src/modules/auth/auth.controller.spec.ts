@@ -874,6 +874,7 @@ describe('AuthController', () => {
           email: 'newuser@example.com',
           role: 'user',
           expiresAt: new Date('2025-01-01'),
+          emailStatus: 'sent' as const,
         };
 
         mockInviteService.createInvite.mockResolvedValue(mockInvite);
@@ -892,6 +893,7 @@ describe('AuthController', () => {
           token: 'secure-token-123',
           inviteLink: 'http://localhost:4200/invite/secure-token-123',
           expiresAt: mockInvite.expiresAt,
+          emailStatus: 'sent',
         });
       });
     });

@@ -64,6 +64,7 @@ export interface InviteResponse {
   token: string;
   inviteLink: string;
   expiresAt: Date;
+  emailStatus: 'sent' | 'failed' | 'not_configured';
 }
 
 /**

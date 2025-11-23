@@ -360,17 +360,15 @@
             <div class="test-container">
               <div class="test-info">
                 <mat-icon color="primary">science</mat-icon>
-                <div>
-                  <p>
-                    Test your SAML configuration by initiating a login flow. This will open a new window and redirect
-                    you to your Identity Provider for authentication.
-                  </p>
-                  <app-message type="info" icon="info">
-                    <strong>Note:</strong> Testing works even when SAML is disabled for regular users. This allows you
-                    to verify the configuration before enabling it for everyone.
-                  </app-message>
-                </div>
+                <p>
+                  Test your SAML configuration by initiating a login flow. This will open a new window and redirect you
+                  to your Identity Provider for authentication.
+                </p>
               </div>
+              <app-message type="info" icon="info">
+                <strong>Note:</strong> Testing works even when SAML is disabled for regular users. This allows you to
+                verify the configuration before enabling it for everyone.
+              </app-message>
 
               <button matButton="outlined" color="accent" (click)="testSamlLogin()" [disabled]="loading()">
                 <mat-icon>open_in_new</mat-icon>

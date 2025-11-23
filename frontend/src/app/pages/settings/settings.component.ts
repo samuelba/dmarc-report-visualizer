@@ -19,6 +19,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/api.service';
 import { ThirdPartySenderDialogComponent } from './third-party-sender-dialog.component';
 import { SamlSettingsComponent } from './saml-settings/saml-settings.component';
+import { SmtpSettingsComponent } from './smtp-settings/smtp-settings.component';
 import { timer, takeWhile } from 'rxjs';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../components/confirm-dialog/confirm-dialog.component';
 import { MessageComponent } from '../../components/message/message.component';
@@ -45,6 +46,7 @@ import { MessageComponent } from '../../components/message/message.component';
     MatInputModule,
     MatNativeDateModule,
     SamlSettingsComponent,
+    SmtpSettingsComponent,
     MessageComponent,
   ],
   templateUrl: './settings.component.html',
@@ -71,6 +73,7 @@ export class SettingsComponent implements OnInit {
   private readonly REPROCESSING_TAB_INDEX = 1;
   private readonly UTILITIES_TAB_INDEX = 2;
   private readonly SAML_TAB_INDEX = 3;
+  private readonly SMTP_TAB_INDEX = 4;
 
   // Date range for reprocessing
   dateFrom = signal<Date | null>(null);

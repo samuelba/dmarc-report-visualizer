@@ -1,0 +1,20 @@
+SMTP Test Successful!
+
+Congratulations! Your SMTP configuration is working correctly.
+
+This test email was sent successfully from the DMARC Dashboard using the following configuration:
+
+Configuration Details:
+----------------------
+SMTP Host: {{host}}
+SMTP Port: {{port}}
+Security Mode: {{securityMode}}
+Authentication: {{authStatus}}
+From Name: {{fromName}}
+From Email: {{fromEmail}}
+{{#if replyToEmail}}
+Reply-To: {{replyToEmail}}
+{{/if}}
+
+This is an automated test email from DMARC Dashboard.
+You can now use this SMTP configuration to send invitation emails and other notifications.

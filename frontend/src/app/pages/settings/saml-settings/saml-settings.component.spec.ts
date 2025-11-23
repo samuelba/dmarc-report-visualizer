@@ -20,6 +20,8 @@ describe('SamlSettingsComponent', () => {
     idpEntityId: 'test-idp-entity',
     idpSsoUrl: 'https://idp.example.com/sso',
     hasIdpCertificate: true,
+    disablePasswordLogin: false,
+    passwordLoginForceEnabled: false,
   };
 
   beforeEach(async () => {
