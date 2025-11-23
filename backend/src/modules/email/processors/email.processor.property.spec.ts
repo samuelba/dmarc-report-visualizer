@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { getQueueToken } from '@nestjs/bull';
+import { getQueueToken } from '@nestjs/bullmq';
 import { Repository } from 'typeorm';
-import { Queue, Job } from 'bull';
+import { Queue, Job } from 'bullmq';
 import * as fc from 'fast-check';
 import { EmailProcessor } from './email.processor';
 import {
@@ -36,7 +36,6 @@ describe('EmailProcessor - Property-Based Tests', () => {
     // Create mock queue
     mockQueue = {
       add: jest.fn(),
-      process: jest.fn(),
     };
 
     // Create mock config service

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { SendEmailOptions } from './email.service';
 
 @Injectable()
@@ -31,7 +31,7 @@ export class EmailQueueService {
     });
 
     this.logger.log(`Email queued with job ID: ${job.id}`);
-    return job.id.toString();
+    return job.id?.toString() || '';
   }
 
   /**
@@ -63,6 +63,6 @@ export class EmailQueueService {
     );
 
     this.logger.log(`Invitation email queued with job ID: ${job.id}`);
-    return job.id.toString();
+    return job.id?.toString() || '';
   }
 }

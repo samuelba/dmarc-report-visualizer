@@ -1,6 +1,6 @@
-import { Processor, Process } from '@nestjs/bull';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import { Job } from 'bull';
+import { Job } from 'bullmq';
 import {
   EmailService,
   SendEmailOptions,
@@ -51,10 +51,12 @@ const PERMANENT_ERROR_PATTERNS = [
 ];
 
 @Processor('email')
-export class EmailProcessor {
+export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
 
-  constructor(private readonly emailService: EmailService) {}
+  constructor(private readonly emailService: EmailService) {
+    super();
+  }
 
   /**
    * Determine if an error is transient (should retry) or permanent (should not retry)
@@ -94,10 +96,23 @@ export class EmailProcessor {
     return true;
   }
 
+  async process(job: Job<any, any, string>): Promise<any> {
+    switch (job.name) {
+      case 'send-email':
+        return this.processEmail(job as Job<SendEmailOptions>);
+      case 'send-invite-email':
+        return this.processInviteEmail(
+          job as Job<{ email: string; token: string; inviterName: string }>,
+        );
+      default:
+        this.logger.error(`Unknown job name: ${job.name}`);
+        throw new Error(`Unknown job name: ${job.name}`);
+    }
+  }
+
   /**
    * Process an email job from the queue
    */
-  @Process('send-email')
   async processEmail(job: Job<SendEmailOptions>): Promise<SendEmailResult> {
     const { to, subject } = job.data;
     const attemptNumber = job.attemptsMade + 1;
@@ -178,7 +193,6 @@ export class EmailProcessor {
   /**
    * Process an invite email job from the queue
    */
-  @Process('send-invite-email')
   async processInviteEmail(
     job: Job<{ email: string; token: string; inviterName: string }>,
   ): Promise<SendEmailResult> {
