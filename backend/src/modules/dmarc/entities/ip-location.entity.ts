@@ -23,7 +23,7 @@ export class IpLocation {
   @Column({ type: 'varchar', length: 100, nullable: true })
   countryName: string;
 
-  @Column({ type: 'varchar', length: 10, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   region: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
