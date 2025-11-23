@@ -7,6 +7,8 @@ import { InviteToken } from '../entities/invite-token.entity';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../enums/user-role.enum';
 import { PasswordService } from './password.service';
+import { EmailQueueService } from '../../email/services/email-queue.service';
+import { SmtpConfigService } from '../../email/services/smtp-config.service';
 import {
   ConflictException,
   NotFoundException,
@@ -47,6 +49,19 @@ describe('InviteService', () => {
             hashPassword: jest.fn(),
           },
         },
+        {
+          provide: EmailQueueService,
+          useValue: {
+            queueEmail: jest.fn().mockResolvedValue('job-id'),
+            queueInviteEmail: jest.fn().mockResolvedValue('job-id'),
+          },
+        },
+        {
+          provide: SmtpConfigService,
+          useValue: {
+            getConfig: jest.fn().mockResolvedValue({ enabled: true }),
+          },
+        },
       ],
     }).compile();
 
@@ -84,7 +99,11 @@ describe('InviteService', () => {
 
       const result = await service.createInvite(email, role, createdById);
 
-      expect(result).toEqual({ ...mockInvite, token: expect.any(String) });
+      expect(result).toEqual({
+        ...mockInvite,
+        token: expect.any(String),
+        emailStatus: expect.stringMatching(/^(sent|failed|not_configured)$/),
+      });
       expect(userRepository.findOne).toHaveBeenCalledWith({
         where: { email },
       });

@@ -46,6 +46,8 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 - Gmail integration to download reports from email attachments
 - Automatic database backups before migrations - See [BACKUP_SYSTEM.md](docs/BACKUP_SYSTEM.md) for details
 - Authentication (username/password with optional 2FA or SAML/SSO)
+- User management
+- SMTP email service for sending user invitations and notifications - See [EMAIL_SMTP.md](docs/EMAIL_SMTP.md) for details
 
 ## IP Lookup Service
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule as NestJwtModule, JwtModuleOptions } from '@nestjs/jwt';
@@ -28,6 +28,7 @@ import { TokenCleanupService } from './services/token-cleanup.service';
 import { InviteCleanupService } from './services/invite-cleanup.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SamlStrategy } from './strategies/saml.strategy';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { SamlStrategy } from './strategies/saml.strategy';
       RecoveryCode,
       InviteToken,
     ]),
+    forwardRef(() => EmailModule), // Use forwardRef to handle circular dependency
     NestJwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): JwtModuleOptions => {
@@ -85,6 +87,13 @@ import { SamlStrategy } from './strategies/saml.strategy';
     JwtStrategy,
     SamlStrategy,
   ],
-  exports: [TypeOrmModule, JwtService, AuthService, SetupGuard, RateLimitGuard],
+  exports: [
+    TypeOrmModule,
+    JwtService,
+    AuthService,
+    SetupGuard,
+    RateLimitGuard,
+    RateLimiterService,
+  ],
 })
 export class AuthModule {}

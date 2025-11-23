@@ -11,9 +11,16 @@
 
     <!-- Invite Form -->
     @if (!generatedInvite) {
-      <app-message type="info" icon="info">
-        Generate an invite link for a new user to join the platform. The user must use the specified email address.
-      </app-message>
+      @if (smtpConfigured()) {
+        <app-message type="info" icon="info">
+          Send an invite by email to a new user to join the platform. The user must use the specified email address.
+        </app-message>
+      } @else {
+        <app-message type="info" icon="info">
+          Generate an invite link for a new user to join the platform. You'll receive a link to share manually. The user
+          must use the specified email address.
+        </app-message>
+      }
 
       <form [formGroup]="inviteForm">
         <mat-form-field appearance="outline" class="full-width">
@@ -41,7 +48,22 @@
     <!-- Generated Invite Display -->
     @if (generatedInvite) {
       <div class="invite-result">
-        <app-message type="success" icon="check_circle"> Invite created successfully! </app-message>
+        <!-- Email Status Messages -->
+        @if (generatedInvite.emailStatus === 'sent') {
+          <app-message type="success" icon="check_circle">
+            Invitation email sent to {{ generatedInvite.email }}
+          </app-message>
+        }
+        @if (generatedInvite.emailStatus === 'failed') {
+          <app-message type="error" icon="error">
+            Email failed to send. Share this link manually with the user.
+          </app-message>
+        }
+        @if (generatedInvite.emailStatus === 'not_configured') {
+          <app-message type="success" icon="check_circle">
+            Invitation link generated for {{ generatedInvite.email }}
+          </app-message>
+        }
 
         <div class="invite-details">
           <div class="detail-row">
@@ -60,7 +82,7 @@
 
         <div class="invite-link-field">
           <p style="margin: 0 0 8px 0; font-size: 14px; color: var(--mat-sys-on-surface-variant); font-weight: 500">
-            Invite Link
+            Invitation Link
           </p>
           <div class="secret-code">
             <input [value]="generatedInvite.inviteLink" readonly />
@@ -70,7 +92,16 @@
           </div>
         </div>
 
-        <app-message type="warning" icon="warning"> Copy the invite link and share it with the user. </app-message>
+        @if (generatedInvite.emailStatus === 'sent') {
+          <app-message type="info" icon="info">
+            The invitation link has also been copied below for your reference.
+          </app-message>
+        }
+        @if (generatedInvite.emailStatus !== 'sent') {
+          <app-message type="warning" icon="warning">
+            Copy the invite link and share it with the user manually.
+          </app-message>
+        }
       </div>
     }
 
@@ -94,7 +125,7 @@
         (click)="generateInvite()"
         [disabled]="inviteForm.invalid || isLoading || generatedInvite !== null"
       >
-        Generate Invite
+        {{ smtpConfigured() ? 'Send Invite' : 'Generate Invite' }}
       </button>
     }
   </mat-dialog-actions>

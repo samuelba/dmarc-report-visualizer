@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AuthService, AuthResponse, User } from './auth.service';
+import { UserRole } from '../models/user-role.enum';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -291,7 +292,7 @@ describe('AuthService', () => {
 
       service.login('admin@example.com', 'password').subscribe(() => {
         service.getCurrentUserRole().subscribe((role) => {
-          expect(role).toBe('administrator');
+          expect(role).toBe(UserRole.ADMINISTRATOR);
           done();
         });
       });

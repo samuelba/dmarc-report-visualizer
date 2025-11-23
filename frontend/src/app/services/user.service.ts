@@ -3,6 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { UserRole } from '../models/user-role.enum';
 
+// Re-export UserRole for convenience
+export { UserRole };
+
 export interface UserResponse {
   id: string;
   email: string;
@@ -28,6 +31,7 @@ export interface InviteResponse {
   role: UserRole;
   inviteLink: string;
   expiresAt: Date;
+  emailStatus: 'sent' | 'failed' | 'not_configured';
 }
 
 export interface InviteDetailsResponse {

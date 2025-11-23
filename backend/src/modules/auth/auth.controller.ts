@@ -1263,6 +1263,7 @@ export class AuthController {
       token: invite.token,
       inviteLink,
       expiresAt: invite.expiresAt,
+      emailStatus: invite.emailStatus,
     };
   }
 

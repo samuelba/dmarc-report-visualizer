@@ -1,0 +1,276 @@
+<div class="smtp-settings-container">
+  @if (loading() && !configured()) {
+    <div class="loading-container">
+      <mat-spinner></mat-spinner>
+    </div>
+  } @else {
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>SMTP Email Configuration</mat-card-title>
+        <mat-card-subtitle>
+          Configure SMTP settings to enable email sending for user invitations and notifications.
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if (loading()) {
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        }
+
+        <!-- Configuration Status -->
+        <div class="status-section">
+          <h3>Configuration Status</h3>
+          <div class="status-badges">
+            @if (configured()) {
+              <span class="status-configured">
+                <mat-icon class="status-icon">check_circle</mat-icon>
+                Configured
+              </span>
+            } @else {
+              <span class="status-not-configured">
+                <mat-icon class="status-icon">cancel</mat-icon>
+                Not Configured
+              </span>
+            }
+          </div>
+        </div>
+
+        <form [formGroup]="smtpForm" class="smtp-form">
+          <!-- Server Settings Section -->
+          <div class="server-config-section">
+            <h3>Server Settings</h3>
+
+            <div class="server-config-fields">
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+                  <mat-label>SMTP Host</mat-label>
+                  <input matInput formControlName="host" placeholder="smtp.example.com" />
+                  <mat-icon matIconPrefix>dns</mat-icon>
+                  @if (smtpForm.get('host')?.invalid && smtpForm.get('host')?.touched) {
+                    <mat-error>{{ getErrorMessage('host') }}</mat-error>
+                  }
+                  <mat-hint>The hostname or IP address of your SMTP server</mat-hint>
+                </mat-form-field>
+              </div>
+
+              <div class="form-row two-columns">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Port</mat-label>
+                  <input matInput type="number" formControlName="port" placeholder="587" />
+                  <mat-icon matIconPrefix>settings_ethernet</mat-icon>
+                  @if (smtpForm.get('port')?.invalid && smtpForm.get('port')?.touched) {
+                    <mat-error>{{ getErrorMessage('port') }}</mat-error>
+                  }
+                  <mat-hint>Common: 587 (STARTTLS), 465 (TLS)</mat-hint>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Security Mode</mat-label>
+                  <mat-select formControlName="securityMode">
+                    @for (mode of securityModes; track mode.value) {
+                      <mat-option [value]="mode.value">{{ mode.label }}</mat-option>
+                    }
+                  </mat-select>
+                  <mat-icon matIconPrefix>security</mat-icon>
+                  <mat-hint>Encryption method for SMTP connection</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
+
+          <!-- Authentication Section -->
+          <div class="auth-config-section">
+            <h3>Authentication (Optional)</h3>
+
+            <div class="auth-config-fields">
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Username</mat-label>
+                  <input matInput formControlName="username" placeholder="user@example.com" />
+                  <mat-icon matIconPrefix>person</mat-icon>
+                  <mat-hint>Leave empty if your SMTP server doesn't require authentication</mat-hint>
+                </mat-form-field>
+              </div>
+
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Password</mat-label>
+                  <input
+                    matInput
+                    [type]="hidePassword() ? 'password' : 'text'"
+                    formControlName="password"
+                    [placeholder]="configured() ? '••••••••' : ''"
+                  />
+                  <mat-icon matIconPrefix>lock</mat-icon>
+                  <button
+                    mat-icon-button
+                    matIconSuffix
+                    type="button"
+                    (click)="hidePassword.set(!hidePassword())"
+                    [attr.aria-label]="'Toggle password visibility'"
+                  >
+                    <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+                  </button>
+                  @if (configured()) {
+                    <mat-hint>Leave empty to keep existing password</mat-hint>
+                  } @else {
+                    <mat-hint>Leave empty if your SMTP server doesn't require authentication</mat-hint>
+                  }
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
+
+          <!-- Email Settings Section -->
+          <div class="email-config-section">
+            <h3>Email Settings</h3>
+
+            <div class="email-config-fields">
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>From Email Address</mat-label>
+                  <input matInput formControlName="fromEmail" placeholder="noreply@example.com" />
+                  <mat-icon matIconPrefix>email</mat-icon>
+                  @if (smtpForm.get('fromEmail')?.invalid && smtpForm.get('fromEmail')?.touched) {
+                    <mat-error>{{ getErrorMessage('fromEmail') }}</mat-error>
+                  }
+                  <mat-hint>The email address that will appear as the sender</mat-hint>
+                </mat-form-field>
+              </div>
+
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>From Name</mat-label>
+                  <input matInput formControlName="fromName" placeholder="DMARC Dashboard" />
+                  <mat-icon matIconPrefix>badge</mat-icon>
+                  @if (smtpForm.get('fromName')?.invalid && smtpForm.get('fromName')?.touched) {
+                    <mat-error>{{ getErrorMessage('fromName') }}</mat-error>
+                  }
+                  <mat-hint>The display name that will appear as the sender</mat-hint>
+                </mat-form-field>
+              </div>
+
+              <div class="form-row">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Reply-To Email (Optional)</mat-label>
+                  <input matInput formControlName="replyToEmail" placeholder="support@example.com" />
+                  <mat-icon matIconPrefix>reply</mat-icon>
+                  @if (smtpForm.get('replyToEmail')?.invalid && smtpForm.get('replyToEmail')?.touched) {
+                    <mat-error>{{ getErrorMessage('replyToEmail') }}</mat-error>
+                  }
+                  <mat-hint>Email address for replies (optional)</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="form-actions">
+            <button matButton="filled" color="primary" (click)="saveConfig()" [disabled]="saving() || loading()">
+              <mat-icon>save</mat-icon>
+              @if (saving()) {
+                Saving...
+              } @else {
+                Save Configuration
+              }
+            </button>
+            @if (configured()) {
+              <button matButton="outlined" color="warn" (click)="resetConfig()" [disabled]="saving() || loading()">
+                <mat-icon>delete_forever</mat-icon>
+                Reset Configuration
+              </button>
+            }
+          </div>
+        </form>
+
+        <!-- Test Email Section -->
+        @if (configured()) {
+          <div class="test-section">
+            <h3>Test Email Configuration</h3>
+            <div class="test-container">
+              <div class="test-info">
+                <mat-icon color="primary">science</mat-icon>
+                <div>
+                  <p>Send a test email to verify your SMTP configuration is working correctly.</p>
+                </div>
+              </div>
+
+              <div class="test-form">
+                <mat-form-field appearance="outline" class="test-email-field" subscriptSizing="dynamic">
+                  <mat-label>Test Email Address</mat-label>
+                  <input
+                    matInput
+                    type="email"
+                    [(ngModel)]="testEmail"
+                    [ngModelOptions]="{ standalone: true }"
+                    placeholder="test@example.com"
+                  />
+                  <mat-icon matIconPrefix>email</mat-icon>
+                </mat-form-field>
+
+                <button
+                  matButton="outlined"
+                  color="accent"
+                  (click)="sendTestEmail()"
+                  [disabled]="testing() || !testEmail()"
+                >
+                  <mat-icon>send</mat-icon>
+                  @if (testing()) {
+                    Sending...
+                  } @else {
+                    Send Test Email
+                  }
+                </button>
+              </div>
+
+              @if (testing()) {
+                <mat-progress-bar mode="indeterminate" class="test-progress"></mat-progress-bar>
+              }
+
+              @if (testResult()) {
+                <div class="test-result">
+                  @if (testResult()!.success) {
+                    <app-message type="success" icon="check_circle">
+                      <strong>Test email sent successfully!</strong>
+                      @if (testResult()!.messageId) {
+                        <p>Message ID: {{ testResult()!.messageId }}</p>
+                      }
+                      @if (testResult()!.diagnostics) {
+                        <div class="diagnostics">
+                          <p><strong>Connection Details:</strong></p>
+                          <ul>
+                            <li>Host: {{ testResult()!.diagnostics!.host }}:{{ testResult()!.diagnostics!.port }}</li>
+                            <li>Secure: {{ testResult()!.diagnostics!.secure ? 'Yes' : 'No' }}</li>
+                            <li>Authentication: {{ testResult()!.diagnostics!.authUsed ? 'Used' : 'Not used' }}</li>
+                            <li>Response Time: {{ testResult()!.diagnostics!.responseTime }}ms</li>
+                          </ul>
+                        </div>
+                      }
+                    </app-message>
+                  } @else {
+                    <app-message type="error" icon="error">
+                      <strong>Test email failed</strong>
+                      @if (testResult()!.error) {
+                        <p>{{ testResult()!.error }}</p>
+                      }
+                      @if (testResult()!.diagnostics) {
+                        <div class="diagnostics">
+                          <p><strong>Connection Details:</strong></p>
+                          <ul>
+                            <li>Host: {{ testResult()!.diagnostics!.host }}:{{ testResult()!.diagnostics!.port }}</li>
+                            <li>Secure: {{ testResult()!.diagnostics!.secure ? 'Yes' : 'No' }}</li>
+                            <li>Authentication: {{ testResult()!.diagnostics!.authUsed ? 'Used' : 'Not used' }}</li>
+                          </ul>
+                        </div>
+                      }
+                    </app-message>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  }
+</div>
