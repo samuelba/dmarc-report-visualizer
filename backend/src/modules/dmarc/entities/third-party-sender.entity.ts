@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -15,7 +15,7 @@ import {
 @Entity('third_party_senders')
 @Index(['enabled'])
 export class ThirdPartySender {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column({ type: 'varchar', length: 255 })

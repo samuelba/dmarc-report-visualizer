@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
@@ -22,7 +22,7 @@ export enum ReprocessingJobStatus {
 @Entity('reprocessing_jobs')
 @Index(['status'])
 export class ReprocessingJob {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column({

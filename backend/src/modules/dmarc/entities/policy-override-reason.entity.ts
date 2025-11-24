@@ -1,7 +1,7 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   ManyToOne,
   JoinColumn,
   Index,
@@ -11,7 +11,7 @@ import { DmarcRecord } from './dmarc-record.entity';
 @Index('idx_policy_override_type', ['type'])
 @Entity('policy_override_reasons')
 export class PolicyOverrideReason {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   // Foreign key to DmarcRecord

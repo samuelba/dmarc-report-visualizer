@@ -1,7 +1,7 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
@@ -11,7 +11,7 @@ import {
 @Index('idx_ip_locations_country', ['country'])
 @Entity('ip_locations')
 export class IpLocation {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column({ type: 'inet', unique: true })

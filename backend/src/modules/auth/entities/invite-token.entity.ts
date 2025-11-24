@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   ManyToOne,
@@ -16,7 +16,7 @@ import { UserRole } from '../enums/user-role.enum';
 @Index('IDX_invite_tokens_expires_at', ['expiresAt'])
 @Index('IDX_invite_tokens_used', ['used'])
 export class InviteToken {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column({ unique: true, name: 'token_hash' })

@@ -1,7 +1,7 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   ManyToOne,
   OneToMany,
   JoinColumn,
@@ -27,7 +27,7 @@ export enum GeoLookupStatus {
 @Index('idx_dmarc_record_is_forwarded', ['isForwarded'])
 @Entity('dmarc_records')
 export class DmarcRecord {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   // Foreign key to DmarcReport

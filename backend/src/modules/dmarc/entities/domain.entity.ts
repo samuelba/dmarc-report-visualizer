@@ -1,7 +1,7 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
@@ -10,7 +10,7 @@ import {
 @Entity('domains')
 @Index(['domain'], { unique: true })
 export class Domain {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column({ type: 'varchar', length: 255 })

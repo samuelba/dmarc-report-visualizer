@@ -1,7 +1,7 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   ManyToOne,
   JoinColumn,
   Index,
@@ -12,7 +12,7 @@ import { DmarcRecord } from './dmarc-record.entity';
 @Index('idx_dkim_result_result', ['result'])
 @Entity('dkim_results')
 export class DkimResult {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   // Foreign key to DmarcRecord
