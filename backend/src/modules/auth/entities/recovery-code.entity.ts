@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   ManyToOne,
@@ -13,7 +13,7 @@ import { User } from './user.entity';
 @Entity('recovery_codes')
 @Index('idx_recovery_codes_user_id', ['userId'])
 export class RecoveryCode {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   @IsUUID()
   id: string;
 

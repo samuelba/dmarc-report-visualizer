@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   ManyToOne,
@@ -22,7 +22,7 @@ export enum RevocationReason {
 @Index('idx_refresh_tokens_expires_at', ['expiresAt'])
 @Index('idx_refresh_tokens_family_id', ['familyId'])
 export class RefreshToken {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column()

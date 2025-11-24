@@ -1,7 +1,7 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
@@ -15,7 +15,7 @@ import { DmarcRecord } from './dmarc-record.entity';
 @Index('idx_dmarc_report_end_date', ['endDate'])
 @Entity('dmarc_reports')
 export class DmarcReport {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'uuid', default: () => 'uuid_generate_v7()' })
   id: string;
 
   @Column({ nullable: true })
