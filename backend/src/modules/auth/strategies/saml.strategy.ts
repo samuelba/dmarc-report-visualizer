@@ -36,10 +36,15 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
         // Security settings
         acceptedClockSkewMs: 5000, // 5 seconds clock skew tolerance
 
-        // Support both SP-initiated and IdP-initiated flows
-        // IdP-initiated flows don't have InResponseTo
-        // Use 'ifPresent' to validate InResponseTo only when it's present (SP-initiated)
-        validateInResponseTo: 'ifPresent',
+        // InResponseTo validation
+        // Set to 'never' to disable (valid values: 'always', 'ifPresent', 'never')
+        // Disabled because:
+        // 1. Requires a cache provider to store request IDs, which we haven't configured
+        // 2. We have robust custom replay protection using Redis with composite assertion IDs
+        //    (inResponseTo + sessionIndex + issuer) in saml.service.ts
+        // 3. Without a cache provider, validateInResponseTo causes intermittent errors
+        // See: handleSamlLogin() in saml.service.ts for our replay protection implementation
+        validateInResponseTo: 'never',
 
         // Signature validation
         // Google Workspace signs the Response, not individual Assertions
