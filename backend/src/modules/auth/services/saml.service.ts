@@ -469,8 +469,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Check if assertion ID has been processed before (replay attack prevention)
+   * Includes grace period to handle Passport's multiple validate() calls during single auth flow
    * @param assertionId Unique assertion ID
-   * @returns True if assertion was already processed
+   * @returns True if assertion was already processed (outside grace period)
    */
   async checkAssertionReplay(assertionId: string): Promise<boolean> {
     if (!assertionId) {
@@ -487,11 +488,35 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const key = `${this.REDIS_KEY_PREFIX}${assertionId}`;
-      const exists = await this.redis.exists(key);
+      const value = await this.redis.get(key);
+
+      if (!value) {
+        this.logger.debug(
+          `Checking Redis key ${key}: NOT FOUND (new assertion)`,
+        );
+        return false;
+      }
+
+      // Parse the stored timestamp
+      const storedTimestamp = parseInt(value, 10);
+      const now = Date.now();
+      const ageMs = now - storedTimestamp;
+
+      // Grace period of 5 seconds for in-flight authentications
+      // This allows Passport to call validate() multiple times for the same SAML response
+      const GRACE_PERIOD_MS = 5000;
+
+      if (ageMs < GRACE_PERIOD_MS) {
+        this.logger.debug(
+          `Checking Redis key ${key}: EXISTS but within grace period (${ageMs}ms old) - allowing`,
+        );
+        return false; // Not a replay, just concurrent validation
+      }
+
       this.logger.debug(
-        `Checking Redis key ${key}: ${exists === 1 ? 'EXISTS (replay detected)' : 'NOT FOUND (new assertion)'}`,
+        `Checking Redis key ${key}: EXISTS (${ageMs}ms old) - REPLAY DETECTED`,
       );
-      return exists === 1;
+      return true;
     } catch (error) {
       this.logger.error(
         `Redis error checking assertion replay: ${error.message}`,
@@ -503,7 +528,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Mark assertion as processed to prevent replay attacks
-   * Stores assertion ID in Redis with TTL based on expiration time
+   * Stores assertion ID with current timestamp in Redis
    * @param assertionId Unique assertion ID
    * @param expiresAt Expiration time (NotOnOrAfter from assertion)
    */
@@ -531,10 +556,18 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
         ttlSeconds = this.REDIS_TTL_SECONDS;
       }
 
-      // Store assertion ID with expiration
-      await this.redis.setex(key, ttlSeconds, expiresAt.toISOString());
+      // Store current timestamp (for grace period checking)
+      // Use SETNX to only set if not already set (idempotent)
+      const wasSet = await this.redis.set(
+        key,
+        now.toString(),
+        'EX',
+        ttlSeconds,
+        'NX',
+      );
+
       this.logger.debug(
-        `Marked assertion ${assertionId} as processed (TTL: ${ttlSeconds}s)`,
+        `Marked assertion ${assertionId} as processed (TTL: ${ttlSeconds}s, wasSet: ${wasSet ? 'true' : 'false - already set'})`,
       );
     } catch (error) {
       this.logger.error(
@@ -550,11 +583,6 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
    * @returns User entity for token generation
    */
   async handleSamlLogin(profile: SamlProfile): Promise<User> {
-    // Log the full profile for debugging
-    this.logger.debug(
-      `SAML profile received: ${JSON.stringify(profile, null, 2)}`,
-    );
-
     // Extract email from NameID or email attribute
     const email = profile.nameID || profile.email;
 
@@ -598,6 +626,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
     if (assertionId) {
       const isReplay = await this.checkAssertionReplay(assertionId as string);
       if (isReplay) {
+        this.logger.warn(
+          `SAML replay attack detected for assertion ${assertionId}`,
+        );
         throw new UnauthorizedException(
           'SAML authentication failed: Assertion has already been processed. Please try again.',
         );
