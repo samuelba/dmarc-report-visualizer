@@ -124,18 +124,22 @@ describe('UserService', () => {
       );
     });
 
-    it('should throw BadRequestException when demoting last admin', async () => {
+    it('should throw BadRequestException when demoting last local admin', async () => {
       const admin: User = {
         id: '1',
         email: 'admin@example.com',
         role: UserRole.ADMINISTRATOR,
+        authProvider: 'local',
       } as User;
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(admin);
-      jest.spyOn(userRepository, 'count').mockResolvedValue(1); // Only one admin
+      jest.spyOn(userRepository, 'count').mockResolvedValue(1); // Only one local admin
 
       await expect(service.updateRole('1', UserRole.USER)).rejects.toThrow(
         BadRequestException,
+      );
+      await expect(service.updateRole('1', UserRole.USER)).rejects.toThrow(
+        'Cannot demote the last local administrator',
       );
     });
   });
@@ -156,18 +160,22 @@ describe('UserService', () => {
       expect(userRepository.remove).toHaveBeenCalledWith(user);
     });
 
-    it('should throw BadRequestException when deleting last admin', async () => {
+    it('should throw BadRequestException when deleting last local admin', async () => {
       const admin: User = {
         id: '1',
         email: 'admin@example.com',
         role: UserRole.ADMINISTRATOR,
+        authProvider: 'local',
       } as User;
 
       jest.spyOn(userRepository, 'findOne').mockResolvedValue(admin);
-      jest.spyOn(userRepository, 'count').mockResolvedValue(1); // Only one admin
+      jest.spyOn(userRepository, 'count').mockResolvedValue(1); // Only one local admin
 
       await expect(service.deleteUser('1')).rejects.toThrow(
         BadRequestException,
+      );
+      await expect(service.deleteUser('1')).rejects.toThrow(
+        'Cannot delete the last local administrator',
       );
     });
 
@@ -380,7 +388,7 @@ describe('UserService', () => {
    * that administrator or change their role to user should be rejected with an error
    */
   describe('Property 7: Last administrator protection', () => {
-    it('should prevent deletion of the last administrator', async () => {
+    it('should prevent deletion of the last local administrator', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.record({
@@ -392,18 +400,19 @@ describe('UserService', () => {
               id: adminId,
               email: adminEmail,
               role: UserRole.ADMINISTRATOR,
+              authProvider: 'local',
             } as User;
 
-            // Mock: Only one administrator exists
+            // Mock: Only one local administrator exists
             jest.spyOn(userRepository, 'findOne').mockResolvedValue(admin);
             jest.spyOn(userRepository, 'count').mockResolvedValue(1);
 
-            // Attempt to delete the last administrator
+            // Attempt to delete the last local administrator
             await expect(service.deleteUser(adminId)).rejects.toThrow(
               BadRequestException,
             );
             await expect(service.deleteUser(adminId)).rejects.toThrow(
-              'Cannot delete the last administrator',
+              'Cannot delete the last local administrator',
             );
           },
         ),
@@ -411,7 +420,7 @@ describe('UserService', () => {
       );
     });
 
-    it('should prevent demotion of the last administrator', async () => {
+    it('should prevent demotion of the last local administrator', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.record({
@@ -423,26 +432,27 @@ describe('UserService', () => {
               id: adminId,
               email: adminEmail,
               role: UserRole.ADMINISTRATOR,
+              authProvider: 'local',
             } as User;
 
-            // Mock: Only one administrator exists
+            // Mock: Only one local administrator exists
             jest.spyOn(userRepository, 'findOne').mockResolvedValue(admin);
             jest.spyOn(userRepository, 'count').mockResolvedValue(1);
 
-            // Attempt to demote the last administrator
+            // Attempt to demote the last local administrator
             await expect(
               service.updateRole(adminId, UserRole.USER),
             ).rejects.toThrow(BadRequestException);
             await expect(
               service.updateRole(adminId, UserRole.USER),
-            ).rejects.toThrow('Cannot demote the last administrator');
+            ).rejects.toThrow('Cannot demote the last local administrator');
           },
         ),
         { numRuns: 100 },
       );
     });
 
-    it('should allow deletion when multiple administrators exist', async () => {
+    it('should allow deletion when multiple local administrators exist', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.record({
@@ -454,9 +464,10 @@ describe('UserService', () => {
               id: adminId,
               email: adminEmail,
               role: UserRole.ADMINISTRATOR,
+              authProvider: 'local',
             } as User;
 
-            // Mock: Multiple administrators exist
+            // Mock: Multiple local administrators exist
             jest.spyOn(userRepository, 'findOne').mockResolvedValue(admin);
             jest.spyOn(userRepository, 'count').mockResolvedValue(2);
             jest.spyOn(userRepository, 'remove').mockResolvedValue(admin);
@@ -469,7 +480,7 @@ describe('UserService', () => {
       );
     });
 
-    it('should allow demotion when multiple administrators exist', async () => {
+    it('should allow demotion when multiple local administrators exist', async () => {
       await fc.assert(
         fc.asyncProperty(
           fc.record({
@@ -481,9 +492,10 @@ describe('UserService', () => {
               id: adminId,
               email: adminEmail,
               role: UserRole.ADMINISTRATOR,
+              authProvider: 'local',
             } as User;
 
-            // Mock: Multiple administrators exist
+            // Mock: Multiple local administrators exist
             jest.spyOn(userRepository, 'findOne').mockResolvedValue(admin);
             jest.spyOn(userRepository, 'count').mockResolvedValue(2);
             jest.spyOn(userRepository, 'save').mockResolvedValue({

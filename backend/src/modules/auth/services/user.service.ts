@@ -92,15 +92,37 @@ export class UserService {
   }
 
   /**
+   * Count the number of local administrators in the system
+   */
+  async countLocalAdministrators(): Promise<number> {
+    return this.userRepository.count({
+      where: { role: UserRole.ADMINISTRATOR, authProvider: 'local' },
+    });
+  }
+
+  /**
+   * Check if a user is the last local administrator
+   */
+  async isLastLocalAdministrator(userId: string): Promise<boolean> {
+    const user = await this.findById(userId);
+    if (user.role !== UserRole.ADMINISTRATOR || user.authProvider !== 'local') {
+      return false;
+    }
+
+    const localAdminCount = await this.countLocalAdministrators();
+    return localAdminCount === 1;
+  }
+
+  /**
    * Validate that a role change is allowed
    * Throws an error if the change would violate last admin protection
    */
   async validateRoleChange(userId: string, newRole: UserRole): Promise<void> {
     if (newRole === UserRole.USER) {
-      const isLast = await this.isLastAdministrator(userId);
-      if (isLast) {
+      const isLastLocal = await this.isLastLocalAdministrator(userId);
+      if (isLastLocal) {
         throw new BadRequestException(
-          'Cannot demote the last administrator. At least one administrator must exist.',
+          'Cannot demote the last local administrator. At least one local administrator must exist.',
         );
       }
     }
@@ -111,10 +133,10 @@ export class UserService {
    * Throws an error if the deletion would violate last admin protection
    */
   async validateUserDeletion(userId: string): Promise<void> {
-    const isLast = await this.isLastAdministrator(userId);
-    if (isLast) {
+    const isLastLocal = await this.isLastLocalAdministrator(userId);
+    if (isLastLocal) {
       throw new BadRequestException(
-        'Cannot delete the last administrator. At least one administrator must exist.',
+        'Cannot delete the last local administrator. At least one local administrator must exist.',
       );
     }
   }

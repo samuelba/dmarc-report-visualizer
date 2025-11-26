@@ -139,14 +139,24 @@ export class UserManagementComponent implements OnInit {
     // We'll update it again if the user confirms
     this.updateUserRoleInSignal(user.id, originalRole);
 
-    // Check if this is the last admin
-    if (this.isLastAdmin(user) && newRole === UserRole.USER) {
-      this.snackBar.open('Cannot demote the last administrator. At least one administrator must exist.', 'Close', {
-        duration: 5000,
-      });
-      return;
-    }
+    // Prevent demoting the last administrator to user
+    if (newRole === UserRole.USER && user.role === UserRole.ADMINISTRATOR) {
+      // Check if this user is the last local admin
+      if (user.authProvider === 'local') {
+        const localAdminCount = this.users().filter(
+          (u) => u.role === UserRole.ADMINISTRATOR && u.authProvider === 'local'
+        ).length;
 
+        if (localAdminCount === 1) {
+          this.snackBar.open(
+            'Cannot demote the last local administrator. At least one local administrator must exist.',
+            'Close',
+            { duration: 5000 }
+          );
+          return;
+        }
+      }
+    }
     const roleLabel = newRole === UserRole.ADMINISTRATOR ? 'Administrator' : 'User';
     const dialogData: ConfirmDialogData = {
       title: 'Change User Role',
@@ -193,9 +203,13 @@ export class UserManagementComponent implements OnInit {
   deleteUser(user: UserResponse): void {
     // Check if this is the last admin
     if (this.isLastAdmin(user)) {
-      this.snackBar.open('Cannot delete the last administrator. At least one administrator must exist.', 'Close', {
-        duration: 5000,
-      });
+      this.snackBar.open(
+        'Cannot delete the last local administrator. At least one local administrator must exist.',
+        'Close',
+        {
+          duration: 5000,
+        }
+      );
       return;
     }
 
@@ -283,8 +297,15 @@ export class UserManagementComponent implements OnInit {
       return false;
     }
 
-    const adminCount = this.users().filter((u) => u.role === UserRole.ADMINISTRATOR).length;
-    return adminCount === 1;
+    // Only check for local administrators
+    if (user.authProvider !== 'local') {
+      return false;
+    }
+
+    const localAdminCount = this.users().filter(
+      (u) => u.role === UserRole.ADMINISTRATOR && u.authProvider === 'local'
+    ).length;
+    return localAdminCount === 1;
   }
 
   getRoleBadgeColor(role: UserRole): string {
