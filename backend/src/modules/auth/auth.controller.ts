@@ -1214,8 +1214,9 @@ export class AuthController {
   async updateUserRole(
     @Param('id') id: string,
     @Body() dto: UpdateRoleDto,
+    @Req() request: Request & { user: { id: string } },
   ): Promise<User> {
-    return this.userService.updateRole(id, dto.role);
+    return this.userService.updateRole(id, dto.role, request.user.id);
   }
 
   /**
@@ -1226,8 +1227,11 @@ export class AuthController {
   @Delete('users/:id')
   @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteUser(@Param('id') id: string): Promise<void> {
-    await this.userService.deleteUser(id);
+  async deleteUser(
+    @Param('id') id: string,
+    @Req() request: Request & { user: { id: string } },
+  ): Promise<void> {
+    await this.userService.deleteUser(id, request.user.id);
   }
 
   /**

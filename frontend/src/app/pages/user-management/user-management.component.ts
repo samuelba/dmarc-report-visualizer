@@ -44,6 +44,7 @@ export class UserManagementComponent implements OnInit {
   users = signal<UserResponse[]>([]);
   invites = signal<InviteToken[]>([]);
   currentUser = signal<UserResponse | null>(null);
+  loggedInUserId = signal<string | null>(null);
   loading = signal(false);
   invitesLoading = signal(false);
   passwordLoginAllowed = signal(true);
@@ -107,7 +108,8 @@ export class UserManagementComponent implements OnInit {
     this.authService.getCurrentUser().subscribe({
       next: (user) => {
         if (user) {
-          // Find the full user details from the users list
+          this.loggedInUserId.set(user.id);
+          // Find the full user details from the users list if available
           const fullUser = this.users().find((u) => u.id === user.id);
           if (fullUser) {
             this.currentUser.set(fullUser);
@@ -279,8 +281,8 @@ export class UserManagementComponent implements OnInit {
 
   canModifyUser(user: UserResponse): boolean {
     // Can't modify yourself
-    const current = this.currentUser();
-    if (current && current.id === user.id) {
+    const currentId = this.loggedInUserId();
+    if (currentId && currentId === user.id) {
       return false;
     }
 
@@ -326,5 +328,27 @@ export class UserManagementComponent implements OnInit {
     const now = new Date();
     const hoursUntilExpiry = (expires.getTime() - now.getTime()) / (1000 * 60 * 60);
     return hoursUntilExpiry < 24 && hoursUntilExpiry > 0;
+  }
+
+  getModifyTooltip(user: UserResponse): string {
+    const currentId = this.loggedInUserId();
+    if (currentId && currentId === user.id) {
+      return 'Cannot modify your own role';
+    }
+    if (this.isLastAdmin(user)) {
+      return 'Cannot modify last administrator';
+    }
+    return 'Change role';
+  }
+
+  getDeleteTooltip(user: UserResponse): string {
+    const currentId = this.loggedInUserId();
+    if (currentId && currentId === user.id) {
+      return 'Cannot delete yourself';
+    }
+    if (this.isLastAdmin(user)) {
+      return 'Cannot delete last administrator';
+    }
+    return 'Delete user';
   }
 }

@@ -142,6 +142,12 @@ describe('UserService', () => {
         'Cannot demote the last local administrator',
       );
     });
+
+    it('should throw BadRequestException when user tries to change their own role', async () => {
+      await expect(service.updateRole('1', UserRole.USER, '1')).rejects.toThrow(
+        'Cannot modify your own role',
+      );
+    });
   });
 
   describe('deleteUser', () => {
@@ -206,6 +212,19 @@ describe('UserService', () => {
       expect(userRepository.remove).toHaveBeenCalledWith(user);
       // Note: The actual cascade deletion of refresh tokens is handled by the database
       // via the foreign key constraint with ON DELETE CASCADE
+    });
+
+    it('should throw BadRequestException when user tries to delete themselves', async () => {
+      await expect(service.deleteUser('1', '1')).rejects.toThrow(
+        'Cannot delete yourself',
+      );
+    });
+
+    it('should throw BadRequestException when SAML user tries to delete themselves', async () => {
+      // This confirms the check is provider-agnostic
+      await expect(service.deleteUser('2', '2')).rejects.toThrow(
+        'Cannot delete yourself',
+      );
     });
   });
 
