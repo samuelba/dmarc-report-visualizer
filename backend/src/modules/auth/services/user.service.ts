@@ -42,8 +42,12 @@ export class UserService {
   /**
    * Update a user's role
    */
-  async updateRole(id: string, role: UserRole): Promise<User> {
-    await this.validateRoleChange(id, role);
+  async updateRole(
+    id: string,
+    role: UserRole,
+    requestingUserId?: string,
+  ): Promise<User> {
+    await this.validateRoleChange(id, role, requestingUserId);
 
     const user = await this.findById(id);
     user.role = role;
@@ -61,8 +65,8 @@ export class UserService {
   /**
    * Delete a user
    */
-  async deleteUser(id: string): Promise<void> {
-    await this.validateUserDeletion(id);
+  async deleteUser(id: string, requestingUserId?: string): Promise<void> {
+    await this.validateUserDeletion(id, requestingUserId);
 
     const user = await this.findById(id);
     await this.userRepository.remove(user);
@@ -117,7 +121,15 @@ export class UserService {
    * Validate that a role change is allowed
    * Throws an error if the change would violate last admin protection
    */
-  async validateRoleChange(userId: string, newRole: UserRole): Promise<void> {
+  async validateRoleChange(
+    userId: string,
+    newRole: UserRole,
+    requestingUserId?: string,
+  ): Promise<void> {
+    if (requestingUserId && userId === requestingUserId) {
+      throw new BadRequestException('Cannot modify your own role');
+    }
+
     if (newRole === UserRole.USER) {
       const isLastLocal = await this.isLastLocalAdministrator(userId);
       if (isLastLocal) {
@@ -132,7 +144,14 @@ export class UserService {
    * Validate that a user deletion is allowed
    * Throws an error if the deletion would violate last admin protection
    */
-  async validateUserDeletion(userId: string): Promise<void> {
+  async validateUserDeletion(
+    userId: string,
+    requestingUserId?: string,
+  ): Promise<void> {
+    if (requestingUserId && userId === requestingUserId) {
+      throw new BadRequestException('Cannot delete yourself');
+    }
+
     const isLastLocal = await this.isLastLocalAdministrator(userId);
     if (isLastLocal) {
       throw new BadRequestException(

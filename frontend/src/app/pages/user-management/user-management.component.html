@@ -63,7 +63,7 @@
                   [value]="user.role"
                   (selectionChange)="changeUserRole(user, $event.value)"
                   [disabled]="!canModifyUser(user)"
-                  [matTooltip]="isLastAdmin(user) ? 'Cannot modify last administrator' : 'Change role'"
+                  [matTooltip]="getModifyTooltip(user)"
                   class="role-select"
                 >
                   <mat-option [value]="UserRole.USER">User</mat-option>
@@ -76,7 +76,7 @@
                   color="warn"
                   (click)="deleteUser(user)"
                   [disabled]="!canModifyUser(user)"
-                  [matTooltip]="isLastAdmin(user) ? 'Cannot delete last administrator' : 'Delete user'"
+                  [matTooltip]="getDeleteTooltip(user)"
                 >
                   <mat-icon>delete</mat-icon>
                 </button>
