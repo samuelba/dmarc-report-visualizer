@@ -542,8 +542,12 @@ export class AuthController {
    * SAML callback endpoint ACS (Assertion Consumer Service)
    * Receives SAML assertion from IdP and completes authentication
    * Supports both SP-initiated and IdP-initiated flows
-   * Also handles test mode callbacks (when RelayState contains testMode=true)
+   * Also handles test mode callbacks (when RelayState contains testMode=true AND valid nonce)
    * Protected by AuthGuard('saml') - validates SAML assertion
+   *
+   * Security: Test mode requires a valid server-side nonce to prevent attackers
+   * from crafting RelayState=testMode=true to bypass session creation.
+   * The nonce is generated when an admin initiates the test flow and validated here.
    */
   @Public()
   @Post('saml/callback')
@@ -554,16 +558,27 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     // Check if this is a test mode callback
-    const relayState = req.body?.RelayState || '';
-    const isTestMode = relayState.includes('testMode=true');
+    const relayState: string =
+      typeof req.body?.RelayState === 'string' ? req.body.RelayState : '';
+    const hasTestModeFlag = relayState.includes('testMode=true');
 
-    if (isTestMode) {
-      // Test mode: Display success page without creating session
-      const user = req.user;
-      const html = this.generateTestSuccessPage(user.email);
-      response.set('Content-Type', 'text/html');
-      response.send(html);
-      return;
+    if (hasTestModeFlag) {
+      // Extract and validate the nonce to ensure this test was initiated by an admin
+      // This prevents attackers from crafting RelayState=testMode=true to bypass session creation
+      const nonce = this.samlService.parseTestNonceFromRelayState(relayState);
+      const isValidTestMode =
+        await this.samlService.validateAndConsumeTestNonce(nonce || '');
+
+      if (isValidTestMode) {
+        // Valid test mode: Display success page without creating session
+        const user = req.user;
+        const html = this.generateTestSuccessPage(user.email);
+        response.set('Content-Type', 'text/html');
+        response.send(html);
+        return;
+      }
+      // Invalid nonce - fall through to normal login flow
+      // This handles the case where someone tries to forge testMode=true
     }
 
     // Production mode: Normal SAML login flow

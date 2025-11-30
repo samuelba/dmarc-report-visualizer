@@ -43,6 +43,7 @@ describe('SamlTestStrategy', () => {
             getConfig: jest.fn(),
             getConfigFresh: jest.fn(),
             validateSamlAssertion: jest.fn(),
+            generateTestNonce: jest.fn().mockResolvedValue('test-nonce-123'),
             createFreshSamlOptions: jest.fn((existingOptions, config) => ({
               ...existingOptions,
               entryPoint: config.idpSsoUrl,
@@ -87,10 +88,13 @@ describe('SamlTestStrategy', () => {
   });
 
   describe('authenticate', () => {
-    it('should load fresh configuration from database', async () => {
+    it('should load fresh configuration from database and generate nonce', async () => {
       jest
         .spyOn(samlService, 'getConfigFresh')
         .mockResolvedValue(mockSamlConfig);
+      jest
+        .spyOn(samlService, 'generateTestNonce')
+        .mockResolvedValue('secure-nonce-abc123');
 
       const mockReq = {} as any;
       const mockOptions = {} as any;
@@ -109,10 +113,11 @@ describe('SamlTestStrategy', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(samlService.getConfigFresh).toHaveBeenCalled();
+      expect(samlService.generateTestNonce).toHaveBeenCalled();
       expect(parentAuthenticateSpy).toHaveBeenCalledWith(mockReq, {
         ...mockOptions,
         additionalParams: {
-          RelayState: 'testMode=true',
+          RelayState: 'testMode=true&nonce=secure-nonce-abc123',
         },
       });
     });

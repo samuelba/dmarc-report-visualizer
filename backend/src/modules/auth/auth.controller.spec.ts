@@ -61,6 +61,8 @@ describe('AuthController', () => {
     testSamlConnection: jest.fn(),
     isPasswordLoginAllowed: jest.fn().mockResolvedValue(true),
     setPasswordLoginDisabled: jest.fn(),
+    parseTestNonceFromRelayState: jest.fn().mockReturnValue('valid-nonce'),
+    validateAndConsumeTestNonce: jest.fn().mockResolvedValue(true),
   };
 
   const mockTotpService = {

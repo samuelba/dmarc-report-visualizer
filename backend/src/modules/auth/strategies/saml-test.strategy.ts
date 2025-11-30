@@ -76,6 +76,7 @@ export class SamlTestStrategy extends PassportStrategy(Strategy, 'saml-test') {
    * Key differences from production:
    * - Always loads fresh config (no caching)
    * - Does NOT check config.enabled flag
+   * - Generates a secure nonce to prevent test mode bypass attacks
    */
   authenticate(req: any, options?: any): void {
     this.logger.log(
@@ -83,9 +84,12 @@ export class SamlTestStrategy extends PassportStrategy(Strategy, 'saml-test') {
     );
 
     // Always load fresh config from database (bypass cache)
-    this.samlService
-      .getConfigFresh()
-      .then((config) => {
+    // Also generate a secure nonce to prevent test mode bypass attacks
+    Promise.all([
+      this.samlService.getConfigFresh(),
+      this.samlService.generateTestNonce(),
+    ])
+      .then(([config, nonce]) => {
         if (!config) {
           throw new UnauthorizedException('SAML is not configured');
         }
@@ -120,12 +124,13 @@ export class SamlTestStrategy extends PassportStrategy(Strategy, 'saml-test') {
           },
         );
 
-        // Call parent authenticate method with RelayState to indicate test mode
-        // The RelayState will be passed back by the IdP in the callback
+        // Call parent authenticate method with RelayState containing test mode flag AND secure nonce
+        // The nonce prevents attackers from crafting RelayState=testMode=true to bypass session creation
+        // The nonce is validated and consumed in the callback (single-use)
         const testOptions = {
           ...options,
           additionalParams: {
-            RelayState: 'testMode=true',
+            RelayState: `testMode=true&nonce=${nonce}`,
           },
         };
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument

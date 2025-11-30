@@ -13,7 +13,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { parseStringPromise } from 'xml2js';
 import { create } from 'xmlbuilder2';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import Redis from 'ioredis';
 import { SAML, SamlConfig as NodeSamlConfig } from '@node-saml/node-saml';
 import { SamlConfig } from '../entities/saml-config.entity';
@@ -53,6 +53,8 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
   private redis: Redis | null = null;
   private readonly REDIS_KEY_PREFIX = 'saml:assertion:';
   private readonly REDIS_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+  private readonly TEST_NONCE_PREFIX = 'saml:test:nonce:';
+  private readonly TEST_NONCE_TTL_SECONDS = 5 * 60; // 5 minutes for test flow
 
   // In-memory cache for SAML configuration (production use)
   private configCache: SamlConfig | null = null;
@@ -921,5 +923,91 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       }
       throw samlError;
     }
+  }
+
+  /**
+   * Generate a secure test mode nonce for SAML test flow
+   * The nonce is stored in Redis and must be validated in the callback
+   * This prevents attackers from crafting RelayState=testMode=true to bypass session creation
+   * @returns The generated nonce string
+   */
+  async generateTestNonce(): Promise<string> {
+    const nonce = randomBytes(32).toString('hex');
+
+    if (!this.redis) {
+      this.logger.warn(
+        'Redis not available - SAML test mode nonce validation will be disabled',
+      );
+      return nonce;
+    }
+
+    try {
+      const key = `${this.TEST_NONCE_PREFIX}${nonce}`;
+      await this.redis.set(key, '1', 'EX', this.TEST_NONCE_TTL_SECONDS);
+      this.logger.debug(
+        `Generated SAML test nonce (TTL: ${this.TEST_NONCE_TTL_SECONDS}s)`,
+      );
+      return nonce;
+    } catch (error) {
+      this.logger.error(`Redis error storing test nonce: ${error.message}`);
+      // Return nonce anyway - validation will fail open if Redis is unavailable
+      return nonce;
+    }
+  }
+
+  /**
+   * Validate and consume a test mode nonce from the SAML callback
+   * The nonce is deleted after validation to prevent reuse
+   * @param nonce The nonce from RelayState
+   * @returns True if nonce is valid, false otherwise
+   */
+  async validateAndConsumeTestNonce(nonce: string): Promise<boolean> {
+    if (!nonce) {
+      return false;
+    }
+
+    if (!this.redis) {
+      this.logger.warn(
+        'Redis not available - SAML test mode nonce validation skipped (fail open)',
+      );
+      // Fail open if Redis is unavailable - this is a security trade-off
+      // In production, Redis should always be available
+      return false;
+    }
+
+    try {
+      const key = `${this.TEST_NONCE_PREFIX}${nonce}`;
+      // Use GETDEL to atomically get and delete (prevents race conditions)
+      const value = await this.redis.getdel(key);
+
+      if (value) {
+        this.logger.debug('SAML test nonce validated and consumed');
+        return true;
+      }
+
+      this.logger.warn(
+        'SAML test nonce validation failed - nonce not found or expired',
+      );
+      return false;
+    } catch (error) {
+      this.logger.error(`Redis error validating test nonce: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Parse RelayState to extract test mode nonce
+   * RelayState format: testMode=true&nonce=<hex_string>
+   * @param relayState The RelayState string from SAML callback
+   * @returns The nonce if present, null otherwise
+   */
+  parseTestNonceFromRelayState(relayState: string): string | null {
+    if (!relayState || !relayState.includes('testMode=true')) {
+      return null;
+    }
+
+    // Parse as URL search params
+    const params = new URLSearchParams(relayState);
+    return params.get('nonce');
   }
 }

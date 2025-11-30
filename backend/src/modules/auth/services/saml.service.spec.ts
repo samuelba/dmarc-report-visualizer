@@ -878,4 +878,79 @@ describe('SamlService', () => {
       });
     });
   });
+
+  describe('Test Mode Nonce', () => {
+    describe('generateTestNonce', () => {
+      it('should generate a 64-character hex string', async () => {
+        const nonce = await service.generateTestNonce();
+
+        expect(nonce).toBeDefined();
+        expect(nonce.length).toBe(64); // 32 bytes = 64 hex chars
+        expect(/^[a-f0-9]+$/.test(nonce)).toBe(true);
+      });
+
+      it('should generate unique nonces', async () => {
+        const nonce1 = await service.generateTestNonce();
+        const nonce2 = await service.generateTestNonce();
+
+        expect(nonce1).not.toBe(nonce2);
+      });
+    });
+
+    describe('validateAndConsumeTestNonce', () => {
+      it('should return false for empty nonce', async () => {
+        const result = await service.validateAndConsumeTestNonce('');
+
+        expect(result).toBe(false);
+      });
+
+      it('should return false when Redis is not available', async () => {
+        // Redis is not initialized in unit tests
+        const result =
+          await service.validateAndConsumeTestNonce('some-nonce-value');
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('parseTestNonceFromRelayState', () => {
+      it('should extract nonce from valid RelayState', () => {
+        const relayState = 'testMode=true&nonce=abc123def456';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBe('abc123def456');
+      });
+
+      it('should return null when testMode is not present', () => {
+        const relayState = 'nonce=abc123def456';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBeNull();
+      });
+
+      it('should return null when RelayState is empty', () => {
+        const nonce = service.parseTestNonceFromRelayState('');
+
+        expect(nonce).toBeNull();
+      });
+
+      it('should return null when nonce is not present', () => {
+        const relayState = 'testMode=true';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBeNull();
+      });
+
+      it('should handle URL-encoded RelayState', () => {
+        const relayState = 'testMode=true&nonce=abc%20123';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBe('abc 123');
+      });
+    });
+  });
 });
