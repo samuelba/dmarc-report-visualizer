@@ -19,6 +19,7 @@ import { UserService } from '../../../services/user.service';
 import { MessageComponent } from '../../../components/message/message.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../components/confirm-dialog/confirm-dialog.component';
 import { UserRole } from '../../../models/user-role.enum';
+import { Router } from '@angular/router';
 
 export interface SamlConfigResponse {
   enabled: boolean;
@@ -65,6 +66,7 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
 
   config = signal<SamlConfigResponse | null>(null);
   loading = signal(false);
@@ -321,26 +323,69 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
       this.testWindowCheckInterval = null;
     }
 
-    // Open SAML login in a new window for testing
-    const testWindow = window.open('/api/auth/saml/login', 'saml-test', 'width=800,height=600');
+    // Check if access token is expired
+    const accessToken = this.getAccessTokenFromCookie();
 
-    if (!testWindow) {
-      this.snackBar.open('Please allow pop-ups to test SAML login', 'Close', { duration: 5000 });
-      return;
+    if (!accessToken || this.isTokenExpired(accessToken)) {
+      // Token is expired, refresh it first
+      this.authService.refreshToken().subscribe({
+        next: () => {
+          // Token refreshed successfully, proceed with test
+          this.initiateSamlTestFlow();
+        },
+        error: (err) => {
+          // Handle refresh failure
+          this.handleAuthError(err, 'Failed to refresh session. Please try again.');
+        },
+      });
+    } else {
+      // Token is valid, proceed with test
+      this.initiateSamlTestFlow();
     }
+  }
 
-    this.snackBar.open('SAML test login opened in new window', 'Close', { duration: 3000 });
-
-    // Listen for the test window to close or complete
-    this.testWindowCheckInterval = setInterval(() => {
-      if (testWindow.closed) {
-        if (this.testWindowCheckInterval) {
-          clearInterval(this.testWindowCheckInterval);
-          this.testWindowCheckInterval = null;
+  /**
+   * Initiate SAML test flow
+   * Called after token validation/refresh
+   */
+  private initiateSamlTestFlow(): void {
+    this.authService.initiateSamlTest().subscribe({
+      next: (result) => {
+        if (!result.success) {
+          this.snackBar.open(result.message, 'Close', { duration: 5000 });
+          return;
         }
-        this.snackBar.open('SAML test window closed', 'Close', { duration: 3000 });
-      }
-    }, 1000);
+
+        // Open test login URL in new window
+        const testWindow = window.open(
+          result.testLoginUrl,
+          'saml-test',
+          'width=800,height=600,menubar=no,toolbar=no,location=no'
+        );
+
+        if (!testWindow) {
+          this.snackBar.open('Please allow pop-ups to test SAML login', 'Close', { duration: 5000 });
+          return;
+        }
+
+        this.snackBar.open('SAML test login opened in new window', 'Close', { duration: 3000 });
+
+        // Listen for the test window to close or complete
+        this.testWindowCheckInterval = setInterval(() => {
+          if (testWindow.closed) {
+            if (this.testWindowCheckInterval) {
+              clearInterval(this.testWindowCheckInterval);
+              this.testWindowCheckInterval = null;
+            }
+            this.snackBar.open('SAML test window closed', 'Close', { duration: 3000 });
+          }
+        }, 1000);
+      },
+      error: (err) => {
+        // Handle errors from initiate endpoint
+        this.handleAuthError(err, 'Failed to initiate SAML test');
+      },
+    });
   }
 
   togglePasswordLogin(event: any): void {
@@ -413,5 +458,59 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
         this.loading.set(false);
       },
     });
+  }
+
+  /**
+   * Get access token from cookie
+   * @returns Access token or null if not found
+   */
+  private getAccessTokenFromCookie(): string | null {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, ...valueParts] = cookie.trim().split('=');
+      if (name === 'accessToken') {
+        return valueParts.join('=');
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if JWT token is expired or will expire soon
+   * @param token JWT token
+   * @returns True if expired or expires within 60 seconds
+   */
+  private isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(window.atob(token.split('.')[1]));
+
+      // If no exp claim exists, consider token expired
+      if (!payload.exp || typeof payload.exp !== 'number') {
+        return true;
+      }
+
+      const exp = payload.exp * 1000; // Convert to milliseconds
+      const bufferMs = 60000; // 60 second buffer for clock skew and race conditions
+      return Date.now() >= exp - bufferMs;
+    } catch {
+      return true; // If we can't parse it, consider it expired
+    }
+  }
+
+  /**
+   * Handle authentication errors consistently
+   * @param err Error object from HTTP request
+   * @param defaultMessage Default error message if none provided
+   */
+  private handleAuthError(err: any, defaultMessage: string): void {
+    if (err.status === 401) {
+      this.snackBar.open('Session expired. Please log in again.', 'Close', { duration: 5000 });
+      this.router.navigate(['/login']);
+    } else if (err.status === 403) {
+      this.snackBar.open('Administrator access required to test SAML', 'Close', { duration: 5000 });
+    } else {
+      const errorMessage = err.error?.message || defaultMessage;
+      this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+    }
   }
 }

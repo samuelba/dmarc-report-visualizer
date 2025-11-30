@@ -5,6 +5,7 @@ import {
   Profile,
   SamlConfig as PassportSamlConfig,
 } from '@node-saml/passport-saml';
+import { SamlConfig as NodeSamlConfig } from '@node-saml/node-saml';
 import { ConfigService } from '@nestjs/config';
 import { SamlService } from '../services/saml.service';
 import { User } from '../entities/user.entity';
@@ -74,9 +75,25 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
    * This is called before the SAML flow begins
    */
   authenticate(req: any, options?: any): void {
-    // Load configuration asynchronously and then call parent authenticate
-    this.samlService
-      .getConfig()
+    // Check if this is a callback (POST with SAMLResponse) or login initiation (GET)
+    const isCallback = req.method === 'POST' && req.body?.SAMLResponse;
+
+    // Check if this is a test mode callback (RelayState contains testMode=true)
+    const relayState = req.body?.RelayState || '';
+    const isTestMode = relayState.includes('testMode=true');
+
+    if (isTestMode) {
+      this.logger.debug(
+        'Test mode callback detected, loading fresh config from database',
+      );
+    }
+
+    // Load configuration - use fresh config for test mode, cached for production
+    const configPromise = isTestMode
+      ? this.samlService.getConfigFresh()
+      : this.samlService.getConfig();
+
+    configPromise
       .then((config) => {
         if (!config) {
           throw new UnauthorizedException(
@@ -84,35 +101,50 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
           );
         }
 
-        if (!config.enabled) {
+        // Only check if SAML is enabled for login initiation, not for callbacks
+        // This allows in-flight SAML logins to complete even if SAML is disabled between
+        // login initiation and callback. Test mode also uses callbacks to bypass the enabled check.
+        if (!isCallback && !config.enabled) {
           throw new UnauthorizedException('SAML authentication is not enabled');
         }
 
-        // Update strategy configuration with IdP details
-        (this as any)._saml.options.entryPoint = config.idpSsoUrl;
-        (this as any)._saml.options.idpCert = config.idpCertificate;
-        (this as any)._saml.options.cert = config.idpCertificate; // Some versions use 'cert'
-        (this as any)._saml.options.issuer = config.spEntityId;
-        (this as any)._saml.options.callbackUrl = config.spAcsUrl;
+        // Create fresh SAML options with the latest config from database
+        const freshOptions = this.samlService.createFreshSamlOptions(
+          (this as any)._saml.options as NodeSamlConfig,
+          config,
+        );
+
+        // IMPORTANT: Recreate the internal SAML instance to ensure fresh certificate is used
+        // The passport-saml library caches the certificate internally, so we need to
+        // create a new SAML instance with the fresh config
+        // Note: createFreshSamlInstance handles certificate validation and throws
+        // UnauthorizedException for invalid certificates
+        (this as any)._saml = this.samlService.createFreshSamlInstance(
+          freshOptions,
+          'SAML authentication',
+        );
 
         // Log configuration for debugging
-        this.logger.debug('SAML configuration loaded', {
-          entryPoint: config.idpSsoUrl,
-          issuer: config.spEntityId,
-          callbackUrl: config.spAcsUrl,
-          certificateLength: config.idpCertificate?.length,
-          certificateStart: config.idpCertificate?.substring(0, 50),
-          wantAssertionsSigned: (this as any)._saml.options
-            .wantAssertionsSigned,
-          wantAuthnResponseSigned: (this as any)._saml.options
-            .wantAuthnResponseSigned,
-        });
+        this.logger.debug(
+          'SAML configuration loaded (fresh SAML instance created)',
+          {
+            entryPoint: config.idpSsoUrl,
+            issuer: config.spEntityId,
+            callbackUrl: config.spAcsUrl,
+            certificateLength: config.idpCertificate?.length,
+            certificateStart: config.idpCertificate?.substring(0, 50),
+            wantAssertionsSigned: freshOptions.wantAssertionsSigned,
+            wantAuthnResponseSigned: freshOptions.wantAuthnResponseSigned,
+          },
+        );
 
         // Call parent authenticate method
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         super.authenticate(req, options);
       })
       .catch((error) => {
+        // All errors (including certificate validation errors from createFreshSamlInstance)
+        // are handled here uniformly
         if (error instanceof UnauthorizedException) {
           throw error;
         }

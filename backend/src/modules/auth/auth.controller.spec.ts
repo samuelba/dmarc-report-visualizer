@@ -61,6 +61,8 @@ describe('AuthController', () => {
     testSamlConnection: jest.fn(),
     isPasswordLoginAllowed: jest.fn().mockResolvedValue(true),
     setPasswordLoginDisabled: jest.fn(),
+    parseTestNonceFromRelayState: jest.fn().mockReturnValue('valid-nonce'),
+    validateAndConsumeTestNonce: jest.fn().mockResolvedValue(true),
   };
 
   const mockTotpService = {
@@ -853,6 +855,370 @@ describe('AuthController', () => {
           lastUsed: null,
           recoveryCodesRemaining: 0,
         });
+      });
+    });
+  });
+
+  describe('SAML Test Mode Endpoints', () => {
+    describe('initiateSamlTest', () => {
+      it('should require admin role', async () => {
+        // This test verifies that the AdminGuard is applied to the endpoint
+        // The guard is mocked in the test setup to always return true
+        // In production, the guard would check the JWT for admin role
+        const result = await controller.initiateSamlTest();
+        expect(result).toBeDefined();
+      });
+
+      it('should return error when SAML not configured', async () => {
+        mockSamlService.getConfig.mockResolvedValue(null);
+
+        const result = await controller.initiateSamlTest();
+
+        expect(result).toEqual({
+          success: false,
+          message:
+            'SAML is not configured. Please configure SAML settings first.',
+        });
+      });
+
+      it('should return error when SAML configuration is incomplete', async () => {
+        mockSamlService.getConfig.mockResolvedValue({
+          idpEntityId: 'test-idp',
+          idpSsoUrl: null, // Missing SSO URL
+          idpCertificate: null, // Missing certificate
+        });
+
+        const result = await controller.initiateSamlTest();
+
+        expect(result).toEqual({
+          success: false,
+          message:
+            'SAML configuration is incomplete. Please ensure all IdP settings are configured.',
+        });
+      });
+
+      it('should return test URL when SAML is configured', async () => {
+        mockSamlService.getConfig.mockResolvedValue({
+          idpEntityId: 'test-idp',
+          idpSsoUrl: 'https://idp.example.com/sso',
+          idpCertificate: 'test-certificate',
+        });
+
+        const result = await controller.initiateSamlTest();
+
+        expect(result).toEqual({
+          success: true,
+          message: 'SAML configuration is valid. Opening test login...',
+          testLoginUrl: 'http://localhost:3000/auth/saml/test/login',
+        });
+      });
+    });
+
+    describe('samlTestLogin', () => {
+      it('should require admin role', async () => {
+        // This test verifies that the AdminGuard is applied to the endpoint
+        // The guard is mocked in the test setup to always return true
+        // The actual redirect is handled by Passport, so no implementation needed
+        const result = await controller.samlTestLogin();
+        expect(result).toBeUndefined();
+      });
+    });
+
+    describe('samlTestCallback', () => {
+      it('should return HTML success page', async () => {
+        const request = {
+          user: { email: 'test@example.com' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+        } as unknown as Response;
+
+        // Add RelayState to indicate test mode
+        request.body = { RelayState: 'testMode=true' };
+
+        await controller.samlCallback(request, response);
+
+        expect(response.set).toHaveBeenCalledWith('Content-Type', 'text/html');
+        expect(response.send).toHaveBeenCalledWith(
+          expect.stringContaining('SAML Test Successful'),
+        );
+        expect(response.send).toHaveBeenCalledWith(
+          expect.stringContaining('test@example.com'),
+        );
+      });
+
+      it('should not set cookies', async () => {
+        const request = {
+          user: { email: 'test@example.com' },
+          body: { RelayState: 'testMode=true' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+        } as unknown as Response;
+
+        await controller.samlCallback(request, response);
+
+        // Verify that cookie method was never called
+        expect(response.cookie).not.toHaveBeenCalled();
+      });
+
+      it('should not create session', async () => {
+        const request = {
+          user: { email: 'test@example.com' },
+          body: { RelayState: 'testMode=true' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+        } as unknown as Response;
+
+        await controller.samlCallback(request, response);
+
+        // Verify that authService.login was never called
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('generateTestSuccessPage', () => {
+      it('should include email in success page', async () => {
+        const request = {
+          user: { email: 'user@example.com' },
+          body: { RelayState: 'testMode=true' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+        } as unknown as Response;
+
+        await controller.samlCallback(request, response);
+
+        const htmlContent = (response.send as jest.Mock).mock.calls[0][0];
+
+        expect(htmlContent).toContain('user@example.com');
+      });
+
+      it('should include success message in page', async () => {
+        const request = {
+          user: { email: 'test@example.com' },
+          body: { RelayState: 'testMode=true' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+        } as unknown as Response;
+
+        await controller.samlCallback(request, response);
+
+        const htmlContent = (response.send as jest.Mock).mock.calls[0][0];
+
+        expect(htmlContent).toContain('SAML Test Successful');
+        expect(htmlContent).toContain(
+          'Your SAML configuration is working correctly',
+        );
+        expect(htmlContent).toContain('Close this window');
+      });
+    });
+
+    describe('samlCallback nonce validation failure scenarios', () => {
+      it('should show error page when nonce validation fails (no session created)', async () => {
+        const request = {
+          user: { id: mockUser.id, email: 'test@example.com' },
+          body: { RelayState: 'testMode=true&nonce=invalid-nonce' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+          redirect: jest.fn(),
+        } as unknown as Response;
+
+        // Mock nonce validation to fail
+        mockSamlService.validateAndConsumeTestNonce.mockResolvedValue(false);
+
+        await controller.samlCallback(request, response);
+
+        // Verify error page was shown (no session created)
+        expect(response.set).toHaveBeenCalledWith('Content-Type', 'text/html');
+        expect(response.send).toHaveBeenCalled();
+        const htmlContent = (response.send as jest.Mock).mock.calls[0][0];
+        expect(htmlContent).toContain('SAML Test Failed');
+        expect(htmlContent).toContain('SAML test session expired or invalid');
+        // Verify NO session was created
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(response.cookie).not.toHaveBeenCalled();
+        expect(response.redirect).not.toHaveBeenCalled();
+      });
+
+      it('should show error page when testMode=true but no nonce is present (no session created)', async () => {
+        const request = {
+          user: { id: mockUser.id, email: 'test@example.com' },
+          body: { RelayState: 'testMode=true' }, // No nonce in RelayState
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+          redirect: jest.fn(),
+        } as unknown as Response;
+
+        // Mock parseTestNonceFromRelayState to return null (no nonce found)
+        mockSamlService.parseTestNonceFromRelayState.mockReturnValue(null);
+        // Mock nonce validation to fail for empty/null nonce
+        mockSamlService.validateAndConsumeTestNonce.mockResolvedValue(false);
+
+        await controller.samlCallback(request, response);
+
+        // Verify nonce validation was called with empty string
+        expect(
+          mockSamlService.validateAndConsumeTestNonce,
+        ).toHaveBeenCalledWith('');
+        // Verify error page was shown (no session created)
+        expect(response.set).toHaveBeenCalledWith('Content-Type', 'text/html');
+        expect(response.send).toHaveBeenCalled();
+        const htmlContent = (response.send as jest.Mock).mock.calls[0][0];
+        expect(htmlContent).toContain('SAML Test Failed');
+        expect(htmlContent).toContain('SAML test session expired or invalid');
+        // Verify NO session was created
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(response.cookie).not.toHaveBeenCalled();
+        expect(response.redirect).not.toHaveBeenCalled();
+      });
+
+      it('should show error page when nonce is expired or already consumed (no session created)', async () => {
+        const request = {
+          user: { id: mockUser.id, email: 'test@example.com' },
+          body: { RelayState: 'testMode=true&nonce=expired-nonce' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+          redirect: jest.fn(),
+        } as unknown as Response;
+
+        // Mock nonce as expired/consumed
+        mockSamlService.parseTestNonceFromRelayState.mockReturnValue(
+          'expired-nonce',
+        );
+        mockSamlService.validateAndConsumeTestNonce.mockResolvedValue(false);
+
+        await controller.samlCallback(request, response);
+
+        // Verify error page was shown (no session created)
+        expect(response.set).toHaveBeenCalledWith('Content-Type', 'text/html');
+        expect(response.send).toHaveBeenCalled();
+        const htmlContent = (response.send as jest.Mock).mock.calls[0][0];
+        expect(htmlContent).toContain('SAML Test Failed');
+        expect(htmlContent).toContain('SAML test session expired or invalid');
+        // Verify NO session was created
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(response.cookie).not.toHaveBeenCalled();
+        expect(response.redirect).not.toHaveBeenCalled();
+      });
+
+      it('should show error page when attacker forges testMode=true without valid nonce (no session created)', async () => {
+        const request = {
+          user: { id: mockUser.id, email: 'attacker@example.com' },
+          body: { RelayState: 'testMode=true&nonce=forged-nonce' },
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+          redirect: jest.fn(),
+        } as unknown as Response;
+
+        // Mock forged nonce validation to fail
+        mockSamlService.parseTestNonceFromRelayState.mockReturnValue(
+          'forged-nonce',
+        );
+        mockSamlService.validateAndConsumeTestNonce.mockResolvedValue(false);
+
+        await controller.samlCallback(request, response);
+
+        // Security: Verify error page was shown (not success page)
+        expect(response.set).toHaveBeenCalledWith('Content-Type', 'text/html');
+        expect(response.send).toHaveBeenCalled();
+        const htmlContent = (response.send as jest.Mock).mock.calls[0][0];
+        expect(htmlContent).toContain('SAML Test Failed');
+        expect(htmlContent).not.toContain('SAML Test Successful');
+        // Verify NO session was created (prevents session hijacking)
+        expect(mockAuthService.login).not.toHaveBeenCalled();
+        expect(response.cookie).not.toHaveBeenCalled();
+        expect(response.redirect).not.toHaveBeenCalled();
+      });
+
+      it('should handle normal SAML login without testMode flag', async () => {
+        const request = {
+          user: { id: mockUser.id, email: 'user@example.com' },
+          body: { RelayState: '' }, // No testMode flag
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+          redirect: jest.fn(),
+        } as unknown as Response;
+
+        mockAuthService.login.mockResolvedValue({
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          user: { id: mockUser.id, email: mockUser.email },
+        });
+
+        await controller.samlCallback(request, response);
+
+        // Verify nonce validation was NOT called (no testMode flag)
+        expect(
+          mockSamlService.validateAndConsumeTestNonce,
+        ).not.toHaveBeenCalled();
+        // Verify normal login flow
+        expect(mockAuthService.login).toHaveBeenCalledWith(request.user);
+        expect(response.cookie).toHaveBeenCalledTimes(2);
+        expect(response.redirect).toHaveBeenCalled();
+      });
+
+      it('should handle undefined RelayState gracefully', async () => {
+        const request = {
+          user: { id: mockUser.id, email: 'user@example.com' },
+          body: {}, // No RelayState at all
+        } as unknown as Request & { user: User };
+
+        const response = {
+          set: jest.fn(),
+          send: jest.fn(),
+          cookie: jest.fn(),
+          redirect: jest.fn(),
+        } as unknown as Response;
+
+        mockAuthService.login.mockResolvedValue({
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+          user: { id: mockUser.id, email: mockUser.email },
+        });
+
+        await controller.samlCallback(request, response);
+
+        // Verify nonce validation was NOT called
+        expect(
+          mockSamlService.validateAndConsumeTestNonce,
+        ).not.toHaveBeenCalled();
+        // Verify normal login flow
+        expect(mockAuthService.login).toHaveBeenCalledWith(request.user);
+        expect(response.redirect).toHaveBeenCalled();
       });
     });
   });

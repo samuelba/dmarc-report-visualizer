@@ -542,16 +542,54 @@ export class AuthController {
    * SAML callback endpoint ACS (Assertion Consumer Service)
    * Receives SAML assertion from IdP and completes authentication
    * Supports both SP-initiated and IdP-initiated flows
+   * Also handles test mode callbacks (when RelayState contains testMode=true AND valid nonce)
    * Protected by AuthGuard('saml') - validates SAML assertion
+   *
+   * Security: Test mode requires a valid server-side nonce to prevent attackers
+   * from crafting RelayState=testMode=true to bypass session creation.
+   * The nonce is generated when an admin initiates the test flow and validated here.
    */
   @Public()
   @Post('saml/callback')
   @UseGuards(AuthGuard('saml'))
   @HttpCode(HttpStatus.OK)
   async samlCallback(
-    @Req() req: Request & { user: User },
+    @Req() req: Request & { user: User; body?: { RelayState?: string } },
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
+    // Check if this is a test mode callback
+    const relayState: string =
+      typeof req.body?.RelayState === 'string' ? req.body.RelayState : '';
+    const hasTestModeFlag = relayState.includes('testMode=true');
+
+    if (hasTestModeFlag) {
+      // Extract and validate the nonce to ensure this test was initiated by an admin
+      // This prevents attackers from crafting RelayState=testMode=true to bypass session creation
+      const nonce = this.samlService.parseTestNonceFromRelayState(relayState);
+      const isValidTestMode =
+        await this.samlService.validateAndConsumeTestNonce(nonce || '');
+
+      if (isValidTestMode) {
+        // Valid test mode: Display success page without creating session
+        const user = req.user;
+        const html = this.generateTestSuccessPage(user.email);
+        response.set('Content-Type', 'text/html');
+        response.send(html);
+        return;
+      }
+
+      // Invalid nonce - show error page without creating session
+      // This prevents session replacement when testing SAML (regardless of whether SAML is enabled)
+      // An invalid nonce could mean: expired, Redis unavailable, or forged testMode flag
+      const html = this.generateTestErrorPage(
+        'SAML test session expired or invalid. Please try testing again from the SAML settings page.',
+      );
+      response.set('Content-Type', 'text/html');
+      response.send(html);
+      return;
+    }
+
+    // Production mode: Normal SAML login flow
     // User is attached to request by SAML strategy after successful validation
     const user = req.user;
 
@@ -825,6 +863,243 @@ export class AuthController {
   async enablePasswordLogin(): Promise<{ message: string }> {
     await this.samlService.setPasswordLoginDisabled(false);
     return { message: 'Password login has been enabled.' };
+  }
+
+  /**
+   * Initiate SAML test endpoint
+   * Validates admin role and returns test login URL
+   * Admin only - requires valid JWT access token
+   * Allows testing SAML configuration without enabling it for all users
+   */
+  @Post('saml/test/initiate')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.OK)
+  async initiateSamlTest(): Promise<{
+    success: boolean;
+    message: string;
+    testLoginUrl?: string;
+  }> {
+    // Check if SAML is configured
+    const config = await this.samlService.getConfig();
+
+    if (!config) {
+      return {
+        success: false,
+        message:
+          'SAML is not configured. Please configure SAML settings first.',
+      };
+    }
+
+    if (!config.idpEntityId || !config.idpSsoUrl || !config.idpCertificate) {
+      return {
+        success: false,
+        message:
+          'SAML configuration is incomplete. Please ensure all IdP settings are configured.',
+      };
+    }
+
+    // Return the test login URL
+    const apiUrl = this.configService.get<string>(
+      'API_URL',
+      'http://localhost:3000',
+    );
+    const testLoginUrl = `${apiUrl}/auth/saml/test/login`;
+
+    return {
+      success: true,
+      message: 'SAML configuration is valid. Opening test login...',
+      testLoginUrl,
+    };
+  }
+
+  /**
+   * SAML test login initiation endpoint
+   * Redirects to IdP for test authentication
+   * Admin only - requires valid JWT access token
+   * Bypasses SAML enabled check
+   * Uses SamlTestStrategy which loads fresh config from database
+   */
+  @Get('saml/test/login')
+  @UseGuards(AdminGuard, AuthGuard('saml-test'))
+  async samlTestLogin(): Promise<void> {
+    // This endpoint is handled by Passport SAML Test strategy
+    // It will redirect to the IdP SSO URL
+    // No implementation needed - Passport handles the redirect
+  }
+
+  /**
+   * Escape HTML special characters to prevent XSS
+   * @param text Text to escape
+   * @returns Escaped text safe for HTML insertion
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  /**
+   * Generate HTML success page for SAML test
+   * Displays success message with authenticated user email
+   * Does not create session or set cookies
+   * @param email Authenticated user email
+   * @returns HTML string
+   */
+  private generateTestSuccessPage(email: string): string {
+    const escapedEmail = this.escapeHtml(email);
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>SAML Test Successful</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #4d9abf 0%, #2f80a5 100%);
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 500px;
+    }
+    .success-icon {
+      font-size: 64px;
+      color: #10b981;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #1f2937;
+      margin: 0 0 1rem 0;
+    }
+    p {
+      color: #6b7280;
+      margin: 0.5rem 0;
+    }
+    .user-info {
+      background: #f3f4f6;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+    }
+    .close-btn {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #4d9abf;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .close-btn:hover {
+      background: #2f80a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="success-icon">✓</div>
+    <h1>SAML Test Successful</h1>
+    <p>Your SAML configuration is working correctly!</p>
+    <div class="user-info">
+      <p><strong>Authenticated as:</strong></p>
+      <p>${escapedEmail}</p>
+    </div>
+    <p style="font-size: 0.875rem;">This was a test authentication. No session was created.</p>
+    <button class="close-btn" onclick="window.close()">Close this window</button>
+  </div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Generate HTML error page for SAML test
+   * Displays error message when test mode validation fails
+   * Does not create session or set cookies
+   * @param errorMessage Error message to display
+   * @returns HTML string
+   */
+  private generateTestErrorPage(errorMessage: string): string {
+    const escapedMessage = this.escapeHtml(errorMessage);
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>SAML Test Failed</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #4d9abf 0%, #2f80a5 100%);
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 500px;
+    }
+    .error-icon {
+      font-size: 64px;
+      color: #ef4444;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #1f2937;
+      margin: 0 0 1rem 0;
+    }
+    p {
+      color: #6b7280;
+      margin: 0.5rem 0;
+    }
+    .error-info {
+      background: #fef2f2;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      color: #991b1b;
+    }
+    .close-btn {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #4d9abf;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .close-btn:hover {
+      background: #2f80a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="error-icon">✗</div>
+    <h1>SAML Test Failed</h1>
+    <div class="error-info">
+      <p>${escapedMessage}</p>
+    </div>
+    <p style="font-size: 0.875rem;">No session was created.</p>
+    <button class="close-btn" onclick="window.close()">Close this window</button>
+  </div>
+</body>
+</html>`;
   }
 
   /**

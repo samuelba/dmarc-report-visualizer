@@ -23,7 +23,8 @@ describe('SamlService', () => {
     enabled: true,
     idpEntityId: 'https://idp.example.com',
     idpSsoUrl: 'https://idp.example.com/sso',
-    idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl...',
+    // Valid base64 certificate (length is multiple of 4, starts with 0x30 for DER format)
+    idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
     spEntityId: 'dmarc-app',
     spAcsUrl: 'https://app.example.com/auth/saml/callback',
     idpMetadataXml: null,
@@ -39,7 +40,7 @@ describe('SamlService', () => {
     <KeyDescriptor use="signing">
       <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
         <X509Data>
-          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTl</X509Certificate>
+          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL</X509Certificate>
         </X509Data>
       </KeyInfo>
     </KeyDescriptor>
@@ -151,7 +152,7 @@ describe('SamlService', () => {
         expect.objectContaining({
           idpEntityId: 'https://idp.example.com',
           idpSsoUrl: 'https://idp.example.com/sso',
-          idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl',
+          idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
           spEntityId: 'dmarc-app',
           spAcsUrl: 'https://app.example.com/auth/saml/callback',
           enabled: false,
@@ -164,7 +165,7 @@ describe('SamlService', () => {
       const dto = {
         idpEntityId: 'https://idp.example.com',
         idpSsoUrl: 'https://idp.example.com/sso',
-        idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl',
+        idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
       };
       const userId = 'user-123';
 
@@ -188,7 +189,9 @@ describe('SamlService', () => {
       const dto = {
         idpEntityId: 'https://new-idp.example.com',
         idpSsoUrl: 'https://new-idp.example.com/sso',
-        idpCertificate: 'NewCertificate123',
+        // Valid base64-encoded X.509 certificate (starts with 0x30 when decoded)
+        idpCertificate:
+          'MIICmzCCAYMCBgGNEt4VDDANBgkqhkiG9w0BAQsFADARMQ8wDQYDVQQDDAZ0ZXN0',
       };
       const userId = 'user-456';
 
@@ -293,7 +296,7 @@ describe('SamlService', () => {
       expect(result).toEqual({
         entityId: 'https://idp.example.com',
         ssoUrl: 'https://idp.example.com/sso',
-        certificate: 'MIIDdDCCAlygAwIBAgIGAXoTl',
+        certificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
       });
     });
 
@@ -304,7 +307,7 @@ describe('SamlService', () => {
     <KeyDescriptor use="signing">
       <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
         <X509Data>
-          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTl</X509Certificate>
+          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL</X509Certificate>
         </X509Data>
       </KeyInfo>
     </KeyDescriptor>
@@ -352,7 +355,7 @@ describe('SamlService', () => {
     <KeyDescriptor use="signing">
       <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
         <X509Data>
-          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTl</X509Certificate>
+          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL</X509Certificate>
         </X509Data>
       </KeyInfo>
     </KeyDescriptor>
@@ -872,6 +875,81 @@ describe('SamlService', () => {
         const result = await service.isPasswordLoginAllowed();
 
         expect(result).toBe(true);
+      });
+    });
+  });
+
+  describe('Test Mode Nonce', () => {
+    describe('generateTestNonce', () => {
+      it('should generate a 64-character hex string', async () => {
+        const nonce = await service.generateTestNonce();
+
+        expect(nonce).toBeDefined();
+        expect(nonce.length).toBe(64); // 32 bytes = 64 hex chars
+        expect(/^[a-f0-9]+$/.test(nonce)).toBe(true);
+      });
+
+      it('should generate unique nonces', async () => {
+        const nonce1 = await service.generateTestNonce();
+        const nonce2 = await service.generateTestNonce();
+
+        expect(nonce1).not.toBe(nonce2);
+      });
+    });
+
+    describe('validateAndConsumeTestNonce', () => {
+      it('should return false for empty nonce', async () => {
+        const result = await service.validateAndConsumeTestNonce('');
+
+        expect(result).toBe(false);
+      });
+
+      it('should return false when Redis is not available', async () => {
+        // Redis is not initialized in unit tests
+        const result =
+          await service.validateAndConsumeTestNonce('some-nonce-value');
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('parseTestNonceFromRelayState', () => {
+      it('should extract nonce from valid RelayState', () => {
+        const relayState = 'testMode=true&nonce=abc123def456';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBe('abc123def456');
+      });
+
+      it('should return null when testMode is not present', () => {
+        const relayState = 'nonce=abc123def456';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBeNull();
+      });
+
+      it('should return null when RelayState is empty', () => {
+        const nonce = service.parseTestNonceFromRelayState('');
+
+        expect(nonce).toBeNull();
+      });
+
+      it('should return null when nonce is not present', () => {
+        const relayState = 'testMode=true';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBeNull();
+      });
+
+      it('should handle URL-encoded RelayState', () => {
+        const relayState = 'testMode=true&nonce=abc%20123';
+
+        const nonce = service.parseTestNonceFromRelayState(relayState);
+
+        expect(nonce).toBe('abc 123');
       });
     });
   });

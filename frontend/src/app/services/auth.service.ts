@@ -401,4 +401,20 @@ export class AuthService {
   isAdministrator(): Observable<boolean> {
     return this.getCurrentUserRole().pipe(map((role) => role === UserRole.ADMINISTRATOR));
   }
+
+  /**
+   * Initiate SAML test
+   * Validates admin role and returns test login URL
+   */
+  initiateSamlTest(): Observable<{
+    success: boolean;
+    message: string;
+    testLoginUrl?: string;
+  }> {
+    return this.http.post<{
+      success: boolean;
+      message: string;
+      testLoginUrl?: string;
+    }>(`${this.apiBase}/auth/saml/test/initiate`, {});
+  }
 }
