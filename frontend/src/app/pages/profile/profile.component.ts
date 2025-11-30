@@ -109,6 +109,7 @@ export class ProfileComponent implements OnInit {
   currentUserEmail = '';
   authProvider = '';
   isSamlUser = false;
+  currentUserRole = '';
 
   // TOTP 2FA properties
   totpEnabled = false;
@@ -123,6 +124,7 @@ export class ProfileComponent implements OnInit {
         this.currentUserEmail = user.email;
         this.authProvider = user.authProvider;
         this.isSamlUser = user.authProvider === 'saml';
+        this.currentUserRole = user.role === 'administrator' ? 'Administrator' : 'User';
 
         // Load TOTP status for non-SAML users
         if (!this.isSamlUser) {
