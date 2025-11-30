@@ -14,6 +14,13 @@
           <span class="user-email">{{ currentUserEmail }}</span>
         </div>
         <div class="user-info auth-method">
+          <mat-icon>{{ currentUserRole === 'Administrator' ? 'admin_panel_settings' : 'person' }}</mat-icon>
+          <div class="auth-method-content">
+            <span class="auth-method-label">Role</span>
+            <span class="auth-method-value">{{ currentUserRole }}</span>
+          </div>
+        </div>
+        <div class="user-info auth-method">
           <mat-icon>{{ isSamlUser ? 'business' : 'lock' }}</mat-icon>
           <div class="auth-method-content">
             <span class="auth-method-label">Authentication Method</span>
