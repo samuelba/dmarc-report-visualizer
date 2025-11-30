@@ -577,8 +577,16 @@ export class AuthController {
         response.send(html);
         return;
       }
-      // Invalid nonce - fall through to normal login flow
-      // This handles the case where someone tries to forge testMode=true
+
+      // Invalid nonce - show error page without creating session
+      // This prevents session replacement when testing SAML (regardless of whether SAML is enabled)
+      // An invalid nonce could mean: expired, Redis unavailable, or forged testMode flag
+      const html = this.generateTestErrorPage(
+        'SAML test session expired or invalid. Please try testing again from the SAML settings page.',
+      );
+      response.set('Content-Type', 'text/html');
+      response.send(html);
+      return;
     }
 
     // Production mode: Normal SAML login flow
@@ -1008,6 +1016,86 @@ export class AuthController {
       <p>${escapedEmail}</p>
     </div>
     <p style="font-size: 0.875rem;">This was a test authentication. No session was created.</p>
+    <button class="close-btn" onclick="window.close()">Close this window</button>
+  </div>
+</body>
+</html>`;
+  }
+
+  /**
+   * Generate HTML error page for SAML test
+   * Displays error message when test mode validation fails
+   * Does not create session or set cookies
+   * @param errorMessage Error message to display
+   * @returns HTML string
+   */
+  private generateTestErrorPage(errorMessage: string): string {
+    const escapedMessage = this.escapeHtml(errorMessage);
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>SAML Test Failed</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #4d9abf 0%, #2f80a5 100%);
+    }
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 500px;
+    }
+    .error-icon {
+      font-size: 64px;
+      color: #ef4444;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      color: #1f2937;
+      margin: 0 0 1rem 0;
+    }
+    p {
+      color: #6b7280;
+      margin: 0.5rem 0;
+    }
+    .error-info {
+      background: #fef2f2;
+      padding: 1rem;
+      border-radius: 4px;
+      margin: 1rem 0;
+      color: #991b1b;
+    }
+    .close-btn {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #4d9abf;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .close-btn:hover {
+      background: #2f80a5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="error-icon">✗</div>
+    <h1>SAML Test Failed</h1>
+    <div class="error-info">
+      <p>${escapedMessage}</p>
+    </div>
+    <p style="font-size: 0.875rem;">No session was created.</p>
     <button class="close-btn" onclick="window.close()">Close this window</button>
   </div>
 </body>
