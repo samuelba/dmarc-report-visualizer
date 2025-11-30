@@ -23,7 +23,8 @@ describe('SamlService', () => {
     enabled: true,
     idpEntityId: 'https://idp.example.com',
     idpSsoUrl: 'https://idp.example.com/sso',
-    idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl...',
+    // Valid base64 certificate (length is multiple of 4, starts with 0x30 for DER format)
+    idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
     spEntityId: 'dmarc-app',
     spAcsUrl: 'https://app.example.com/auth/saml/callback',
     idpMetadataXml: null,
@@ -39,7 +40,7 @@ describe('SamlService', () => {
     <KeyDescriptor use="signing">
       <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
         <X509Data>
-          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTl</X509Certificate>
+          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL</X509Certificate>
         </X509Data>
       </KeyInfo>
     </KeyDescriptor>
@@ -151,7 +152,7 @@ describe('SamlService', () => {
         expect.objectContaining({
           idpEntityId: 'https://idp.example.com',
           idpSsoUrl: 'https://idp.example.com/sso',
-          idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl',
+          idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
           spEntityId: 'dmarc-app',
           spAcsUrl: 'https://app.example.com/auth/saml/callback',
           enabled: false,
@@ -164,7 +165,7 @@ describe('SamlService', () => {
       const dto = {
         idpEntityId: 'https://idp.example.com',
         idpSsoUrl: 'https://idp.example.com/sso',
-        idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTl',
+        idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
       };
       const userId = 'user-123';
 
@@ -188,7 +189,9 @@ describe('SamlService', () => {
       const dto = {
         idpEntityId: 'https://new-idp.example.com',
         idpSsoUrl: 'https://new-idp.example.com/sso',
-        idpCertificate: 'NewCertificate123',
+        // Valid base64-encoded X.509 certificate (starts with 0x30 when decoded)
+        idpCertificate:
+          'MIICmzCCAYMCBgGNEt4VDDANBgkqhkiG9w0BAQsFADARMQ8wDQYDVQQDDAZ0ZXN0',
       };
       const userId = 'user-456';
 
@@ -293,7 +296,7 @@ describe('SamlService', () => {
       expect(result).toEqual({
         entityId: 'https://idp.example.com',
         ssoUrl: 'https://idp.example.com/sso',
-        certificate: 'MIIDdDCCAlygAwIBAgIGAXoTl',
+        certificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
       });
     });
 
@@ -304,7 +307,7 @@ describe('SamlService', () => {
     <KeyDescriptor use="signing">
       <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
         <X509Data>
-          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTl</X509Certificate>
+          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL</X509Certificate>
         </X509Data>
       </KeyInfo>
     </KeyDescriptor>
@@ -352,7 +355,7 @@ describe('SamlService', () => {
     <KeyDescriptor use="signing">
       <KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
         <X509Data>
-          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTl</X509Certificate>
+          <X509Certificate>MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL</X509Certificate>
         </X509Data>
       </KeyInfo>
     </KeyDescriptor>

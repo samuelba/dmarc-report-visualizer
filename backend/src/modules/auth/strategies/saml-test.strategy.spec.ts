@@ -1,19 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SamlStrategy } from './saml.strategy';
+import { SamlTestStrategy } from './saml-test.strategy';
 import { SamlService } from '../services/saml.service';
-import { User } from '../entities/user.entity';
 import { Profile } from '@node-saml/passport-saml';
-import { UserRole } from '../enums/user-role.enum';
 
-describe('SamlStrategy', () => {
-  let strategy: SamlStrategy;
+describe('SamlTestStrategy', () => {
+  let strategy: SamlTestStrategy;
   let samlService: SamlService;
 
   const mockSamlConfig = {
     id: 'config-uuid-123',
-    enabled: true,
+    enabled: false, // Test mode should work even when disabled
     idpEntityId: 'https://idp.example.com',
     idpSsoUrl: 'https://idp.example.com/sso',
     idpCertificate: 'MIIDdDCCAlygAwIBAgIGAXoTlpQwDQYJKoZIhvcNAQEL',
@@ -24,23 +22,6 @@ describe('SamlStrategy', () => {
     updatedAt: new Date(),
     updatedBy: 'user-123',
     disablePasswordLogin: false,
-  };
-
-  const mockUser: User = {
-    id: 'user-uuid-123',
-    email: 'user@example.com',
-    passwordHash: '',
-    authProvider: 'saml',
-    role: UserRole.USER,
-    organizationId: null,
-    totpSecret: null,
-    totpEnabled: false,
-    totpEnabledAt: null,
-    totpLastUsedAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    refreshTokens: [],
-    recoveryCodes: [],
   };
 
   const mockSamlProfile: Profile = {
@@ -55,13 +36,13 @@ describe('SamlStrategy', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        SamlStrategy,
+        SamlTestStrategy,
         {
           provide: SamlService,
           useValue: {
             getConfig: jest.fn(),
+            getConfigFresh: jest.fn(),
             validateSamlAssertion: jest.fn(),
-            handleSamlLogin: jest.fn(),
             createFreshSamlOptions: jest.fn((existingOptions, config) => ({
               ...existingOptions,
               entryPoint: config.idpSsoUrl,
@@ -87,6 +68,9 @@ describe('SamlStrategy', () => {
               if (key === 'SAML_ACS_URL') {
                 return 'https://app.example.com/auth/saml/callback';
               }
+              if (key === 'SAML_DISABLE_SIGNATURE_VALIDATION') {
+                return undefined;
+              }
               return undefined;
             }),
           },
@@ -94,7 +78,7 @@ describe('SamlStrategy', () => {
       ],
     }).compile();
 
-    strategy = module.get<SamlStrategy>(SamlStrategy);
+    strategy = module.get<SamlTestStrategy>(SamlTestStrategy);
     samlService = module.get<SamlService>(SamlService);
   });
 
@@ -103,15 +87,20 @@ describe('SamlStrategy', () => {
   });
 
   describe('authenticate', () => {
-    it('should load configuration from database', async () => {
-      jest.spyOn(samlService, 'getConfig').mockResolvedValue(mockSamlConfig);
+    it('should load fresh configuration from database', async () => {
+      jest
+        .spyOn(samlService, 'getConfigFresh')
+        .mockResolvedValue(mockSamlConfig);
 
       const mockReq = {} as any;
       const mockOptions = {} as any;
 
       // Mock the parent authenticate method to prevent actual SAML flow
       const parentAuthenticateSpy = jest
-        .spyOn(Object.getPrototypeOf(SamlStrategy.prototype), 'authenticate')
+        .spyOn(
+          Object.getPrototypeOf(SamlTestStrategy.prototype),
+          'authenticate',
+        )
         .mockImplementation(() => Promise.resolve());
 
       strategy.authenticate(mockReq, mockOptions);
@@ -119,18 +108,54 @@ describe('SamlStrategy', () => {
       // Wait for the async config loading to complete
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(samlService.getConfig).toHaveBeenCalled();
-      expect(parentAuthenticateSpy).toHaveBeenCalledWith(mockReq, mockOptions);
+      expect(samlService.getConfigFresh).toHaveBeenCalled();
+      expect(parentAuthenticateSpy).toHaveBeenCalledWith(mockReq, {
+        ...mockOptions,
+        additionalParams: {
+          RelayState: 'testMode=true',
+        },
+      });
+    });
+
+    it('should bypass SAML enabled check', async () => {
+      // Config has enabled: false, but test mode should still work
+      const disabledConfig = { ...mockSamlConfig, enabled: false };
+      jest
+        .spyOn(samlService, 'getConfigFresh')
+        .mockResolvedValue(disabledConfig);
+
+      const mockReq = {} as any;
+
+      // Mock the parent authenticate method
+      const parentAuthenticateSpy = jest
+        .spyOn(
+          Object.getPrototypeOf(SamlTestStrategy.prototype),
+          'authenticate',
+        )
+        .mockImplementation(() => Promise.resolve());
+
+      strategy.authenticate(mockReq);
+
+      // Wait for the async config loading to complete
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // Should still call parent authenticate even though enabled is false
+      expect(parentAuthenticateSpy).toHaveBeenCalled();
     });
 
     it('should update strategy configuration with IdP details', async () => {
-      jest.spyOn(samlService, 'getConfig').mockResolvedValue(mockSamlConfig);
+      jest
+        .spyOn(samlService, 'getConfigFresh')
+        .mockResolvedValue(mockSamlConfig);
 
       const mockReq = {} as any;
 
       // Mock the parent authenticate method
       jest
-        .spyOn(Object.getPrototypeOf(SamlStrategy.prototype), 'authenticate')
+        .spyOn(
+          Object.getPrototypeOf(SamlTestStrategy.prototype),
+          'authenticate',
+        )
         .mockImplementation(() => Promise.resolve());
 
       strategy.authenticate(mockReq);
@@ -161,32 +186,48 @@ describe('SamlStrategy', () => {
       jest.spyOn(samlService, 'validateSamlAssertion').mockResolvedValue({
         valid: true,
       });
-      jest.spyOn(samlService, 'handleSamlLogin').mockResolvedValue(mockUser);
     });
 
-    it('should call handleSamlLogin with SAML profile', async () => {
+    it('should validate SAML assertion correctly', async () => {
       const result = await strategy.validate(mockSamlProfile);
-
-      expect(samlService.handleSamlLogin).toHaveBeenCalledWith(mockSamlProfile);
-      expect(result).toEqual(mockUser);
-    });
-
-    it('should return User entity', async () => {
-      const result = await strategy.validate(mockSamlProfile);
-
-      expect(result).toBeDefined();
-      expect(result.id).toBe(mockUser.id);
-      expect(result.email).toBe(mockUser.email);
-      expect(result.authProvider).toBe('saml');
-    });
-
-    it('should validate SAML assertion before handling login', async () => {
-      await strategy.validate(mockSamlProfile);
 
       expect(samlService.validateSamlAssertion).toHaveBeenCalledWith(
         mockSamlProfile,
+        true, // bypassCache parameter
       );
-      expect(samlService.handleSamlLogin).toHaveBeenCalled();
+      expect(result).toBeDefined();
+      expect(result.email).toBe('user@example.com');
+    });
+
+    it('should extract email from profile nameID', async () => {
+      const result = await strategy.validate(mockSamlProfile);
+
+      expect(result).toBeDefined();
+      expect(result.email).toBe('user@example.com');
+    });
+
+    it('should extract email from profile email attribute', async () => {
+      const profileWithEmail = {
+        ...mockSamlProfile,
+        email: 'test@example.com',
+      } as unknown as Profile;
+      // Remove nameID to test email fallback
+      delete (profileWithEmail as any).nameID;
+
+      const result = await strategy.validate(profileWithEmail);
+
+      expect(result).toBeDefined();
+      expect(result.email).toBe('test@example.com');
+    });
+
+    it('should return mock user object with email only', async () => {
+      const result = await strategy.validate(mockSamlProfile);
+
+      expect(result).toBeDefined();
+      expect(result.email).toBe('user@example.com');
+      // Should not have other user properties (mock object)
+      expect(result.id).toBeUndefined();
+      expect(result.passwordHash).toBeUndefined();
     });
 
     it('should throw error when assertion validation fails', async () => {
@@ -199,20 +240,23 @@ describe('SamlStrategy', () => {
         UnauthorizedException,
       );
       await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
-        'Invalid audience, Assertion expired',
+        'SAML test failed: Invalid audience, Assertion expired',
       );
     });
 
-    it('should throw error when handleSamlLogin fails', async () => {
-      jest
-        .spyOn(samlService, 'handleSamlLogin')
-        .mockRejectedValue(new UnauthorizedException('User creation failed'));
+    it('should throw error when no email in assertion', async () => {
+      const profileWithoutEmail = {
+        ...mockSamlProfile,
+      } as unknown as Profile;
+      // Remove both nameID and email to test error case
+      delete (profileWithoutEmail as any).nameID;
+      delete (profileWithoutEmail as any).email;
 
-      await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
+      await expect(strategy.validate(profileWithoutEmail)).rejects.toThrow(
         UnauthorizedException,
       );
-      await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
-        'User creation failed',
+      await expect(strategy.validate(profileWithoutEmail)).rejects.toThrow(
+        'SAML test failed: No email in assertion',
       );
     });
 
@@ -223,7 +267,7 @@ describe('SamlStrategy', () => {
       });
 
       await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
-        'SAML authentication failed: Unknown validation error',
+        'SAML test failed: Unknown validation error',
       );
     });
 
@@ -233,20 +277,20 @@ describe('SamlStrategy', () => {
       });
 
       await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
-        'SAML authentication failed: Unknown validation error',
+        'SAML test failed: Unknown validation error',
       );
     });
 
     it('should wrap non-UnauthorizedException errors', async () => {
       jest
-        .spyOn(samlService, 'handleSamlLogin')
+        .spyOn(samlService, 'validateSamlAssertion')
         .mockRejectedValue(new Error('Database connection failed'));
 
       await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
         UnauthorizedException,
       );
       await expect(strategy.validate(mockSamlProfile)).rejects.toThrow(
-        'SAML authentication failed: Database connection failed',
+        'SAML test failed: Database connection failed',
       );
     });
   });

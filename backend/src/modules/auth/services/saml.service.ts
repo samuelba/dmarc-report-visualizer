@@ -15,6 +15,7 @@ import { parseStringPromise } from 'xml2js';
 import { create } from 'xmlbuilder2';
 import { createHash } from 'crypto';
 import Redis from 'ioredis';
+import { SAML, SamlConfig as NodeSamlConfig } from '@node-saml/node-saml';
 import { SamlConfig } from '../entities/saml-config.entity';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../enums/user-role.enum';
@@ -52,6 +53,12 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
   private redis: Redis | null = null;
   private readonly REDIS_KEY_PREFIX = 'saml:assertion:';
   private readonly REDIS_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+
+  // In-memory cache for SAML configuration (production use)
+  private configCache: SamlConfig | null = null;
+  private configCacheTimestamp: number = 0;
+  private readonly CONFIG_CACHE_TTL_MS = 60 * 1000; // 1 minute cache TTL
+  private configFetchPromise: Promise<SamlConfig | null> | null = null; // Lock for concurrent fetches
 
   constructor(
     @InjectRepository(SamlConfig)
@@ -130,12 +137,62 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Retrieve current SAML configuration
+   * Retrieve current SAML configuration with caching (for production use)
+   * Uses in-memory cache with 1 minute TTL to reduce database queries
+   * Implements locking to prevent concurrent database fetches during cache refresh
    * @returns SamlConfig or null if not configured
    */
   async getConfig(): Promise<SamlConfig | null> {
+    const now = Date.now();
+
+    // Check if cache is valid
+    if (
+      this.configCache &&
+      now - this.configCacheTimestamp < this.CONFIG_CACHE_TTL_MS
+    ) {
+      return this.configCache;
+    }
+
+    // If another request is already fetching, wait for it
+    if (this.configFetchPromise) {
+      return this.configFetchPromise;
+    }
+
+    // Cache miss or expired - fetch from database with lock
+    this.configFetchPromise = (async () => {
+      try {
+        const configs = await this.samlConfigRepository.find();
+        this.configCache = configs.length > 0 ? configs[0] : null;
+        this.configCacheTimestamp = Date.now();
+        return this.configCache;
+      } finally {
+        // Release lock
+        this.configFetchPromise = null;
+      }
+    })();
+
+    return this.configFetchPromise;
+  }
+
+  /**
+   * Retrieve current SAML configuration directly from database (for test mode)
+   * Bypasses cache to ensure fresh configuration is always used
+   * @returns SamlConfig or null if not configured
+   */
+  async getConfigFresh(): Promise<SamlConfig | null> {
     const configs = await this.samlConfigRepository.find();
     return configs.length > 0 ? configs[0] : null;
+  }
+
+  /**
+   * Invalidate the SAML configuration cache
+   * Should be called when configuration is updated
+   */
+  invalidateConfigCache(): void {
+    this.configCache = null;
+    this.configCacheTimestamp = 0;
+    this.configFetchPromise = null; // Clear any in-flight fetch
+    this.logger.debug('SAML configuration cache invalidated');
   }
 
   /**
@@ -149,6 +206,57 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       .replace(/-----END CERTIFICATE-----/g, '')
       .replace(/\s+/g, '')
       .trim();
+  }
+
+  /**
+   * Validate that a certificate is in valid base64-encoded DER format
+   * Note: Certificate should already be normalized (PEM headers removed) before calling this
+   * @param certificate Normalized certificate (base64 content only)
+   * @returns True if valid, throws BadRequestException if invalid
+   */
+  private validateCertificateFormat(certificate: string): boolean {
+    if (!certificate || certificate.length === 0) {
+      throw new BadRequestException(
+        'IdP certificate is required and cannot be empty',
+      );
+    }
+
+    // Check if it's valid base64
+    // Valid base64: alphanumeric + / characters, with 0-2 equals signs for padding at the end only
+    // Length must be a multiple of 4
+    const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
+    if (!base64Regex.test(certificate) || certificate.length % 4 !== 0) {
+      throw new BadRequestException(
+        'IdP certificate contains invalid characters or has incorrect length. Please provide a valid X.509 certificate (PEM format with BEGIN/END markers, or base64-encoded content).',
+      );
+    }
+
+    // Try to decode the base64 to verify it's valid
+    try {
+      const decoded = Buffer.from(certificate, 'base64');
+      if (decoded.length === 0) {
+        throw new BadRequestException(
+          'IdP certificate is empty after base64 decoding.',
+        );
+      }
+
+      // Basic check for DER-encoded certificate structure
+      // X.509 certificates in DER format start with 0x30 (SEQUENCE tag in ASN.1)
+      if (decoded[0] !== 0x30) {
+        throw new BadRequestException(
+          'IdP certificate does not appear to be a valid X.509 certificate. Expected DER-encoded certificate data.',
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(
+        `IdP certificate is not valid base64: ${error.message}`,
+      );
+    }
+
+    return true;
   }
 
   /**
@@ -185,6 +293,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       idpCertificate = this.normalizeCertificate(dto.idpCertificate);
     }
 
+    // Validate certificate format before saving
+    this.validateCertificateFormat(idpCertificate);
+
     // Get SP configuration from environment
     const spEntityId = this.configService.get<string>('SAML_ENTITY_ID');
     const spAcsUrl = this.configService.get<string>('SAML_ACS_URL');
@@ -208,7 +319,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       existingConfig.spAcsUrl = spAcsUrl;
       existingConfig.updatedBy = userId;
 
-      return await this.samlConfigRepository.save(existingConfig);
+      const saved = await this.samlConfigRepository.save(existingConfig);
+      this.invalidateConfigCache();
+      return saved;
     } else {
       // Create new configuration
       const newConfig = this.samlConfigRepository.create({
@@ -222,7 +335,9 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
         updatedBy: userId,
       });
 
-      return await this.samlConfigRepository.save(newConfig);
+      const saved = await this.samlConfigRepository.save(newConfig);
+      this.invalidateConfigCache();
+      return saved;
     }
   }
 
@@ -244,6 +359,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
     config.enabled = true;
     await this.samlConfigRepository.save(config);
+    this.invalidateConfigCache();
   }
 
   /**
@@ -257,6 +373,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
     config.enabled = false;
     await this.samlConfigRepository.save(config);
+    this.invalidateConfigCache();
   }
 
   /**
@@ -401,13 +518,17 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
    * Note: Signature validation is handled by passport-saml strategy
    * This method validates additional assertion properties
    * @param assertion SAML assertion object from passport-saml
+   * @param bypassCache If true, loads config fresh from database (for test mode)
    * @returns Validation result with errors if invalid
    */
   async validateSamlAssertion(
     assertion: SamlProfile,
+    bypassCache: boolean = false,
   ): Promise<ValidationResult> {
     const errors: string[] = [];
-    const config = await this.getConfig();
+    const config = bypassCache
+      ? await this.getConfigFresh()
+      : await this.getConfig();
 
     if (!config) {
       errors.push('SAML configuration not found');
@@ -707,6 +828,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
     config.disablePasswordLogin = disabled;
     await this.samlConfigRepository.save(config);
+    this.invalidateConfigCache();
   }
 
   /**
@@ -737,5 +859,67 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
     // Return opposite of disablePasswordLogin flag
     return !config.disablePasswordLogin;
+  }
+
+  /**
+   * Create fresh SAML options for passport-saml strategy
+   * Shared method used by both production and test strategies
+   * @param existingOptions Existing SAML options from strategy
+   * @param config SAML configuration from database
+   * @returns Fresh SAML options with updated config
+   */
+  createFreshSamlOptions(
+    existingOptions: NodeSamlConfig,
+    config: SamlConfig,
+  ): NodeSamlConfig {
+    return {
+      ...existingOptions,
+      entryPoint: config.idpSsoUrl ?? undefined,
+      idpCert: config.idpCertificate || existingOptions.idpCert,
+      issuer: config.spEntityId,
+      callbackUrl: config.spAcsUrl,
+    };
+  }
+
+  /**
+   * Create fresh SAML instance with updated configuration
+   * Handles certificate validation and error formatting
+   * @param freshOptions Fresh SAML options
+   * @param contextPrefix Prefix for error messages (e.g., "SAML test" or "SAML authentication")
+   * @returns Fresh SAML instance
+   * @throws UnauthorizedException if certificate is invalid
+   */
+  createFreshSamlInstance(
+    freshOptions: NodeSamlConfig,
+    contextPrefix: string,
+  ): SAML {
+    // Validate certificate format before creating SAML instance
+    if (
+      !freshOptions.idpCert ||
+      (freshOptions.idpCert as string).length === 0
+    ) {
+      throw new UnauthorizedException(
+        `${contextPrefix} failed: IdP certificate is not configured`,
+      );
+    }
+
+    try {
+      return new SAML(freshOptions);
+    } catch (samlError) {
+      // Handle certificate format errors from node-saml
+      if (
+        samlError.message?.includes('PEM format') ||
+        samlError.message?.includes('base64')
+      ) {
+        this.logger.error(
+          `${contextPrefix}: Invalid IdP certificate format`,
+          samlError.message,
+        );
+        throw new UnauthorizedException(
+          `${contextPrefix} failed: The IdP certificate is not in a valid format. Please update the SAML configuration with a valid X.509 certificate.`,
+        );
+      }
+      throw samlError;
+    }
   }
 }

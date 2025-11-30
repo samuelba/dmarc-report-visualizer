@@ -28,6 +28,7 @@ import { TokenCleanupService } from './services/token-cleanup.service';
 import { InviteCleanupService } from './services/invite-cleanup.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { SamlStrategy } from './strategies/saml.strategy';
+import { SamlTestStrategy } from './strategies/saml-test.strategy';
 import { EmailModule } from '../email/email.module';
 
 @Module({
@@ -86,6 +87,7 @@ import { EmailModule } from '../email/email.module';
     SamlEnabledGuard,
     JwtStrategy,
     SamlStrategy,
+    SamlTestStrategy,
   ],
   exports: [
     TypeOrmModule,
