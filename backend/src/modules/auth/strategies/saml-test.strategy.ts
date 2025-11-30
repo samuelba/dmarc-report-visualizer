@@ -21,7 +21,7 @@ import { User } from '../entities/user.entity';
  * - Does not create sessions or set cookies
  *
  * Note: The callback URL is the same as production (/auth/saml/callback)
- * but the test flow uses a the RelayState parameter (testMode=true) to differentiate
+ * but the test flow uses the RelayState parameter (testMode=true) to differentiate
  * test callbacks from production callbacks.
  */
 @Injectable()

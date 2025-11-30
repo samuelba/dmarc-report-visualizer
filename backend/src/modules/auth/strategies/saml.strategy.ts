@@ -102,8 +102,8 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
         }
 
         // Only check if SAML is enabled for login initiation, not for callbacks
-        // Callbacks are treated as test mode when RelayState contains 'testMode=true',
-        // which should work even when SAML is disabled for regular users
+        // This allows in-flight SAML logins to complete even if SAML is disabled between
+        // login initiation and callback. Test mode also uses callbacks to bypass the enabled check.
         if (!isCallback && !config.enabled) {
           throw new UnauthorizedException('SAML authentication is not enabled');
         }
