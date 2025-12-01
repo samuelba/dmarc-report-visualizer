@@ -11,7 +11,6 @@
   justify-content: space-between;
   align-items: center;
   padding: vars.$spacing-base vars.$spacing-xl;
-  border-bottom: vars.$border-thin solid var(--xml-dialog-header-border-color);
 }
 
 h2[mat-dialog-title] {
@@ -19,8 +18,13 @@ h2[mat-dialog-title] {
   align-items: center;
   gap: vars.$spacing-sm;
   margin: 0;
+  padding: 0;
   font-size: vars.$icon-sm;
   font-weight: 500;
+
+  &::before {
+    display: none;
+  }
 }
 
 .header-actions {
@@ -89,7 +93,7 @@ mat-dialog-content {
 }
 
 .details-content {
-  padding: vars.$spacing-base;
+  padding: vars.$spacing-sm vars.$spacing-xl vars.$spacing-xl;
   display: flex;
   flex-direction: column;
   gap: vars.$spacing-base;

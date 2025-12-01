@@ -4,6 +4,11 @@ h2 {
   display: flex;
   align-items: center;
   gap: vars.$spacing-sm;
+  padding: vars.$spacing-base vars.$spacing-xl;
+
+  &::before {
+    display: none;
+  }
 }
 
 .form-container {
