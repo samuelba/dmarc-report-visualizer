@@ -14,6 +14,7 @@ import { ThemeService } from './services/theme.service';
 import { AuthService } from './services/auth.service';
 import { filter, take } from 'rxjs/operators';
 import { AsyncPipe, NgIf } from '@angular/common';
+import packageJson from '../../package.json';
 
 @Component({
   selector: 'app-root',
@@ -44,6 +45,7 @@ export class App implements OnInit {
 
   // Collapsed state for the left nav
   protected readonly isCollapsed = signal<boolean>(true);
+  protected readonly appVersion = packageJson.version;
 
   @ViewChild(MatSidenavContainer) private sidenavContainer?: MatSidenavContainer;
 

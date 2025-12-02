@@ -137,7 +137,17 @@ main {
     margin-top: auto;
     padding-bottom: vars.$spacing-md;
     display: flex;
+    flex-direction: column;
+    gap: vars.$spacing-xs;
     justify-content: center;
+
+    .version-info {
+      text-align: right;
+      font-size: vars.$font-size-sm;
+      padding-left: vars.$spacing-sm;
+      margin-bottom: vars.$spacing-sm;
+      opacity: 0.7;
+    }
   }
   .sidenav-bottom-link a[mat-list-item] {
     width: 100%;
