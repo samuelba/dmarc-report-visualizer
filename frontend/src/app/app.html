@@ -136,6 +136,8 @@
         </mat-nav-list>
       </nav>
       <div class="sidenav-bottom-link">
+        <div class="version-info" *ngIf="!isCollapsed()">v{{ appVersion }}</div>
+        <mat-divider></mat-divider>
         <a
           mat-list-item
           href="https://github.com/samuelba/dmarc-report-visualizer/"
