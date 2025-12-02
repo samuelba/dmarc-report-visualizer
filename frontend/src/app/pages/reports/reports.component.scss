@@ -18,3 +18,16 @@ table {
     background-color: var(--custom-table-header-background);
   }
 }
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--explore-table-row-hover);
+  }
+
+  &:active {
+    background-color: var(--explore-table-row-active);
+  }
+}

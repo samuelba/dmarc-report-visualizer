@@ -41,7 +41,7 @@ export class ReportsComponent implements OnInit {
   readonly pageSize = signal(20);
   readonly domains = signal<string[]>([]);
   domainFilter = '';
-  displayedColumns = ['domain', 'orgName', 'reportId', 'beginDate', 'endDate', 'actions'];
+  displayedColumns = ['domain', 'orgName', 'reportId', 'beginDate', 'endDate'];
 
   ngOnInit(): void {
     this.loadFiltersFromUrl();
@@ -156,16 +156,13 @@ export class ReportsComponent implements OnInit {
       });
   }
 
-  viewXml(id: string) {
-    this.api.getReportXml(id).subscribe((xml) => {
-      // Find the report to get additional details
-      const report = this.reports().find((r) => r.id === id);
-
+  openReportDetails(report: DmarcReport) {
+    this.api.getReportXml(report.id).subscribe((xml) => {
       this.dialog.open(XmlViewerDialogComponent, {
         data: {
           xml,
-          reportId: id,
-          title: `DMARC Report XML - ${report?.domain || 'Unknown Domain'}`,
+          reportId: report.id,
+          title: `DMARC Report XML - ${report.domain || 'Unknown Domain'}`,
         },
         width: '90%',
         maxWidth: '1400px',
