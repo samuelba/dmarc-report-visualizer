@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddDisablePasswordLogin1740400000000
-  implements MigrationInterface
-{
+export class AddDisablePasswordLogin1740400000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Add disablePasswordLogin column to saml_configs table
     await queryRunner.addColumn(

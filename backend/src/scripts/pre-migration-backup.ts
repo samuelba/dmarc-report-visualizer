@@ -236,9 +236,7 @@ async function main() {
       console.error('Backup is mandatory. Exiting to prevent data loss.');
       process.exit(1);
     } else {
-      console.warn(
-        '⚠ Backup failed but BACKUP_MANDATORY=false, continuing...',
-      );
+      console.warn('⚠ Backup failed but BACKUP_MANDATORY=false, continuing...');
     }
   }
 }
