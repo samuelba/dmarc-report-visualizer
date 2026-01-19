@@ -5,6 +5,9 @@
       Record Details - {{ record.sourceIp }}
     </h2>
     <div class="header-actions">
+      <button mat-icon-button (click)="copyShareLink()" matTooltip="Copy shareable link">
+        <mat-icon>share</mat-icon>
+      </button>
       <button mat-icon-button (click)="viewXml()" matTooltip="View XML Report">
         <mat-icon>code</mat-icon>
       </button>
