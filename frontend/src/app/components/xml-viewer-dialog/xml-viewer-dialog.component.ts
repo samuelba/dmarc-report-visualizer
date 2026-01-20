@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, Inject, OnInit, AfterViewInit, ElementRef, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +11,7 @@ import 'prismjs/components/prism-markup';
 import 'prismjs/plugins/line-numbers/prism-line-numbers';
 import 'prismjs/plugins/line-highlight/prism-line-highlight';
 import { ApiService, DmarcRecord } from '../../services/api.service';
+import { ShareService } from '../../services/share.service';
 import format from 'xml-formatter';
 
 export interface XmlViewerDialogData {
@@ -28,6 +29,7 @@ export interface XmlViewerDialogData {
   styleUrls: ['./xml-viewer-dialog.component.scss'],
 })
 export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
+  private readonly shareService = inject(ShareService);
   @ViewChild('xmlContent') xmlContent!: ElementRef;
 
   highlightedXml: string = '';
@@ -404,40 +406,16 @@ export class XmlViewerDialogComponent implements OnInit, AfterViewInit {
   }
 
   copyShareLink() {
-    // Build the current page URL without hash
-    const baseUrl = window.location.origin + window.location.pathname;
+    const params: { [key: string]: string } = {};
 
-    // Get current query params
-    const currentParams = new URLSearchParams(window.location.search);
-
-    // Determine which ID to include based on what data we have
     if (this.data.record?.id) {
-      // We're viewing a specific record from the explore page
-      currentParams.set('recordId', this.data.record.id);
+      params['recordId'] = this.data.record.id;
+      params['view'] = 'xml';
     } else if (this.data.reportId) {
-      // We're viewing a report from the reports page
-      currentParams.set('reportId', this.data.reportId);
+      params['reportId'] = this.data.reportId;
     }
 
-    // Build the shareable URL
-    const shareUrl = `${baseUrl}?${currentParams.toString()}`;
-
-    navigator.clipboard.writeText(shareUrl).then(
-      () => {
-        this.snackBar.open('Share link copied to clipboard', 'Close', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom',
-        });
-      },
-      (_err) => {
-        this.snackBar.open('Failed to copy share link', 'Close', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom',
-        });
-      }
-    );
+    this.shareService.copyLink(params);
   }
 
   async viewRecordDetails() {

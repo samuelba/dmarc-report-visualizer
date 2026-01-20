@@ -124,10 +124,29 @@ export class ExploreComponent implements OnInit {
 
     this.search();
 
-    // Check if there's a recordId in the URL to auto-open XML viewer
+    // Check if there's a recordId in the URL
     if (params['recordId']) {
-      this.openRecordXmlViewer(params['recordId']);
+      const view = params['view'];
+      if (view === 'details') {
+        this.openRecordDetailsById(params['recordId']);
+      } else {
+        // Default to XML viewer if view is 'xml' or undefined (backward compatibility)
+        this.openRecordXmlViewer(params['recordId']);
+      }
     }
+  }
+
+  private openRecordDetailsById(recordId: string) {
+    this.api.getRecordById(recordId).subscribe({
+      next: (record) => {
+        this.openRecordDetails(record);
+      },
+      error: (_err) => {
+        this.snackBar.open('Failed to load record details', 'Close', {
+          duration: 5000,
+        });
+      },
+    });
   }
 
   private openRecordXmlViewer(recordId: string) {

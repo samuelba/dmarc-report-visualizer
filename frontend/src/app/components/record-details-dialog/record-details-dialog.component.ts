@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatCardModule } from '@angular/material/card';
 import { DmarcRecord, ApiService } from '../../services/api.service';
+import { ShareService } from '../../services/share.service';
 
 export interface RecordDetailsDialogData {
   record: DmarcRecord;
@@ -20,6 +21,8 @@ export interface RecordDetailsDialogData {
   styleUrls: ['./record-details-dialog.component.scss'],
 })
 export class RecordDetailsDialogComponent {
+  private readonly shareService = inject(ShareService);
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: RecordDetailsDialogData,
     private dialogRef: MatDialogRef<RecordDetailsDialogComponent>,
@@ -227,5 +230,14 @@ export class RecordDetailsDialogComponent {
 
   close() {
     this.dialogRef.close();
+  }
+
+  copyShareLink() {
+    if (this.record.id) {
+      this.shareService.copyLink({
+        recordId: this.record.id,
+        view: 'details',
+      });
+    }
   }
 }
