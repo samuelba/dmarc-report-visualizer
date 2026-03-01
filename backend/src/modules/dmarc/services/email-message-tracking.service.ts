@@ -156,7 +156,6 @@ export class EmailMessageTrackingService {
       });
     } else {
       tracking.status = ProcessingStatus.FAILED;
-      tracking.attemptCount += 1;
       tracking.lastAttemptAt = new Date();
       tracking.errorMessage = errorMessage;
     }
@@ -188,14 +187,6 @@ export class EmailMessageTrackingService {
     source?: EmailSource,
     maxAttempts?: number,
   ): Promise<EmailMessageTracking[]> {
-    const whereConditions: any = {
-      status: ProcessingStatus.FAILED,
-    };
-
-    if (source) {
-      whereConditions.source = source;
-    }
-
     const query = this.trackingRepository
       .createQueryBuilder('tracking')
       .where('tracking.status = :status', { status: ProcessingStatus.FAILED });

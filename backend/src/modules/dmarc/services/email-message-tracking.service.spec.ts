@@ -308,7 +308,7 @@ describe('EmailMessageTrackingService', () => {
       );
     });
 
-    it('should update existing record to FAILED and increment attemptCount', async () => {
+    it('should update existing record to FAILED without incrementing attemptCount', async () => {
       const existing = {
         messageId,
         source,
@@ -329,7 +329,7 @@ describe('EmailMessageTrackingService', () => {
       );
 
       expect(result.status).toBe(ProcessingStatus.FAILED);
-      expect(result.attemptCount).toBe(2);
+      expect(result.attemptCount).toBe(1);
       expect(result.errorMessage).toBe(errorMessage);
       expect(result.lastAttemptAt).toBeInstanceOf(Date);
     });

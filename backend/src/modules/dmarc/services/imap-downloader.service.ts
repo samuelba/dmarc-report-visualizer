@@ -24,7 +24,6 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
   private isRunning = false;
   private imapClient: ImapFlow | null = null;
   private readonly instanceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  private failureCounts: Map<string, number> = new Map();
 
   constructor(
     private readonly config: ConfigService,
@@ -183,15 +182,36 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
           const uidString = String(uid);
           const accountIdentifier = this.getAccountIdentifier();
 
-          // Check if already processed successfully
-          const alreadyProcessed = await this.trackingService.isProcessed(
+          // Check if already processed successfully or permanently failed
+          const tracking = await this.trackingService.getTracking(
             uidString,
             EmailSource.IMAP,
             accountIdentifier,
           );
 
-          if (alreadyProcessed) {
+          if (tracking?.status === ProcessingStatus.SUCCESS) {
             this.logger.debug(`Message UID ${uid} already processed, skipping`);
+            continue;
+          }
+
+          if (
+            tracking?.status === ProcessingStatus.FAILED &&
+            tracking.attemptCount >= this.getFailureThreshold()
+          ) {
+            this.logger.debug(
+              `Message UID ${uid} permanently failed previously, skipping`,
+            );
+
+            // Ensure message is marked as seen so it doesn't repeatedly show up in UNSEEN searches
+            try {
+              if (this.imapClient) {
+                await this.imapClient.messageFlagsAdd(uidString, ['\\Seen']);
+              }
+            } catch (_flagErr) {
+              this.logger.warn(
+                `Failed to mark permanently failed message ${uid} as seen`,
+              );
+            }
             continue;
           }
 
@@ -249,12 +269,18 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
 
       if (!parsed.attachments || parsed.attachments.length === 0) {
         this.logger.debug(`Message UID ${uid} has no attachments, skipping`);
+        await this.trackingService.markSuccess(
+          uidString,
+          EmailSource.IMAP,
+          accountIdentifier,
+        );
         await this.markMessageProcessed(uid);
         return;
       }
 
       let attachmentsProcessed = 0;
       const errors: string[] = [];
+      let firstReportId: string | undefined;
 
       for (const attachment of parsed.attachments) {
         try {
@@ -270,14 +296,9 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
               `[${this.instanceId}] Processed attachment ${result.filename} from UID ${uid}`,
             );
 
-            // Mark tracking as successful and link to report
-            if (result.reportId) {
-              await this.trackingService.markSuccess(
-                uidString,
-                EmailSource.IMAP,
-                accountIdentifier,
-                result.reportId,
-              );
+            // Keep the first reportId to associate with the tracking record
+            if (result.reportId && !firstReportId) {
+              firstReportId = result.reportId;
             }
           }
         } catch (err) {
@@ -292,25 +313,14 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       if (attachmentsProcessed > 0) {
         // Successfully processed at least one attachment
         await this.markMessageProcessed(uid);
-        // Clear failure count on success
-        this.failureCounts.delete(uidString);
 
-        // Ensure tracking is marked as success (handles legacy mode where reportId is absent)
-        const currentTracking = await this.trackingService.getTracking(
+        // Ensure tracking is marked as success, saving the first report ID if available
+        await this.trackingService.markSuccess(
           uidString,
           EmailSource.IMAP,
           accountIdentifier,
+          firstReportId,
         );
-        if (
-          currentTracking &&
-          currentTracking.status !== ProcessingStatus.SUCCESS
-        ) {
-          await this.trackingService.markSuccess(
-            uidString,
-            EmailSource.IMAP,
-            accountIdentifier,
-          );
-        }
       } else if (errors.length > 0) {
         // All attachments failed
         await this.handleFailure(
@@ -367,7 +377,13 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
           this.getProcessedFailureDir(),
           `${Date.now()}-${filename}`,
         );
-        await fs.writeFile(failPath, buffer);
+        try {
+          await fs.writeFile(failPath, buffer);
+        } catch (writeErr) {
+          this.logger.error(
+            `Failed to write unparseable attachment to ${failPath}: ${writeErr instanceof Error ? writeErr.message : String(writeErr)}`,
+          );
+        }
 
         throw err;
       }
@@ -420,31 +436,45 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     accountIdentifier: string,
     errorMessage: string,
   ): Promise<void> {
-    const count = (this.failureCounts.get(messageId) || 0) + 1;
-    this.failureCounts.set(messageId, count);
+    const tracking = await this.trackingService.markFailed(
+      messageId,
+      EmailSource.IMAP,
+      accountIdentifier,
+      errorMessage,
+    );
 
+    const count = tracking.attemptCount;
     const threshold = this.getFailureThreshold();
 
     if (count >= threshold) {
       this.logger.warn(
         `Message ${messageId} failed ${count} times (threshold: ${threshold}), marking as permanently failed`,
       );
-      await this.trackingService.markFailed(
-        messageId,
-        EmailSource.IMAP,
-        accountIdentifier,
-        errorMessage,
-      );
-      this.failureCounts.delete(messageId);
 
       // Optionally move to failed folder
+      let movedToFailed = false;
       const failedFolder = this.config.get<string>('IMAP_FAILED_FOLDER');
       if (failedFolder && failedFolder.trim().length > 0 && this.imapClient) {
         try {
           await this.imapClient.messageMove(messageId, failedFolder);
+          movedToFailed = true;
+          this.logger.debug(
+            `Moved failed message UID ${messageId} to ${failedFolder}`,
+          );
         } catch (err) {
           this.logger.warn(
             `Could not move failed message to ${failedFolder}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      if (!movedToFailed && this.imapClient) {
+        try {
+          await this.imapClient.messageFlagsAdd(messageId, ['\\Seen']);
+          this.logger.debug(`Marked failed message UID ${messageId} as seen`);
+        } catch (err) {
+          this.logger.warn(
+            `Could not mark failed message as seen: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
@@ -459,13 +489,15 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     const criteria =
       this.config.get<string>('IMAP_SEARCH_CRITERIA') || 'UNSEEN';
 
+    const normalized = criteria.trim().toUpperCase();
+
     // Support common patterns
-    if (criteria === 'UNSEEN') {
+    if (normalized === 'UNSEEN') {
       return { unseen: true };
-    } else if (criteria === 'ALL') {
+    } else if (normalized === 'ALL') {
       return { all: true };
-    } else if (criteria.toUpperCase().includes('SUBJECT')) {
-      // Parse "SUBJECT DMARC" or similar
+    } else if (normalized.includes('SUBJECT')) {
+      // Parse "SUBJECT DMARC" or similar using original case for the subject
       const match = criteria.match(/SUBJECT\s+"?([^"]+)"?/i);
       if (match) {
         return { subject: match[1].trim() };
