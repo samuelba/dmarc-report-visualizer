@@ -45,7 +45,7 @@ The IMAP downloader automatically fetches DMARC report emails from any IMAP-comp
 |---|---|---|
 | `IMAP_PORT` | `993` | IMAP server port |
 | `IMAP_TLS` | `true` | Enable TLS/SSL encryption |
-| `IMAP_TLS_REJECT_UNAUTHORIZED` | `true` | Reject invalid TLS certificates. Set to `false` for self-signed certs |
+| `IMAP_TLS_REJECT_UNAUTHORIZED` | `true` | Reject invalid TLS certificates (recommended). Avoid setting to `false` in production; for self-signed or internal certificates, configure a trusted CA or update the trust store instead of disabling verification. |
 | `IMAP_MAILBOX` | `INBOX` | Mailbox/folder to monitor |
 | `IMAP_SEARCH_CRITERIA` | `UNSEEN` | Search filter: `UNSEEN`, `ALL`, or `SUBJECT "pattern"` |
 | `IMAP_PROCESSED_FOLDER` | *(empty)* | Folder to move processed messages to. If empty, messages are marked as read |
@@ -111,8 +111,8 @@ IMAP_PORT=993
 IMAP_USER=dmarc@yourdomain.com
 IMAP_PASSWORD=your-password
 IMAP_TLS=true
-# Set to false if using a self-signed certificate
-IMAP_TLS_REJECT_UNAUTHORIZED=false
+# Require valid certificates; for self-signed or private CAs, add them to your trust store instead of disabling verification
+IMAP_TLS_REJECT_UNAUTHORIZED=true
 ```
 
 ## How It Works
@@ -251,13 +251,13 @@ You can query the tracking table directly to see processing status:
 
 ```sql
 -- See all tracked IMAP messages
-SELECT message_id, status, attempt_count, error_message, processed_at
+SELECT messageId, status, attemptCount, errorMessage, processedAt
 FROM email_message_tracking
 WHERE source = 'imap'
-ORDER BY first_seen_at DESC;
+ORDER BY firstSeenAt DESC;
 
 -- See failed messages
-SELECT message_id, attempt_count, error_message, last_attempt_at
+SELECT messageId, attemptCount, errorMessage, lastAttemptAt
 FROM email_message_tracking
 WHERE source = 'imap' AND status = 'failed';
 ```

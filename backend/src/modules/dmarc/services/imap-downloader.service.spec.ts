@@ -254,17 +254,19 @@ describe('ImapDownloaderService', () => {
 
     it('should search for messages and skip already processed', async () => {
       mockImapClient.search.mockResolvedValue([1, 2, 3]);
-      mockTrackingService.isProcessed.mockResolvedValue(true);
+      mockTrackingService.getTracking.mockResolvedValue({
+        status: ProcessingStatus.SUCCESS,
+      });
 
       await service['pollOnce']();
 
       expect(mockImapClient.search).toHaveBeenCalled();
-      expect(mockTrackingService.isProcessed).toHaveBeenCalledTimes(3);
+      expect(mockTrackingService.getTracking).toHaveBeenCalledTimes(3);
     });
 
     it('should handle messages that are not yet processed', async () => {
       mockImapClient.search.mockResolvedValue([42]);
-      mockTrackingService.isProcessed.mockResolvedValue(false);
+      mockTrackingService.getTracking.mockResolvedValue(null);
 
       // Mock the handleMessage to prevent full flow
       const handleMessageSpy = jest
@@ -319,7 +321,7 @@ describe('ImapDownloaderService', () => {
       await service['pollOnce']();
 
       // Should not error, treats false as empty array
-      expect(mockTrackingService.isProcessed).not.toHaveBeenCalled();
+      expect(mockTrackingService.getTracking).not.toHaveBeenCalled();
     });
 
     it('should always release the mailbox lock', async () => {
@@ -495,6 +497,7 @@ describe('ImapDownloaderService', () => {
         '1',
         EmailSource.IMAP,
         'user@example.com',
+        undefined,
       );
     });
 
@@ -625,6 +628,7 @@ describe('ImapDownloaderService', () => {
     beforeEach(() => {
       mockImapClient = {
         messageMove: jest.fn().mockResolvedValue(undefined),
+        messageFlagsAdd: jest.fn().mockResolvedValue(undefined),
       };
       service['imapClient'] = mockImapClient;
       service['failureCounts'] = new Map();
@@ -634,10 +638,17 @@ describe('ImapDownloaderService', () => {
     });
 
     it('should increment failure count below threshold', async () => {
+      mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
       await service['handleFailure']('msg1', 'user@example.com', 'Error');
 
-      expect(service['failureCounts'].get('msg1')).toBe(1);
-      expect(mockTrackingService.markFailed).not.toHaveBeenCalled();
+      expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
+        'msg1',
+        EmailSource.IMAP,
+        'user@example.com',
+        'Error',
+      );
+      expect(mockImapClient.messageMove).not.toHaveBeenCalled();
+      expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
     });
 
     it('should mark as permanently failed at threshold', async () => {
@@ -649,8 +660,7 @@ describe('ImapDownloaderService', () => {
         (key: string) => configThreshold[key],
       );
 
-      // Simulate 2 previous failures
-      service['failureCounts'].set('msg1', 2);
+      mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 3 });
 
       await service['handleFailure']('msg1', 'user@example.com', 'Parse error');
 
@@ -660,7 +670,9 @@ describe('ImapDownloaderService', () => {
         'user@example.com',
         'Parse error',
       );
-      expect(service['failureCounts'].has('msg1')).toBe(false);
+      expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith('msg1', [
+        '\\Seen',
+      ]);
     });
 
     it('should move failed message to folder when configured', async () => {
@@ -672,6 +684,8 @@ describe('ImapDownloaderService', () => {
       mockConfigService.get.mockImplementation(
         (key: string) => configWithFailedFolder[key],
       );
+
+      mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
 
       await service['handleFailure']('msg1', 'user@example.com', 'Error');
 
@@ -690,6 +704,7 @@ describe('ImapDownloaderService', () => {
       mockConfigService.get.mockImplementation(
         (key: string) => configWithFailedFolder[key],
       );
+      mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
       mockImapClient.messageMove.mockRejectedValue(new Error('Move failed'));
 
       // Should not throw
