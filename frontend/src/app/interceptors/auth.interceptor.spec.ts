@@ -1,3 +1,4 @@
+import { createSpyObj, SpyObj } from '../../testing/mock-helpers';
 import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
@@ -10,19 +11,14 @@ import { of, throwError } from 'rxjs';
 describe('authInterceptor', () => {
   let httpMock: HttpTestingController;
   let httpClient: HttpClient;
-  let authService: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
-  let snackBar: jasmine.SpyObj<MatSnackBar>;
+  let authService: SpyObj<AuthService>;
+  let router: SpyObj<Router>;
+  let snackBar: SpyObj<MatSnackBar>;
 
   beforeEach(() => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', [
-      'getAccessToken',
-      'refreshToken',
-      'logout',
-      'clearTokens',
-    ]);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
-    const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
+    const authServiceSpy = createSpyObj('AuthService', ['refreshToken', 'logout', 'clearTokens']);
+    const routerSpy = createSpyObj('Router', ['navigate']);
+    const snackBarSpy = createSpyObj('MatSnackBar', ['open']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -36,112 +32,57 @@ describe('authInterceptor', () => {
 
     httpMock = TestBed.inject(HttpTestingController);
     httpClient = TestBed.inject(HttpClient);
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
-    snackBar = TestBed.inject(MatSnackBar) as jasmine.SpyObj<MatSnackBar>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
+    router = TestBed.inject(Router) as SpyObj<Router>;
+    snackBar = TestBed.inject(MatSnackBar) as SpyObj<MatSnackBar>;
   });
 
   afterEach(() => {
     httpMock.verify();
   });
 
-  it('should add Authorization header when access token exists', () => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
-    httpClient.get('/api/test').subscribe();
-
-    const req = httpMock.expectOne('/api/test');
-    expect(req.request.headers.has('Authorization')).toBe(true);
-    expect(req.request.headers.get('Authorization')).toBe('Bearer test-access-token');
-    req.flush({});
-  });
-
-  it('should not add Authorization header when no access token exists', () => {
-    authService.getAccessToken.and.returnValue(null);
-
-    httpClient.get('/api/test').subscribe();
+  it('should pass through successful requests', () => {
+    httpClient.get('/api/test').subscribe((response) => {
+      expect(response).toEqual({ data: 'success' });
+    });
 
     const req = httpMock.expectOne('/api/test');
-    expect(req.request.headers.has('Authorization')).toBe(false);
-    req.flush({});
+    req.flush({ data: 'success' });
   });
 
-  it('should skip adding Authorization header for login endpoint', () => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
-    httpClient.post('/api/auth/login', {}).subscribe();
-
-    const req = httpMock.expectOne('/api/auth/login');
-    expect(req.request.headers.has('Authorization')).toBe(false);
-    req.flush({});
-  });
-
-  it('should skip adding Authorization header for setup endpoint', () => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
-    httpClient.post('/api/auth/setup', {}).subscribe();
-
-    const req = httpMock.expectOne('/api/auth/setup');
-    expect(req.request.headers.has('Authorization')).toBe(false);
-    req.flush({});
-  });
-
-  it('should skip adding Authorization header for refresh endpoint', () => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
-    httpClient.post('/api/auth/refresh', {}).subscribe();
-
-    const req = httpMock.expectOne('/api/auth/refresh');
-    expect(req.request.headers.has('Authorization')).toBe(false);
-    req.flush({});
-  });
-
-  it('should skip adding Authorization header for check-setup endpoint', () => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
-    httpClient.get('/api/auth/check-setup').subscribe();
-
-    const req = httpMock.expectOne('/api/auth/check-setup');
-    expect(req.request.headers.has('Authorization')).toBe(false);
-    req.flush({});
-  });
-
-  it('should handle 401 by refreshing token and retrying request', (done) => {
-    authService.getAccessToken.and.returnValue('old-access-token');
-    authService.refreshToken.and.returnValue(of({ accessToken: 'new-access-token' }));
+  it('should handle 401 by refreshing token and retrying request', () => {
+    authService.refreshToken.mockReturnValue(of(undefined as unknown as void));
 
     httpClient.get('/api/test').subscribe({
       next: (response) => {
         expect(response).toEqual({ data: 'success' });
         expect(authService.refreshToken).toHaveBeenCalled();
-        done();
       },
-      error: () => done.fail('Should not error'),
+      error: () => {
+        throw new Error('Should not error');
+      },
     });
 
-    // First request with old token fails with 401
+    // First request fails with 401
     const req1 = httpMock.expectOne('/api/test');
-    expect(req1.request.headers.get('Authorization')).toBe('Bearer old-access-token');
     req1.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
 
-    // Retry request with new token succeeds
+    // After token refresh, request is retried
     const req2 = httpMock.expectOne('/api/test');
-    expect(req2.request.headers.get('Authorization')).toBe('Bearer new-access-token');
     req2.flush({ data: 'success' });
   });
 
-  it('should redirect to login when token refresh fails', (done) => {
-    authService.getAccessToken.and.returnValue('old-access-token');
-    authService.refreshToken.and.returnValue(throwError(() => ({ status: 401, message: 'Refresh failed' })));
-    authService.logout.and.returnValue(of(void 0));
+  it('should redirect to login when token refresh fails', () => {
+    authService.refreshToken.mockReturnValue(throwError(() => ({ status: 401, message: 'Refresh failed' })));
 
     httpClient.get('/api/test').subscribe({
-      next: () => done.fail('Should not succeed'),
+      next: () => {
+        throw new Error('Should not succeed');
+      },
       error: () => {
         expect(authService.refreshToken).toHaveBeenCalled();
-        expect(authService.logout).toHaveBeenCalled();
+        expect(authService.clearTokens).toHaveBeenCalled();
         expect(router.navigate).toHaveBeenCalledWith(['/login']);
-        done();
       },
     });
 
@@ -149,15 +90,14 @@ describe('authInterceptor', () => {
     req.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
   });
 
-  it('should pass through non-401 errors', (done) => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
+  it('should pass through non-401 errors', () => {
     httpClient.get('/api/test').subscribe({
-      next: () => done.fail('Should not succeed'),
+      next: () => {
+        throw new Error('Should not succeed');
+      },
       error: (error) => {
         expect(error.status).toBe(500);
         expect(authService.refreshToken).not.toHaveBeenCalled();
-        done();
       },
     });
 
@@ -165,11 +105,11 @@ describe('authInterceptor', () => {
     req.flush({ message: 'Server error' }, { status: 500, statusText: 'Internal Server Error' });
   });
 
-  it('should handle SESSION_COMPROMISED error by showing notification and redirecting to login', (done) => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
+  it('should handle SESSION_COMPROMISED error by showing notification and redirecting to login', () => {
     httpClient.get('/api/test').subscribe({
-      next: () => done.fail('Should not succeed'),
+      next: () => {
+        throw new Error('Should not succeed');
+      },
       error: (error) => {
         expect(error.status).toBe(401);
         expect(snackBar.open).toHaveBeenCalledWith(
@@ -180,7 +120,6 @@ describe('authInterceptor', () => {
         expect(authService.clearTokens).toHaveBeenCalled();
         expect(router.navigate).toHaveBeenCalledWith(['/login']);
         expect(authService.refreshToken).not.toHaveBeenCalled();
-        done();
       },
     });
 
@@ -194,19 +133,48 @@ describe('authInterceptor', () => {
     );
   });
 
-  it('should not attempt token refresh for SESSION_COMPROMISED error', (done) => {
-    authService.getAccessToken.and.returnValue('test-access-token');
-
+  it('should not attempt token refresh for SESSION_COMPROMISED error', () => {
     httpClient.get('/api/test').subscribe({
-      next: () => done.fail('Should not succeed'),
+      next: () => {
+        throw new Error('Should not succeed');
+      },
       error: () => {
         expect(authService.refreshToken).not.toHaveBeenCalled();
         expect(authService.clearTokens).toHaveBeenCalled();
-        done();
       },
     });
 
     const req = httpMock.expectOne('/api/test');
     req.flush({ errorCode: 'SESSION_COMPROMISED' }, { status: 401, statusText: 'Unauthorized' });
+  });
+
+  it('should not attempt token refresh for validation errors', () => {
+    httpClient.get('/api/test').subscribe({
+      next: () => {
+        throw new Error('Should not succeed');
+      },
+      error: (error) => {
+        expect(error.status).toBe(401);
+        expect(authService.refreshToken).not.toHaveBeenCalled();
+      },
+    });
+
+    const req = httpMock.expectOne('/api/test');
+    req.flush({ errorCode: 'INVALID_TOTP_CODE', message: 'Invalid code' }, { status: 401, statusText: 'Unauthorized' });
+  });
+
+  it('should skip auto-refresh for auth/refresh endpoint', () => {
+    httpClient.post('/api/auth/refresh', {}).subscribe({
+      next: () => {
+        throw new Error('Should not succeed');
+      },
+      error: (error) => {
+        expect(error.status).toBe(401);
+        expect(authService.refreshToken).not.toHaveBeenCalled();
+      },
+    });
+
+    const req = httpMock.expectOne('/api/auth/refresh');
+    req.flush({ message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
   });
 });

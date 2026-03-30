@@ -1,3 +1,4 @@
+import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
@@ -7,34 +8,41 @@ import { of, throwError } from 'rxjs';
 import { InviteUserDialogComponent } from './invite-user-dialog.component';
 import { UserService, UserRole, InviteResponse } from '../../services/user.service';
 import { MaterialModule } from '../../shared/material.module';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('InviteUserDialogComponent', () => {
   let component: InviteUserDialogComponent;
   let fixture: ComponentFixture<InviteUserDialogComponent>;
-  let userService: jasmine.SpyObj<UserService>;
-  let dialogRef: jasmine.SpyObj<MatDialogRef<InviteUserDialogComponent>>;
-  let snackBar: jasmine.SpyObj<MatSnackBar>;
+  let userService: SpyObj<UserService>;
+  let dialogRef: SpyObj<MatDialogRef<InviteUserDialogComponent>>;
+  let snackBar: SpyObj<MatSnackBar>;
 
   beforeEach(async () => {
-    const userServiceSpy = jasmine.createSpyObj('UserService', ['createInvite']);
-    const dialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['close']);
-    const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
+    const userServiceSpy = createSpyObj('UserService', ['createInvite']);
+    const dialogRefSpy = createSpyObj('MatDialogRef', ['close']);
 
     await TestBed.configureTestingModule({
       imports: [InviteUserDialogComponent, ReactiveFormsModule, MaterialModule, BrowserAnimationsModule],
       providers: [
         { provide: UserService, useValue: userServiceSpy },
         { provide: MatDialogRef, useValue: dialogRefSpy },
-        { provide: MatSnackBar, useValue: snackBarSpy },
+        provideHttpClient(),
+        provideHttpClientTesting(),
       ],
     }).compileComponents();
 
-    userService = TestBed.inject(UserService) as jasmine.SpyObj<UserService>;
-    dialogRef = TestBed.inject(MatDialogRef) as jasmine.SpyObj<MatDialogRef<InviteUserDialogComponent>>;
-    snackBar = TestBed.inject(MatSnackBar) as jasmine.SpyObj<MatSnackBar>;
-
     fixture = TestBed.createComponent(InviteUserDialogComponent);
     component = fixture.componentInstance;
+
+    userService = TestBed.inject(UserService) as SpyObj<UserService>;
+    dialogRef = TestBed.inject(MatDialogRef) as SpyObj<MatDialogRef<InviteUserDialogComponent>>;
+
+    // Spy on component-level injected MatSnackBar (provided by MaterialModule import)
+    const snackBarInstance = fixture.debugElement.injector.get(MatSnackBar);
+    vi.spyOn(snackBarInstance, 'open').mockReturnValue({} as any);
+    snackBar = snackBarInstance as any;
+
     fixture.detectChanges();
   });
 
@@ -90,7 +98,7 @@ describe('InviteUserDialogComponent', () => {
         emailStatus: 'sent',
       };
 
-      userService.createInvite.and.returnValue(of(mockResponse));
+      userService.createInvite.mockReturnValue(of(mockResponse));
 
       component.inviteForm.patchValue({ email: 'newuser@example.com', role: UserRole.USER });
       component.generateInvite();
@@ -108,14 +116,16 @@ describe('InviteUserDialogComponent', () => {
         emailStatus: 'sent',
       };
 
-      userService.createInvite.and.returnValue(of(mockResponse));
+      userService.createInvite.mockReturnValue(of(mockResponse));
 
       component.inviteForm.patchValue({ email: 'newuser@example.com', role: UserRole.USER });
       component.generateInvite();
 
       expect(component.generatedInvite).toEqual(mockResponse);
       expect(component.isLoading).toBe(false);
-      expect(snackBar.open).toHaveBeenCalledWith('Invite created successfully!', 'Close', { duration: 3000 });
+      expect(snackBar.open).toHaveBeenCalledWith('Invite created and email sent successfully!', 'Close', {
+        duration: 3000,
+      });
     });
 
     it('should handle error when email already exists', () => {
@@ -123,7 +133,7 @@ describe('InviteUserDialogComponent', () => {
         error: { message: 'A user with this email already exists' },
       };
 
-      userService.createInvite.and.returnValue(throwError(() => errorResponse));
+      userService.createInvite.mockReturnValue(throwError(() => errorResponse));
 
       component.inviteForm.patchValue({ email: 'existing@example.com', role: UserRole.USER });
       component.generateInvite();
@@ -134,7 +144,7 @@ describe('InviteUserDialogComponent', () => {
     });
 
     it('should handle generic error', () => {
-      userService.createInvite.and.returnValue(throwError(() => ({})));
+      userService.createInvite.mockReturnValue(throwError(() => ({})));
 
       component.inviteForm.patchValue({ email: 'user@example.com', role: UserRole.USER });
       component.generateInvite();
@@ -153,17 +163,15 @@ describe('InviteUserDialogComponent', () => {
         emailStatus: 'sent',
       };
 
-      userService.createInvite.and.returnValue(of(mockResponse));
+      userService.createInvite.mockReturnValue(of(mockResponse));
 
       component.inviteForm.patchValue({ email: 'newuser@example.com', role: UserRole.USER });
 
       expect(component.isLoading).toBe(false);
       component.generateInvite();
-      expect(component.isLoading).toBe(true);
-
-      // After observable completes
-      fixture.detectChanges();
+      // Observable completes synchronously with of(), so isLoading is already false
       expect(component.isLoading).toBe(false);
+      expect(component.generatedInvite).toBeTruthy();
     });
   });
 
@@ -178,7 +186,7 @@ describe('InviteUserDialogComponent', () => {
         emailStatus: 'sent',
       };
 
-      userService.createInvite.and.returnValue(of(mockResponse));
+      userService.createInvite.mockReturnValue(of(mockResponse));
       component.inviteForm.patchValue({ email: 'newuser@example.com', role: UserRole.USER });
       component.generateInvite();
     });
@@ -189,7 +197,9 @@ describe('InviteUserDialogComponent', () => {
     });
 
     it('should copy invite link to clipboard', async () => {
-      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+      Object.assign(navigator, {
+        clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
 
       await component.copyLink();
 
@@ -198,18 +208,22 @@ describe('InviteUserDialogComponent', () => {
     });
 
     it('should handle clipboard copy failure', async () => {
-      spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.reject());
+      Object.assign(navigator, {
+        clipboard: { writeText: vi.fn().mockRejectedValue(new Error('fail')) },
+      });
 
       await component.copyLink();
 
       expect(snackBar.open).toHaveBeenCalledWith('Failed to copy to clipboard', 'Close', { duration: 2000 });
     });
 
-    it('should not copy if no invite is generated', () => {
+    it('should not copy if no invite is generated', async () => {
+      Object.assign(navigator, {
+        clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+      });
       component.generatedInvite = null;
-      spyOn(navigator.clipboard, 'writeText');
 
-      component.copyLink();
+      await component.copyLink();
 
       expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
     });

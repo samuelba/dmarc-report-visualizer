@@ -1,3 +1,4 @@
+import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { of } from 'rxjs';
@@ -10,7 +11,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 describe('ProfileComponent - SAML User Handling', () => {
   let component: ProfileComponent;
   let fixture: ComponentFixture<ProfileComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
+  let authService: SpyObj<AuthService>;
 
   const localUser: User = {
     id: '123',
@@ -25,17 +26,17 @@ describe('ProfileComponent - SAML User Handling', () => {
   };
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser', 'changePassword']);
+    const authServiceSpy = createSpyObj('AuthService', ['getCurrentUser', 'changePassword']);
 
     // Default: return local user
-    authServiceSpy.getCurrentUser.and.returnValue(of(localUser));
+    authServiceSpy.getCurrentUser.mockReturnValue(of(localUser));
 
     await TestBed.configureTestingModule({
       imports: [ProfileComponent, ReactiveFormsModule, BrowserAnimationsModule],
       providers: [{ provide: AuthService, useValue: authServiceSpy }, provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
 
     fixture = TestBed.createComponent(ProfileComponent);
     component = fixture.componentInstance;
@@ -43,7 +44,7 @@ describe('ProfileComponent - SAML User Handling', () => {
 
   describe('Authentication Method Display', () => {
     it('should display Local authentication method for local users', () => {
-      authService.getCurrentUser.and.returnValue(of(localUser));
+      authService.getCurrentUser.mockReturnValue(of(localUser));
 
       fixture.detectChanges();
 
@@ -51,13 +52,14 @@ describe('ProfileComponent - SAML User Handling', () => {
       expect(component.isSamlUser).toBe(false);
 
       const compiled = fixture.nativeElement;
-      const authMethodValue = compiled.querySelector('.auth-method-value');
-      expect(authMethodValue).toBeTruthy();
-      expect(authMethodValue?.textContent).toContain('Local (Password)');
+      const authMethodValues = compiled.querySelectorAll('.auth-method-value');
+      // Second .auth-method-value is the authentication method (first is role)
+      expect(authMethodValues.length).toBeGreaterThanOrEqual(2);
+      expect(authMethodValues[1]?.textContent).toContain('Local (Password)');
     });
 
     it('should display SSO authentication method for SAML users', () => {
-      authService.getCurrentUser.and.returnValue(of(samlUser));
+      authService.getCurrentUser.mockReturnValue(of(samlUser));
 
       fixture.detectChanges();
 
@@ -65,37 +67,39 @@ describe('ProfileComponent - SAML User Handling', () => {
       expect(component.isSamlUser).toBe(true);
 
       const compiled = fixture.nativeElement;
-      const authMethodValue = compiled.querySelector('.auth-method-value');
-      expect(authMethodValue).toBeTruthy();
-      expect(authMethodValue?.textContent).toContain('SSO (Single Sign-On)');
+      const authMethodValues = compiled.querySelectorAll('.auth-method-value');
+      expect(authMethodValues.length).toBeGreaterThanOrEqual(2);
+      expect(authMethodValues[1]?.textContent).toContain('SSO (Single Sign-On)');
     });
 
     it('should display correct icon for local users', () => {
-      authService.getCurrentUser.and.returnValue(of(localUser));
+      authService.getCurrentUser.mockReturnValue(of(localUser));
 
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
-      const authMethodSection = compiled.querySelector('.auth-method');
-      const icon = authMethodSection?.querySelector('mat-icon');
+      const authMethodSections = compiled.querySelectorAll('.auth-method');
+      // Second .auth-method is the authentication method section
+      const icon = authMethodSections[1]?.querySelector('mat-icon');
       expect(icon?.textContent?.trim()).toBe('lock');
     });
 
     it('should display correct icon for SAML users', () => {
-      authService.getCurrentUser.and.returnValue(of(samlUser));
+      authService.getCurrentUser.mockReturnValue(of(samlUser));
 
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
-      const authMethodSection = compiled.querySelector('.auth-method');
-      const icon = authMethodSection?.querySelector('mat-icon');
+      const authMethodSections = compiled.querySelectorAll('.auth-method');
+      // Second .auth-method is the authentication method section
+      const icon = authMethodSections[1]?.querySelector('mat-icon');
       expect(icon?.textContent?.trim()).toBe('business');
     });
   });
 
   describe('Password Change Form Visibility', () => {
     it('should show password change form for local users', () => {
-      authService.getCurrentUser.and.returnValue(of(localUser));
+      authService.getCurrentUser.mockReturnValue(of(localUser));
 
       fixture.detectChanges();
 
@@ -103,14 +107,14 @@ describe('ProfileComponent - SAML User Handling', () => {
 
       const compiled = fixture.nativeElement;
       const passwordForm = compiled.querySelector('form');
-      const samlMessage = compiled.querySelector('.saml-user-message');
+      const samlMessage = compiled.querySelector('app-message');
 
       expect(passwordForm).toBeTruthy();
       expect(samlMessage).toBeFalsy();
     });
 
     it('should hide password change form for SAML users', () => {
-      authService.getCurrentUser.and.returnValue(of(samlUser));
+      authService.getCurrentUser.mockReturnValue(of(samlUser));
 
       fixture.detectChanges();
 
@@ -118,19 +122,19 @@ describe('ProfileComponent - SAML User Handling', () => {
 
       const compiled = fixture.nativeElement;
       const passwordForm = compiled.querySelector('form');
-      const samlMessage = compiled.querySelector('.saml-user-message');
+      const samlMessage = compiled.querySelector('app-message');
 
       expect(passwordForm).toBeFalsy();
       expect(samlMessage).toBeTruthy();
     });
 
     it('should display IdP message for SAML users', () => {
-      authService.getCurrentUser.and.returnValue(of(samlUser));
+      authService.getCurrentUser.mockReturnValue(of(samlUser));
 
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
-      const samlMessage = compiled.querySelector('.saml-user-message');
+      const samlMessage = compiled.querySelector('app-message');
       const messageText = samlMessage?.textContent;
 
       expect(messageText).toContain("Password management is handled by your organization's Identity Provider");
@@ -139,7 +143,7 @@ describe('ProfileComponent - SAML User Handling', () => {
 
   describe('Password Form Functionality', () => {
     it('should initialize password form for local users', () => {
-      authService.getCurrentUser.and.returnValue(of(localUser));
+      authService.getCurrentUser.mockReturnValue(of(localUser));
 
       fixture.detectChanges();
 
@@ -150,7 +154,7 @@ describe('ProfileComponent - SAML User Handling', () => {
     });
 
     it('should not display password form fields for SAML users', () => {
-      authService.getCurrentUser.and.returnValue(of(samlUser));
+      authService.getCurrentUser.mockReturnValue(of(samlUser));
 
       fixture.detectChanges();
 

@@ -82,6 +82,7 @@ export default [
         afterEach: 'readonly',
         beforeAll: 'readonly',
         afterAll: 'readonly',
+        vi: 'readonly',
         console: 'readonly',
         window: 'readonly',
       },

@@ -1,3 +1,4 @@
+import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -12,24 +13,24 @@ import * as urlValidationUtils from '../../utils/url-validation.utils';
 describe('LoginComponent - SSO Integration', () => {
   let component: LoginComponent;
   let fixture: ComponentFixture<LoginComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
+  let authService: SpyObj<AuthService>;
+  let router: SpyObj<Router>;
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', [
-      'checkSamlEnabled',
+    const authServiceSpy = createSpyObj('AuthService', [
       'login',
       'isAuthenticated',
       'getSamlAndLoginStatus',
       'getSamlLoginUrl',
+      'fetchCurrentUser',
     ]);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate', 'navigateByUrl']);
+    const routerSpy = createSpyObj('Router', ['navigate', 'navigateByUrl']);
 
     // Default: SAML not enabled, password login allowed
-    authServiceSpy.checkSamlEnabled.and.returnValue(of(false));
-    authServiceSpy.isAuthenticated.and.returnValue(of(false));
-    authServiceSpy.getSamlAndLoginStatus.and.returnValue(of({ samlEnabled: false, passwordLoginAllowed: true }));
-    authServiceSpy.getSamlLoginUrl.and.returnValue('/api/auth/saml/login');
+    authServiceSpy.isAuthenticated.mockReturnValue(of(false));
+    authServiceSpy.getSamlAndLoginStatus.mockReturnValue(of({ samlEnabled: false, passwordLoginAllowed: true }));
+    authServiceSpy.getSamlLoginUrl.mockReturnValue('/api/auth/saml/login');
+    authServiceSpy.fetchCurrentUser.mockReturnValue(of({ id: '1', email: 'test@example.com', authProvider: 'local' }));
     authServiceSpy['apiBase'] = '/api';
 
     await TestBed.configureTestingModule({
@@ -42,8 +43,8 @@ describe('LoginComponent - SSO Integration', () => {
       ],
     }).compileComponents();
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
+    router = TestBed.inject(Router) as SpyObj<Router>;
 
     fixture = TestBed.createComponent(LoginComponent);
     component = fixture.componentInstance;
@@ -55,12 +56,12 @@ describe('LoginComponent - SSO Integration', () => {
   });
 
   it('should show SSO button when SAML is enabled', () => {
-    authService.checkSamlEnabled.and.returnValue(of(true));
+    authService.getSamlAndLoginStatus.mockReturnValue(of({ samlEnabled: true, passwordLoginAllowed: true }));
 
     fixture.detectChanges();
 
     expect(component.showSsoButton).toBe(true);
-    expect(authService.checkSamlEnabled).toHaveBeenCalled();
+    expect(authService.getSamlAndLoginStatus).toHaveBeenCalled();
 
     const compiled = fixture.nativeElement;
     const ssoButton = compiled.querySelector('.sso-button');
@@ -69,20 +70,20 @@ describe('LoginComponent - SSO Integration', () => {
   });
 
   it('should hide SSO button when SAML is disabled', () => {
-    authService.checkSamlEnabled.and.returnValue(of(false));
+    authService.getSamlAndLoginStatus.mockReturnValue(of({ samlEnabled: false, passwordLoginAllowed: true }));
 
     fixture.detectChanges();
 
     expect(component.showSsoButton).toBe(false);
-    expect(authService.checkSamlEnabled).toHaveBeenCalled();
+    expect(authService.getSamlAndLoginStatus).toHaveBeenCalled();
 
     const compiled = fixture.nativeElement;
     const ssoButton = compiled.querySelector('.sso-button');
     expect(ssoButton).toBeFalsy();
   });
 
-  it('should hide SSO button when SAML check fails', () => {
-    authService.checkSamlEnabled.and.returnValue(throwError(() => new Error('Network error')));
+  it('should hide SSO button when status check fails', () => {
+    authService.getSamlAndLoginStatus.mockReturnValue(throwError(() => new Error('Network error')));
 
     fixture.detectChanges();
 
@@ -94,7 +95,7 @@ describe('LoginComponent - SSO Integration', () => {
   });
 
   it('should have loginWithSso method that redirects to SAML login endpoint', () => {
-    authService.getSamlAndLoginStatus.and.returnValue(of({ samlEnabled: true, passwordLoginAllowed: true }));
+    authService.getSamlAndLoginStatus.mockReturnValue(of({ samlEnabled: true, passwordLoginAllowed: true }));
     fixture.detectChanges();
 
     // Verify the method exists
@@ -119,8 +120,8 @@ describe('LoginComponent - SSO Integration', () => {
       sessionStorage.setItem('returnUrl', '/explore?recordId=123');
 
       // Spy on utility functions
-      spyOn(urlValidationUtils, 'getValidatedReturnUrl').and.returnValue('/explore?recordId=123');
-      spyOn(urlValidationUtils, 'clearReturnUrl');
+      vi.spyOn(urlValidationUtils, 'getValidatedReturnUrl').mockReturnValue('/explore?recordId=123');
+      vi.spyOn(urlValidationUtils, 'clearReturnUrl');
 
       // Set up form with valid credentials
       component.loginForm.patchValue({
@@ -132,7 +133,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockAuthResponse = {
         user: { id: '1', email: 'test@example.com', authProvider: 'local' },
       };
-      authService.login.and.returnValue(of(mockAuthResponse));
+      authService.login.mockReturnValue(of(mockAuthResponse));
 
       // Submit the form
       component.onSubmit();
@@ -149,8 +150,8 @@ describe('LoginComponent - SSO Integration', () => {
       // No return URL in sessionStorage
 
       // Spy on utility functions
-      spyOn(urlValidationUtils, 'getValidatedReturnUrl').and.returnValue('/dashboard');
-      spyOn(urlValidationUtils, 'clearReturnUrl');
+      vi.spyOn(urlValidationUtils, 'getValidatedReturnUrl').mockReturnValue('/dashboard');
+      vi.spyOn(urlValidationUtils, 'clearReturnUrl');
 
       // Set up form with valid credentials
       component.loginForm.patchValue({
@@ -162,7 +163,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockAuthResponse = {
         user: { id: '1', email: 'test@example.com', authProvider: 'local' },
       };
-      authService.login.and.returnValue(of(mockAuthResponse));
+      authService.login.mockReturnValue(of(mockAuthResponse));
 
       // Submit the form
       component.onSubmit();
@@ -180,8 +181,8 @@ describe('LoginComponent - SSO Integration', () => {
       sessionStorage.setItem('returnUrl', 'https://evil.com/phishing');
 
       // Spy on utility functions - getValidatedReturnUrl will return dashboard for invalid URLs
-      spyOn(urlValidationUtils, 'getValidatedReturnUrl').and.returnValue('/dashboard');
-      spyOn(urlValidationUtils, 'clearReturnUrl');
+      vi.spyOn(urlValidationUtils, 'getValidatedReturnUrl').mockReturnValue('/dashboard');
+      vi.spyOn(urlValidationUtils, 'clearReturnUrl');
 
       // Set up form with valid credentials
       component.loginForm.patchValue({
@@ -193,7 +194,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockAuthResponse = {
         user: { id: '1', email: 'test@example.com', authProvider: 'local' },
       };
-      authService.login.and.returnValue(of(mockAuthResponse));
+      authService.login.mockReturnValue(of(mockAuthResponse));
 
       // Submit the form
       component.onSubmit();
@@ -211,7 +212,7 @@ describe('LoginComponent - SSO Integration', () => {
       sessionStorage.setItem('returnUrl', '/reports');
 
       // Use real utility functions to test actual clearing behavior
-      spyOn(urlValidationUtils, 'clearReturnUrl').and.callThrough();
+      vi.spyOn(urlValidationUtils, 'clearReturnUrl');
 
       // Set up form with valid credentials
       component.loginForm.patchValue({
@@ -223,7 +224,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockAuthResponse = {
         user: { id: '1', email: 'test@example.com', authProvider: 'local' },
       };
-      authService.login.and.returnValue(of(mockAuthResponse));
+      authService.login.mockReturnValue(of(mockAuthResponse));
 
       // Submit the form
       component.onSubmit();
@@ -240,7 +241,7 @@ describe('LoginComponent - SSO Integration', () => {
       sessionStorage.setItem('returnUrl', '/explore?recordId=456');
 
       // Enable SAML
-      authService.getSamlAndLoginStatus.and.returnValue(of({ samlEnabled: true, passwordLoginAllowed: true }));
+      authService.getSamlAndLoginStatus.mockReturnValue(of({ samlEnabled: true, passwordLoginAllowed: true }));
       fixture.detectChanges();
 
       // Verify return URL is still in sessionStorage before SAML redirect
@@ -268,7 +269,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockTotpResponse = {
         totpRequired: true as const,
       };
-      authService.login.and.returnValue(of(mockTotpResponse));
+      authService.login.mockReturnValue(of(mockTotpResponse));
 
       // Submit the form
       component.onSubmit();
@@ -288,7 +289,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockTotpResponse = {
         totpRequired: true as const,
       };
-      authService.login.and.returnValue(of(mockTotpResponse));
+      authService.login.mockReturnValue(of(mockTotpResponse));
 
       // Submit the form
       component.onSubmit();
@@ -308,7 +309,7 @@ describe('LoginComponent - SSO Integration', () => {
       const mockTotpResponse = {
         totpRequired: true as const,
       };
-      authService.login.and.returnValue(of(mockTotpResponse));
+      authService.login.mockReturnValue(of(mockTotpResponse));
 
       // Submit the form
       component.onSubmit();
@@ -329,11 +330,11 @@ describe('LoginComponent - SSO Integration', () => {
       const mockAuthResponse = {
         user: { id: '1', email: 'test@example.com', authProvider: 'local' },
       };
-      authService.login.and.returnValue(of(mockAuthResponse));
+      authService.login.mockReturnValue(of(mockAuthResponse));
 
       // Spy on utility functions
-      spyOn(urlValidationUtils, 'getValidatedReturnUrl').and.returnValue('/dashboard');
-      spyOn(urlValidationUtils, 'clearReturnUrl');
+      vi.spyOn(urlValidationUtils, 'getValidatedReturnUrl').mockReturnValue('/dashboard');
+      vi.spyOn(urlValidationUtils, 'clearReturnUrl');
 
       // Submit the form
       component.onSubmit();

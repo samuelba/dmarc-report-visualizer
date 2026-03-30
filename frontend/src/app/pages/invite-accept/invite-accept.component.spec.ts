@@ -1,7 +1,8 @@
+import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, throwError, EMPTY } from 'rxjs';
 import { InviteAcceptComponent } from './invite-accept.component';
 import { UserService, UserRole, InviteDetailsResponse, AuthResponse } from '../../services/user.service';
 import { provideHttpClient } from '@angular/common/http';
@@ -11,13 +12,16 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 describe('InviteAcceptComponent', () => {
   let component: InviteAcceptComponent;
   let fixture: ComponentFixture<InviteAcceptComponent>;
-  let userService: jasmine.SpyObj<UserService>;
-  let router: jasmine.SpyObj<Router>;
+  let userService: SpyObj<UserService>;
+  let router: SpyObj<Router>;
   let activatedRoute: any;
 
   beforeEach(async () => {
-    const userServiceSpy = jasmine.createSpyObj('UserService', ['getInviteDetails', 'acceptInvite']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    const userServiceSpy = createSpyObj('UserService', ['getInviteDetails', 'acceptInvite']);
+    const routerSpy = createSpyObj('Router', ['navigate', 'createUrlTree', 'serializeUrl']);
+    routerSpy.createUrlTree.mockReturnValue({});
+    routerSpy.serializeUrl.mockReturnValue('');
+    (routerSpy as any).events = EMPTY;
 
     // Mock ActivatedRoute with a token parameter
     activatedRoute = {
@@ -37,8 +41,8 @@ describe('InviteAcceptComponent', () => {
       ],
     }).compileComponents();
 
-    userService = TestBed.inject(UserService) as jasmine.SpyObj<UserService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    userService = TestBed.inject(UserService) as SpyObj<UserService>;
+    router = TestBed.inject(Router) as SpyObj<Router>;
 
     fixture = TestBed.createComponent(InviteAcceptComponent);
     component = fixture.componentInstance;
@@ -53,7 +57,7 @@ describe('InviteAcceptComponent', () => {
         expiresAt: new Date('2025-12-31'),
       };
 
-      userService.getInviteDetails.and.returnValue(of(mockInviteDetails));
+      userService.getInviteDetails.mockReturnValue(of(mockInviteDetails));
 
       fixture.detectChanges(); // Triggers ngOnInit
 
@@ -72,7 +76,7 @@ describe('InviteAcceptComponent', () => {
         expiresAt: new Date('2025-12-31'),
       };
 
-      userService.getInviteDetails.and.returnValue(of(mockInviteDetails));
+      userService.getInviteDetails.mockReturnValue(of(mockInviteDetails));
 
       fixture.detectChanges();
 
@@ -87,7 +91,7 @@ describe('InviteAcceptComponent', () => {
         error: 'Invalid or expired invitation',
       };
 
-      userService.getInviteDetails.and.returnValue(of(mockInviteDetails));
+      userService.getInviteDetails.mockReturnValue(of(mockInviteDetails));
 
       fixture.detectChanges();
 
@@ -102,7 +106,7 @@ describe('InviteAcceptComponent', () => {
         error: 'This invitation has expired',
       };
 
-      userService.getInviteDetails.and.returnValue(of(mockInviteDetails));
+      userService.getInviteDetails.mockReturnValue(of(mockInviteDetails));
 
       fixture.detectChanges();
 
@@ -116,7 +120,7 @@ describe('InviteAcceptComponent', () => {
         error: {},
       };
 
-      userService.getInviteDetails.and.returnValue(throwError(() => errorResponse));
+      userService.getInviteDetails.mockReturnValue(throwError(() => errorResponse));
 
       fixture.detectChanges();
 
@@ -130,7 +134,7 @@ describe('InviteAcceptComponent', () => {
         error: { message: 'Internal server error' },
       };
 
-      userService.getInviteDetails.and.returnValue(throwError(() => errorResponse));
+      userService.getInviteDetails.mockReturnValue(throwError(() => errorResponse));
 
       fixture.detectChanges();
 
@@ -148,7 +152,7 @@ describe('InviteAcceptComponent', () => {
         expiresAt: new Date('2025-12-31'),
       };
 
-      userService.getInviteDetails.and.returnValue(of(mockInviteDetails));
+      userService.getInviteDetails.mockReturnValue(of(mockInviteDetails));
       fixture.detectChanges();
     });
 
@@ -217,7 +221,7 @@ describe('InviteAcceptComponent', () => {
         expiresAt: new Date('2025-12-31'),
       };
 
-      userService.getInviteDetails.and.returnValue(of(mockInviteDetails));
+      userService.getInviteDetails.mockReturnValue(of(mockInviteDetails));
       fixture.detectChanges();
     });
 
@@ -231,7 +235,7 @@ describe('InviteAcceptComponent', () => {
         },
       };
 
-      userService.acceptInvite.and.returnValue(of(mockAuthResponse));
+      userService.acceptInvite.mockReturnValue(of(mockAuthResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',
@@ -253,7 +257,7 @@ describe('InviteAcceptComponent', () => {
         },
       };
 
-      userService.acceptInvite.and.returnValue(of(mockAuthResponse));
+      userService.acceptInvite.mockReturnValue(of(mockAuthResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',
@@ -285,7 +289,7 @@ describe('InviteAcceptComponent', () => {
         error: { message: 'This invitation has already been used' },
       };
 
-      userService.acceptInvite.and.returnValue(throwError(() => errorResponse));
+      userService.acceptInvite.mockReturnValue(throwError(() => errorResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',
@@ -305,7 +309,7 @@ describe('InviteAcceptComponent', () => {
         error: { message: 'This invitation has expired' },
       };
 
-      userService.acceptInvite.and.returnValue(throwError(() => errorResponse));
+      userService.acceptInvite.mockReturnValue(throwError(() => errorResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',
@@ -324,7 +328,7 @@ describe('InviteAcceptComponent', () => {
         error: {},
       };
 
-      userService.acceptInvite.and.returnValue(throwError(() => errorResponse));
+      userService.acceptInvite.mockReturnValue(throwError(() => errorResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',
@@ -343,7 +347,7 @@ describe('InviteAcceptComponent', () => {
         error: { message: ['Password is too weak', 'Email already exists'] },
       };
 
-      userService.acceptInvite.and.returnValue(throwError(() => errorResponse));
+      userService.acceptInvite.mockReturnValue(throwError(() => errorResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',
@@ -366,7 +370,7 @@ describe('InviteAcceptComponent', () => {
         },
       };
 
-      userService.acceptInvite.and.returnValue(of(mockAuthResponse));
+      userService.acceptInvite.mockReturnValue(of(mockAuthResponse));
 
       component.acceptForm.patchValue({
         password: 'SecurePass123!',

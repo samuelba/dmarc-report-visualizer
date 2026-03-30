@@ -9,6 +9,7 @@ describe('URL Validation Utils', () => {
   afterEach(() => {
     // Clean up after each test
     sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
   describe('isValidReturnUrl', () => {
@@ -133,20 +134,20 @@ describe('URL Validation Utils', () => {
     });
 
     it('should log security warning for invalid URLs', () => {
-      spyOn(console, 'warn');
+      vi.spyOn(console, 'warn');
       sessionStorage.setItem('returnUrl', 'https://evil.com');
       getValidatedReturnUrl();
       expect(console.warn).toHaveBeenCalledWith('Invalid return URL detected and rejected:', 'https://evil.com');
     });
 
     it('should not log warning for missing URLs', () => {
-      spyOn(console, 'warn');
+      vi.spyOn(console, 'warn');
       getValidatedReturnUrl();
       expect(console.warn).not.toHaveBeenCalled();
     });
 
     it('should not log warning for valid URLs', () => {
-      spyOn(console, 'warn');
+      vi.spyOn(console, 'warn');
       sessionStorage.setItem('returnUrl', '/explore?recordId=123');
       getValidatedReturnUrl();
       expect(console.warn).not.toHaveBeenCalled();
