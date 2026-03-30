@@ -1,3 +1,4 @@
+import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -11,12 +12,13 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 describe('SetupComponent - Return URL Clearing', () => {
   let component: SetupComponent;
   let fixture: ComponentFixture<SetupComponent>;
-  let authService: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
+  let authService: SpyObj<AuthService>;
+  let router: SpyObj<Router>;
 
   beforeEach(async () => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['setup']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+    const authServiceSpy = createSpyObj('AuthService', ['setup', 'fetchCurrentUser']);
+    authServiceSpy.fetchCurrentUser.mockReturnValue(of(undefined));
+    const routerSpy = createSpyObj('Router', ['navigate']);
 
     await TestBed.configureTestingModule({
       imports: [SetupComponent, ReactiveFormsModule, BrowserAnimationsModule],
@@ -28,8 +30,8 @@ describe('SetupComponent - Return URL Clearing', () => {
       ],
     }).compileComponents();
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
+    router = TestBed.inject(Router) as SpyObj<Router>;
 
     fixture = TestBed.createComponent(SetupComponent);
     component = fixture.componentInstance;
@@ -56,7 +58,7 @@ describe('SetupComponent - Return URL Clearing', () => {
     const mockAuthResponse = {
       user: { id: '1', email: 'admin@example.com', authProvider: 'local' },
     };
-    authService.setup.and.returnValue(of(mockAuthResponse));
+    authService.setup.mockReturnValue(of(mockAuthResponse));
 
     // Submit the form
     component.onSubmit();
@@ -86,7 +88,7 @@ describe('SetupComponent - Return URL Clearing', () => {
     const mockAuthResponse = {
       user: { id: '1', email: 'admin@example.com', authProvider: 'local' },
     };
-    authService.setup.and.returnValue(of(mockAuthResponse));
+    authService.setup.mockReturnValue(of(mockAuthResponse));
 
     // Submit the form
     component.onSubmit();
@@ -113,7 +115,7 @@ describe('SetupComponent - Return URL Clearing', () => {
     const mockAuthResponse = {
       user: { id: '1', email: 'admin@example.com', authProvider: 'local' },
     };
-    authService.setup.and.returnValue(of(mockAuthResponse));
+    authService.setup.mockReturnValue(of(mockAuthResponse));
 
     // Submit the form
     component.onSubmit();
@@ -138,7 +140,7 @@ describe('SetupComponent - Return URL Clearing', () => {
       error: { message: 'Setup failed' },
       status: 400,
     };
-    authService.setup.and.returnValue(throwError(() => errorResponse));
+    authService.setup.mockReturnValue(throwError(() => errorResponse));
 
     // Submit the form
     component.onSubmit();

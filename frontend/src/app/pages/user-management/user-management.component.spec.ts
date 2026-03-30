@@ -1,5 +1,6 @@
+import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, throwError, NEVER } from 'rxjs';
 import { UserManagementComponent } from './user-management.component';
 import { UserService, UserResponse, InviteToken, UserRole } from '../../services/user.service';
 import { AuthService, User } from '../../services/auth.service';
@@ -12,9 +13,10 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 describe('UserManagementComponent', () => {
   let component: UserManagementComponent;
   let fixture: ComponentFixture<UserManagementComponent>;
-  let userService: jasmine.SpyObj<UserService>;
-  let authService: jasmine.SpyObj<AuthService>;
-  let snackBar: jasmine.SpyObj<MatSnackBar>;
+  let userService: SpyObj<UserService>;
+  let authService: SpyObj<AuthService>;
+  let snackBar: SpyObj<MatSnackBar>;
+  let dialog: SpyObj<MatDialog>;
 
   const mockUsers: UserResponse[] = [
     {
@@ -55,39 +57,44 @@ describe('UserManagementComponent', () => {
   };
 
   beforeEach(async () => {
-    const userServiceSpy = jasmine.createSpyObj('UserService', [
+    const userServiceSpy = createSpyObj('UserService', [
       'getAllUsers',
       'updateUserRole',
       'deleteUser',
       'getActiveInvites',
       'revokeInvite',
     ]);
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['getCurrentUser']);
-    const dialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
-    const snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
+    const authServiceSpy = createSpyObj('AuthService', ['getCurrentUser', 'getSamlAndLoginStatus']);
 
-    userServiceSpy.getAllUsers.and.returnValue(of(mockUsers));
-    userServiceSpy.getActiveInvites.and.returnValue(of(mockInvites));
-    authServiceSpy.getCurrentUser.and.returnValue(of(mockCurrentUser));
+    userServiceSpy.getAllUsers.mockReturnValue(of(mockUsers));
+    userServiceSpy.getActiveInvites.mockReturnValue(of(mockInvites));
+    authServiceSpy.getCurrentUser.mockReturnValue(of(mockCurrentUser));
+    authServiceSpy.getSamlAndLoginStatus.mockReturnValue(of({ samlEnabled: false, passwordLoginAllowed: true }));
 
     await TestBed.configureTestingModule({
       imports: [UserManagementComponent, BrowserAnimationsModule],
       providers: [
         { provide: UserService, useValue: userServiceSpy },
         { provide: AuthService, useValue: authServiceSpy },
-        { provide: MatDialog, useValue: dialogSpy },
-        { provide: MatSnackBar, useValue: snackBarSpy },
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
     }).compileComponents();
 
-    userService = TestBed.inject(UserService) as jasmine.SpyObj<UserService>;
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    snackBar = TestBed.inject(MatSnackBar) as jasmine.SpyObj<MatSnackBar>;
-
     fixture = TestBed.createComponent(UserManagementComponent);
     component = fixture.componentInstance;
+
+    userService = TestBed.inject(UserService) as SpyObj<UserService>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
+
+    // Spy on component-level injected services (provided by Material module imports)
+    const dialogInstance = fixture.debugElement.injector.get(MatDialog);
+    vi.spyOn(dialogInstance, 'open').mockReturnValue({ afterClosed: () => of(true) } as any);
+    dialog = dialogInstance as any;
+
+    const snackBarInstance = fixture.debugElement.injector.get(MatSnackBar);
+    vi.spyOn(snackBarInstance, 'open').mockReturnValue({} as any);
+    snackBar = snackBarInstance as any;
   });
 
   describe('Component Initialization', () => {
@@ -119,7 +126,7 @@ describe('UserManagementComponent', () => {
     });
 
     it('should handle error when loading users fails', () => {
-      userService.getAllUsers.and.returnValue(throwError(() => new Error('Failed to load')));
+      userService.getAllUsers.mockReturnValue(throwError(() => new Error('Failed to load')));
 
       fixture.detectChanges();
 
@@ -128,7 +135,7 @@ describe('UserManagementComponent', () => {
     });
 
     it('should handle error when loading invites fails', () => {
-      userService.getActiveInvites.and.returnValue(throwError(() => new Error('Failed to load')));
+      userService.getActiveInvites.mockReturnValue(throwError(() => new Error('Failed to load')));
 
       fixture.detectChanges();
 
@@ -175,7 +182,8 @@ describe('UserManagementComponent', () => {
     });
 
     it('should show loading spinner while loading', () => {
-      component.loading.set(true);
+      // Use NEVER so loadUsers never completes, keeping loading=true
+      userService.getAllUsers.mockReturnValue(NEVER);
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
@@ -184,7 +192,7 @@ describe('UserManagementComponent', () => {
     });
 
     it('should show no data message when no users', () => {
-      userService.getAllUsers.and.returnValue(of([]));
+      userService.getAllUsers.mockReturnValue(of([]));
       component.ngOnInit();
       fixture.detectChanges();
 
@@ -197,8 +205,8 @@ describe('UserManagementComponent', () => {
 
   describe('Role Change', () => {
     it('should call service to update user role', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      userService.updateUserRole.and.returnValue(of(mockUsers[1]));
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+      userService.updateUserRole.mockReturnValue(of(mockUsers[1]));
 
       fixture.detectChanges();
 
@@ -209,12 +217,13 @@ describe('UserManagementComponent', () => {
     });
 
     it('should show confirmation dialog before changing role', () => {
-      spyOn(window, 'confirm').and.returnValue(false);
+      dialog.open.mockReturnValue({ afterClosed: () => of(false) } as any);
 
       fixture.detectChanges();
 
       component.changeUserRole(mockUsers[1], UserRole.ADMINISTRATOR);
 
+      expect(dialog.open).toHaveBeenCalled();
       expect(userService.updateUserRole).not.toHaveBeenCalled();
     });
 
@@ -224,7 +233,7 @@ describe('UserManagementComponent', () => {
       component.changeUserRole(mockUsers[0], UserRole.USER);
 
       expect(snackBar.open).toHaveBeenCalledWith(
-        'Cannot demote the last administrator. At least one administrator must exist.',
+        'Cannot demote the last local administrator. At least one local administrator must exist.',
         'Close',
         { duration: 5000 }
       );
@@ -232,9 +241,9 @@ describe('UserManagementComponent', () => {
     });
 
     it('should handle error when role change fails', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
       const error = { error: { message: 'Role change failed' } };
-      userService.updateUserRole.and.returnValue(throwError(() => error));
+      userService.updateUserRole.mockReturnValue(throwError(() => error));
 
       fixture.detectChanges();
 
@@ -244,22 +253,22 @@ describe('UserManagementComponent', () => {
     });
 
     it('should refresh user list after successful role change', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      userService.updateUserRole.and.returnValue(of(mockUsers[1]));
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+      userService.updateUserRole.mockReturnValue(of(mockUsers[1]));
 
       fixture.detectChanges();
 
-      const initialCallCount = userService.getAllUsers.calls.count();
+      const initialCallCount = userService.getAllUsers.mock.calls.length;
       component.changeUserRole(mockUsers[1], UserRole.ADMINISTRATOR);
 
-      expect(userService.getAllUsers.calls.count()).toBe(initialCallCount + 1);
+      expect(userService.getAllUsers.mock.calls.length).toBe(initialCallCount + 1);
     });
   });
 
   describe('User Deletion', () => {
     it('should call service to delete user', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      userService.deleteUser.and.returnValue(of(void 0));
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+      userService.deleteUser.mockReturnValue(of(void 0));
 
       fixture.detectChanges();
 
@@ -270,12 +279,13 @@ describe('UserManagementComponent', () => {
     });
 
     it('should show confirmation dialog before deleting', () => {
-      spyOn(window, 'confirm').and.returnValue(false);
+      dialog.open.mockReturnValue({ afterClosed: () => of(false) } as any);
 
       fixture.detectChanges();
 
       component.deleteUser(mockUsers[1]);
 
+      expect(dialog.open).toHaveBeenCalled();
       expect(userService.deleteUser).not.toHaveBeenCalled();
     });
 
@@ -285,7 +295,7 @@ describe('UserManagementComponent', () => {
       component.deleteUser(mockUsers[0]);
 
       expect(snackBar.open).toHaveBeenCalledWith(
-        'Cannot delete the last administrator. At least one administrator must exist.',
+        'Cannot delete the last local administrator. At least one local administrator must exist.',
         'Close',
         { duration: 5000 }
       );
@@ -293,9 +303,9 @@ describe('UserManagementComponent', () => {
     });
 
     it('should handle error when deletion fails', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
       const error = { error: { message: 'Deletion failed' } };
-      userService.deleteUser.and.returnValue(throwError(() => error));
+      userService.deleteUser.mockReturnValue(throwError(() => error));
 
       fixture.detectChanges();
 
@@ -305,15 +315,15 @@ describe('UserManagementComponent', () => {
     });
 
     it('should refresh user list after successful deletion', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      userService.deleteUser.and.returnValue(of(void 0));
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+      userService.deleteUser.mockReturnValue(of(void 0));
 
       fixture.detectChanges();
 
-      const initialCallCount = userService.getAllUsers.calls.count();
+      const initialCallCount = userService.getAllUsers.mock.calls.length;
       component.deleteUser(mockUsers[1]);
 
-      expect(userService.getAllUsers.calls.count()).toBe(initialCallCount + 1);
+      expect(userService.getAllUsers.mock.calls.length).toBe(initialCallCount + 1);
     });
   });
 
@@ -327,8 +337,8 @@ describe('UserManagementComponent', () => {
     });
 
     it('should revoke invite', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      userService.revokeInvite.and.returnValue(of(void 0));
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+      userService.revokeInvite.mockReturnValue(of(void 0));
 
       fixture.detectChanges();
 
@@ -339,36 +349,38 @@ describe('UserManagementComponent', () => {
     });
 
     it('should show confirmation before revoking invite', () => {
-      spyOn(window, 'confirm').and.returnValue(false);
+      dialog.open.mockReturnValue({ afterClosed: () => of(false) } as any);
 
       fixture.detectChanges();
 
       component.revokeInvite(mockInvites[0]);
 
+      expect(dialog.open).toHaveBeenCalled();
       expect(userService.revokeInvite).not.toHaveBeenCalled();
     });
 
     it('should refresh invites after revoking', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      userService.revokeInvite.and.returnValue(of(void 0));
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) } as any);
+      userService.revokeInvite.mockReturnValue(of(void 0));
 
       fixture.detectChanges();
 
-      const initialCallCount = userService.getActiveInvites.calls.count();
+      const initialCallCount = userService.getActiveInvites.mock.calls.length;
       component.revokeInvite(mockInvites[0]);
 
-      expect(userService.getActiveInvites.calls.count()).toBe(initialCallCount + 1);
+      expect(userService.getActiveInvites.mock.calls.length).toBe(initialCallCount + 1);
     });
 
     it('should show no data message when no invites', () => {
-      userService.getActiveInvites.and.returnValue(of([]));
+      userService.getActiveInvites.mockReturnValue(of([]));
       component.ngOnInit();
       fixture.detectChanges();
 
       const compiled = fixture.nativeElement;
-      const noData = compiled.querySelectorAll('.no-data')[1]; // Second no-data element (invites section)
+      // Users table exists so only one .no-data element (invites section)
+      const noDataElements = compiled.querySelectorAll('.no-data');
+      const noData = Array.from(noDataElements).find((el: any) => el.textContent.includes('No pending invitations'));
       expect(noData).toBeTruthy();
-      expect(noData.textContent).toContain('No pending invitations');
     });
   });
 
@@ -382,7 +394,7 @@ describe('UserManagementComponent', () => {
 
     it('should not identify last admin when multiple admins exist', () => {
       const multipleAdmins: UserResponse[] = [{ ...mockUsers[0] }, { ...mockUsers[1], role: UserRole.ADMINISTRATOR }];
-      userService.getAllUsers.and.returnValue(of(multipleAdmins));
+      userService.getAllUsers.mockReturnValue(of(multipleAdmins));
 
       component.ngOnInit();
       fixture.detectChanges();

@@ -1,3 +1,4 @@
+import { createSpyObj, SpyObj } from '../../testing/mock-helpers';
 import { TestBed } from '@angular/core/testing';
 import { Router, UrlTree } from '@angular/router';
 import { of } from 'rxjs';
@@ -5,12 +6,12 @@ import { authGuard } from './auth.guard';
 import { AuthService } from '../services/auth.service';
 
 describe('authGuard', () => {
-  let authService: jasmine.SpyObj<AuthService>;
-  let router: jasmine.SpyObj<Router>;
+  let authService: SpyObj<AuthService>;
+  let router: SpyObj<Router>;
 
   beforeEach(() => {
-    const authServiceSpy = jasmine.createSpyObj('AuthService', ['isAuthenticated']);
-    const routerSpy = jasmine.createSpyObj('Router', ['createUrlTree']);
+    const authServiceSpy = createSpyObj('AuthService', ['isAuthenticated']);
+    const routerSpy = createSpyObj('Router', ['createUrlTree']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -19,37 +20,35 @@ describe('authGuard', () => {
       ],
     });
 
-    authService = TestBed.inject(AuthService) as jasmine.SpyObj<AuthService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    authService = TestBed.inject(AuthService) as SpyObj<AuthService>;
+    router = TestBed.inject(Router) as SpyObj<Router>;
   });
 
-  it('should allow access when user is authenticated', (done) => {
-    authService.isAuthenticated.and.returnValue(of(true));
+  it('should allow access when user is authenticated', () => {
+    authService.isAuthenticated.mockReturnValue(of(true));
 
     TestBed.runInInjectionContext(() => {
       const result = authGuard({} as any, {} as any);
 
       if (typeof result === 'boolean') {
         expect(result).toBe(true);
-        done();
       } else if (result instanceof UrlTree) {
-        done.fail('Expected true but got UrlTree');
+        throw new Error('Expected true but got UrlTree');
       } else if (result && typeof result === 'object' && 'subscribe' in result) {
         (result as any).subscribe((canActivate: boolean | UrlTree) => {
           expect(canActivate).toBe(true);
           expect(router.createUrlTree).not.toHaveBeenCalled();
-          done();
         });
       } else {
-        done.fail('Unexpected result type');
+        throw new Error('Unexpected result type');
       }
     });
   });
 
-  it('should redirect to login when user is not authenticated', (done) => {
+  it('should redirect to login when user is not authenticated', () => {
     const mockUrlTree = {} as UrlTree;
-    authService.isAuthenticated.and.returnValue(of(false));
-    router.createUrlTree.and.returnValue(mockUrlTree);
+    authService.isAuthenticated.mockReturnValue(of(false));
+    router.createUrlTree.mockReturnValue(mockUrlTree);
 
     TestBed.runInInjectionContext(() => {
       const result = authGuard({} as any, {} as any);
@@ -57,17 +56,15 @@ describe('authGuard', () => {
       if (result instanceof UrlTree) {
         expect(result).toBe(mockUrlTree);
         expect(router.createUrlTree).toHaveBeenCalledWith(['/login']);
-        done();
       } else if (typeof result === 'boolean') {
-        done.fail('Expected UrlTree but got boolean');
+        throw new Error('Expected UrlTree but got boolean');
       } else if (result && typeof result === 'object' && 'subscribe' in result) {
         (result as any).subscribe((canActivate: boolean | UrlTree) => {
           expect(canActivate).toBe(mockUrlTree);
           expect(router.createUrlTree).toHaveBeenCalledWith(['/login']);
-          done();
         });
       } else {
-        done.fail('Unexpected result type');
+        throw new Error('Unexpected result type');
       }
     });
   });
@@ -83,10 +80,10 @@ describe('authGuard', () => {
       sessionStorage.clear();
     });
 
-    it('should store return URL when redirecting unauthenticated user', (done) => {
+    it('should store return URL when redirecting unauthenticated user', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       const mockState = { url: '/explore?recordId=123' } as any;
 
@@ -97,19 +94,17 @@ describe('authGuard', () => {
           (result as any).subscribe((canActivate: boolean | UrlTree) => {
             expect(canActivate).toBe(mockUrlTree);
             expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=123');
-            done();
           });
         } else {
           expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=123');
-          done();
         }
       });
     });
 
-    it('should not store login page as return URL', (done) => {
+    it('should not store login page as return URL', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       const mockState = { url: '/login' } as any;
 
@@ -120,19 +115,17 @@ describe('authGuard', () => {
           (result as any).subscribe((canActivate: boolean | UrlTree) => {
             expect(canActivate).toBe(mockUrlTree);
             expect(sessionStorage.getItem('returnUrl')).toBeNull();
-            done();
           });
         } else {
           expect(sessionStorage.getItem('returnUrl')).toBeNull();
-          done();
         }
       });
     });
 
-    it('should not store setup page as return URL', (done) => {
+    it('should not store setup page as return URL', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       const mockState = { url: '/setup' } as any;
 
@@ -143,19 +136,17 @@ describe('authGuard', () => {
           (result as any).subscribe((canActivate: boolean | UrlTree) => {
             expect(canActivate).toBe(mockUrlTree);
             expect(sessionStorage.getItem('returnUrl')).toBeNull();
-            done();
           });
         } else {
           expect(sessionStorage.getItem('returnUrl')).toBeNull();
-          done();
         }
       });
     });
 
-    it('should preserve query parameters in stored URL', (done) => {
+    it('should preserve query parameters in stored URL', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       const mockState = { url: '/reports?startDate=2024-01-01&endDate=2024-01-31' } as any;
 
@@ -166,17 +157,15 @@ describe('authGuard', () => {
           (result as any).subscribe((canActivate: boolean | UrlTree) => {
             expect(canActivate).toBe(mockUrlTree);
             expect(sessionStorage.getItem('returnUrl')).toBe('/reports?startDate=2024-01-01&endDate=2024-01-31');
-            done();
           });
         } else {
           expect(sessionStorage.getItem('returnUrl')).toBe('/reports?startDate=2024-01-01&endDate=2024-01-31');
-          done();
         }
       });
     });
 
-    it('should not affect authenticated users', (done) => {
-      authService.isAuthenticated.and.returnValue(of(true));
+    it('should not affect authenticated users', () => {
+      authService.isAuthenticated.mockReturnValue(of(true));
 
       const mockState = { url: '/explore?recordId=123' } as any;
 
@@ -186,23 +175,21 @@ describe('authGuard', () => {
         if (typeof result === 'boolean') {
           expect(result).toBe(true);
           expect(sessionStorage.getItem('returnUrl')).toBeNull();
-          done();
         } else if (result && typeof result === 'object' && 'subscribe' in result) {
           (result as any).subscribe((canActivate: boolean | UrlTree) => {
             expect(canActivate).toBe(true);
             expect(sessionStorage.getItem('returnUrl')).toBeNull();
-            done();
           });
         } else {
-          done.fail('Unexpected result type');
+          throw new Error('Unexpected result type');
         }
       });
     });
 
-    it('should not overwrite existing return URL with a different URL', (done) => {
+    it('should not overwrite existing return URL with a different URL', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       // Set an existing return URL
       sessionStorage.setItem('returnUrl', '/explore?recordId=123');
@@ -217,20 +204,18 @@ describe('authGuard', () => {
             expect(canActivate).toBe(mockUrlTree);
             // Should preserve the original return URL
             expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=123');
-            done();
           });
         } else {
           // Should preserve the original return URL
           expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=123');
-          done();
         }
       });
     });
 
-    it('should overwrite /dashboard with a more specific URL', (done) => {
+    it('should overwrite /dashboard with a more specific URL', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       // Set dashboard as existing return URL
       sessionStorage.setItem('returnUrl', '/dashboard');
@@ -245,20 +230,18 @@ describe('authGuard', () => {
             expect(canActivate).toBe(mockUrlTree);
             // Should overwrite dashboard with more specific URL
             expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=456');
-            done();
           });
         } else {
           // Should overwrite dashboard with more specific URL
           expect(sessionStorage.getItem('returnUrl')).toBe('/explore?recordId=456');
-          done();
         }
       });
     });
 
-    it('should not overwrite /dashboard with /dashboard', (done) => {
+    it('should not overwrite /dashboard with /dashboard', () => {
       const mockUrlTree = {} as UrlTree;
-      authService.isAuthenticated.and.returnValue(of(false));
-      router.createUrlTree.and.returnValue(mockUrlTree);
+      authService.isAuthenticated.mockReturnValue(of(false));
+      router.createUrlTree.mockReturnValue(mockUrlTree);
 
       // Set dashboard as existing return URL
       sessionStorage.setItem('returnUrl', '/dashboard');
@@ -273,12 +256,10 @@ describe('authGuard', () => {
             expect(canActivate).toBe(mockUrlTree);
             // Should keep dashboard
             expect(sessionStorage.getItem('returnUrl')).toBe('/dashboard');
-            done();
           });
         } else {
           // Should keep dashboard
           expect(sessionStorage.getItem('returnUrl')).toBe('/dashboard');
-          done();
         }
       });
     });

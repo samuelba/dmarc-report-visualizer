@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient } from '@angular/common/http';
 import { AuthService, AuthResponse, User } from './auth.service';
 import { UserRole } from '../models/user-role.enum';
 
@@ -10,8 +11,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [AuthService],
+      providers: [AuthService, provideHttpClient(), provideHttpClientTesting()],
     });
     service = TestBed.inject(AuthService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -180,14 +180,13 @@ describe('AuthService', () => {
   });
 
   describe('isAuthenticated', () => {
-    it('should return false when no user is set', (done) => {
+    it('should return false when no user is set', () => {
       service.isAuthenticated().subscribe((isAuth) => {
         expect(isAuth).toBe(false);
-        done();
       });
     });
 
-    it('should return true when user is set', (done) => {
+    it('should return true when user is set', () => {
       const mockResponse: AuthResponse = {
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
@@ -195,7 +194,6 @@ describe('AuthService', () => {
       service.login('test@example.com', 'password').subscribe(() => {
         service.isAuthenticated().subscribe((isAuth) => {
           expect(isAuth).toBe(true);
-          done();
         });
       });
 
@@ -205,14 +203,13 @@ describe('AuthService', () => {
   });
 
   describe('getCurrentUser', () => {
-    it('should return null when no user is logged in', (done) => {
+    it('should return null when no user is logged in', () => {
       service.getCurrentUser().subscribe((user) => {
         expect(user).toBeNull();
-        done();
       });
     });
 
-    it('should return user after login', (done) => {
+    it('should return user after login', () => {
       const mockUser: User = { id: 'user-123', email: 'test@example.com', authProvider: 'local' };
       const mockResponse: AuthResponse = {
         user: mockUser,
@@ -221,7 +218,6 @@ describe('AuthService', () => {
       service.login('test@example.com', 'password').subscribe(() => {
         service.getCurrentUser().subscribe((user) => {
           expect(user).toEqual(mockUser);
-          done();
         });
       });
 
@@ -231,7 +227,7 @@ describe('AuthService', () => {
   });
 
   describe('clearTokens', () => {
-    it('should clear current user', (done) => {
+    it('should clear current user', () => {
       const mockResponse: AuthResponse = {
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
@@ -247,7 +243,6 @@ describe('AuthService', () => {
         expect(service.getCurrentUserValue()).toBeNull();
         service.getCurrentUser().subscribe((user) => {
           expect(user).toBeNull();
-          done();
         });
       });
 
@@ -257,14 +252,13 @@ describe('AuthService', () => {
   });
 
   describe('getCurrentUserRole', () => {
-    it('should return null when no user is logged in', (done) => {
+    it('should return null when no user is logged in', () => {
       service.getCurrentUserRole().subscribe((role) => {
         expect(role).toBeNull();
-        done();
       });
     });
 
-    it('should return null when user has no role', (done) => {
+    it('should return null when user has no role', () => {
       const mockResponse: AuthResponse = {
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
@@ -272,7 +266,6 @@ describe('AuthService', () => {
       service.login('test@example.com', 'password').subscribe(() => {
         service.getCurrentUserRole().subscribe((role) => {
           expect(role).toBeNull();
-          done();
         });
       });
 
@@ -280,7 +273,7 @@ describe('AuthService', () => {
       req.flush(mockResponse);
     });
 
-    it('should return user role when user is logged in with role', (done) => {
+    it('should return user role when user is logged in with role', () => {
       const mockResponse: AuthResponse = {
         user: {
           id: 'user-123',
@@ -293,7 +286,6 @@ describe('AuthService', () => {
       service.login('admin@example.com', 'password').subscribe(() => {
         service.getCurrentUserRole().subscribe((role) => {
           expect(role).toBe(UserRole.ADMINISTRATOR);
-          done();
         });
       });
 
@@ -303,14 +295,13 @@ describe('AuthService', () => {
   });
 
   describe('isAdministrator', () => {
-    it('should return false when no user is logged in', (done) => {
+    it('should return false when no user is logged in', () => {
       service.isAdministrator().subscribe((isAdmin) => {
         expect(isAdmin).toBe(false);
-        done();
       });
     });
 
-    it('should return false when user has no role', (done) => {
+    it('should return false when user has no role', () => {
       const mockResponse: AuthResponse = {
         user: { id: 'user-123', email: 'test@example.com', authProvider: 'local' },
       };
@@ -318,7 +309,6 @@ describe('AuthService', () => {
       service.login('test@example.com', 'password').subscribe(() => {
         service.isAdministrator().subscribe((isAdmin) => {
           expect(isAdmin).toBe(false);
-          done();
         });
       });
 
@@ -326,7 +316,7 @@ describe('AuthService', () => {
       req.flush(mockResponse);
     });
 
-    it('should return false when user has user role', (done) => {
+    it('should return false when user has user role', () => {
       const mockResponse: AuthResponse = {
         user: {
           id: 'user-123',
@@ -339,7 +329,6 @@ describe('AuthService', () => {
       service.login('user@example.com', 'password').subscribe(() => {
         service.isAdministrator().subscribe((isAdmin) => {
           expect(isAdmin).toBe(false);
-          done();
         });
       });
 
@@ -347,7 +336,7 @@ describe('AuthService', () => {
       req.flush(mockResponse);
     });
 
-    it('should return true when user has administrator role', (done) => {
+    it('should return true when user has administrator role', () => {
       const mockResponse: AuthResponse = {
         user: {
           id: 'user-123',
@@ -360,7 +349,6 @@ describe('AuthService', () => {
       service.login('admin@example.com', 'password').subscribe(() => {
         service.isAdministrator().subscribe((isAdmin) => {
           expect(isAdmin).toBe(true);
-          done();
         });
       });
 
