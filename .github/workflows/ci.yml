@@ -42,9 +42,17 @@ jobs:
         working-directory: ./backend
         run: npm run build
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: ./backend
-        run: npm test
+        run: npm run test:cov
+
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: backend/coverage/lcov.info
+          flags: backend
+          fail_ci_if_error: false
 
   frontend:
     name: Frontend CI
@@ -81,9 +89,17 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         working-directory: ./frontend
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: frontend/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
 
   frontend-e2e:
     name: Frontend E2E
