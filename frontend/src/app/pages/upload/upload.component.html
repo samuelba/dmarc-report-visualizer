@@ -19,6 +19,7 @@
           role="button"
           tabindex="0"
           [attr.aria-label]="'Upload DMARC report files'"
+          data-testid="upload-dropzone"
         >
           <mat-icon class="upload-icon">cloud_upload</mat-icon>
           <h3>Drag & Drop Files Here</h3>
@@ -33,6 +34,7 @@
           accept=".xml,.zip,.gz"
           multiple
           style="display: none"
+          data-testid="upload-file-input"
         />
 
         <div *ngIf="selectedFiles().length > 0" class="selected-files">
@@ -59,6 +61,7 @@
             color="primary"
             (click)="uploadFiles()"
             [disabled]="selectedFiles().length === 0 || isUploading()"
+            data-testid="upload-submit"
           >
             <mat-icon>upload</mat-icon>
             {{ isUploading() ? 'Uploading...' : 'Upload ' + selectedFiles().length + ' File(s)' }}
@@ -70,12 +73,12 @@
           </button>
         </div>
 
-        <div *ngIf="isUploading()" class="upload-progress">
+        <div *ngIf="isUploading()" class="upload-progress" data-testid="upload-progress">
           <mat-progress-bar mode="determinate" [value]="uploadProgress()"></mat-progress-bar>
           <p>{{ uploadStatus() }}</p>
         </div>
 
-        <div *ngIf="uploadResults().length > 0" class="upload-results">
+        <div *ngIf="uploadResults().length > 0" class="upload-results" data-testid="upload-results">
           <h4>Upload Results</h4>
           <div
             *ngFor="let result of uploadResults()"

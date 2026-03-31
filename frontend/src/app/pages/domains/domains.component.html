@@ -1,4 +1,4 @@
-<div class="domains-container">
+<div class="domains-container" data-testid="domains-container">
   <div class="page-header">
     <p class="subtitle">Manage your domains and review authentication statistics</p>
     <div class="layout-toggle">
@@ -45,7 +45,7 @@
           <mat-icon>check_circle</mat-icon>
           Managed Domains
         </h2>
-        <button matButton="tonal" color="primary" (click)="openAddDomainDialog()">
+        <button matButton="tonal" color="primary" (click)="openAddDomainDialog()" data-testid="domains-add-button">
           <mat-icon>add</mat-icon>
           Add Domain
         </button>
