@@ -1,7 +1,7 @@
-<div class="user-management-container">
+<div class="user-management-container" data-testid="user-management-container">
   @if (passwordLoginAllowed()) {
     <div class="header">
-      <button matButton="tonal" color="primary" (click)="openInviteDialog()">
+      <button matButton="tonal" color="primary" (click)="openInviteDialog()" data-testid="invite-user-button">
         <mat-icon>person_add</mat-icon>
         Invite User
       </button>

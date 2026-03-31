@@ -1,4 +1,4 @@
-<div class="verification-container">
+<div class="verification-container" data-testid="totp-container">
   <mat-card class="verification-card">
     <mat-card-header>
       <mat-card-title>Two-Factor Authentication</mat-card-title>
@@ -14,7 +14,11 @@
           <div class="input-section">
             <p class="instruction-text">Enter the 6-digit code from your authenticator app:</p>
 
-            <app-totp-input formControlName="totpCode" [autofocus]="true"></app-totp-input>
+            <app-totp-input
+              formControlName="totpCode"
+              [autofocus]="true"
+              data-testid="totp-code-input"
+            ></app-totp-input>
 
             <app-message type="info" icon="schedule">
               Make sure your device time is correct. TOTP codes are time-based and expire every 30 seconds.
@@ -34,6 +38,7 @@
                 type="text"
                 formControlName="recoveryCode"
                 placeholder="XXXX-XXXX-XXXX-XXXX"
+                data-testid="recovery-code-input"
                 maxlength="19"
                 autocomplete="off"
                 (input)="formatRecoveryCode($event)"
@@ -54,7 +59,7 @@
 
         <!-- Error Message -->
         @if (errorMessage) {
-          <app-message type="error">
+          <app-message type="error" data-testid="totp-error">
             {{ errorMessage }}
           </app-message>
         }
@@ -67,6 +72,7 @@
             type="submit"
             class="submit-button"
             [disabled]="!isFormValid || isSubmitting"
+            data-testid="totp-submit"
           >
             @if (isSubmitting) {
               <mat-spinner diameter="20" class="button-spinner"></mat-spinner>
@@ -80,7 +86,14 @@
 
         <!-- Toggle Mode Button -->
         <div class="toggle-section">
-          <button mat-button type="button" class="toggle-button" (click)="toggleMode()" [disabled]="isSubmitting">
+          <button
+            mat-button
+            type="button"
+            class="toggle-button"
+            (click)="toggleMode()"
+            [disabled]="isSubmitting"
+            data-testid="totp-toggle-mode"
+          >
             {{ useRecoveryCode ? 'Use authenticator app instead' : 'Use recovery code instead' }}
           </button>
         </div>

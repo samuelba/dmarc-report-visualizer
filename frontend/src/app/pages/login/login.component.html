@@ -19,7 +19,14 @@
           <!-- Email Field -->
           <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
             <mat-label>Email</mat-label>
-            <input matInput type="email" formControlName="email" placeholder="admin@example.com" autocomplete="email" />
+            <input
+              matInput
+              type="email"
+              formControlName="email"
+              placeholder="admin@example.com"
+              autocomplete="email"
+              data-testid="login-email"
+            />
             <mat-icon matPrefix>email</mat-icon>
             <mat-error *ngIf="loginForm.get('email')?.hasError('required')"> Email is required </mat-error>
             <mat-error *ngIf="loginForm.get('email')?.hasError('email')">
@@ -36,6 +43,7 @@
               formControlName="password"
               placeholder="Enter password"
               autocomplete="current-password"
+              data-testid="login-password"
             />
             <mat-icon matPrefix>lock</mat-icon>
             <button
@@ -53,7 +61,7 @@
 
           <!-- Error Message -->
           @if (errorMessage) {
-            <app-message type="error" icon="error">
+            <app-message type="error" icon="error" data-testid="login-error">
               {{ errorMessage }}
             </app-message>
           }
@@ -65,6 +73,7 @@
               color="primary"
               type="submit"
               class="submit-button"
+              data-testid="login-submit"
               [disabled]="loginForm.invalid || isSubmitting || isRateLimited"
             >
               <mat-spinner *ngIf="isSubmitting" diameter="20" class="button-spinner"></mat-spinner>
@@ -82,7 +91,14 @@
               <span>OR</span>
             </div>
           }
-          <button matButton="outlined" color="primary" type="button" class="sso-button" (click)="loginWithSso()">
+          <button
+            matButton="outlined"
+            color="primary"
+            type="button"
+            class="sso-button"
+            data-testid="login-sso-button"
+            (click)="loginWithSso()"
+          >
             <mat-icon>business</mat-icon>
             <span>Sign in with SSO</span>
           </button>

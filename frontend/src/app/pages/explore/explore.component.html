@@ -1,4 +1,4 @@
-<div class="explore-container">
+<div class="explore-container" data-testid="explore-container">
   <div class="explore-content">
     <section class="filters">
       <app-combined-date-filter
@@ -98,8 +98,8 @@
         <mat-icon matSuffix>search</mat-icon>
       </mat-form-field>
       <div class="actions">
-        <button matButton="filled" color="primary" (click)="apply()">Apply</button>
-        <button matButton="text" (click)="clear()">Clear</button>
+        <button matButton="filled" color="primary" (click)="apply()" data-testid="explore-apply">Apply</button>
+        <button matButton="text" (click)="clear()" data-testid="explore-clear">Clear</button>
       </div>
     </section>
 
