@@ -16,8 +16,11 @@ import { IpLocation } from './entities/ip-location.entity';
 import { ThirdPartySender } from './entities/third-party-sender.entity';
 import { ReprocessingJob } from './entities/reprocessing-job.entity';
 import { Domain } from './entities/domain.entity';
+import { EmailMessageTracking } from './entities/email-message-tracking.entity';
 import { FileWatcherService } from './file-watcher.service';
 import { GmailDownloaderService } from './gmail-downloader.service';
+import { ImapDownloaderService } from './services/imap-downloader.service';
+import { EmailMessageTrackingService } from './services/email-message-tracking.service';
 import { GeolocationService } from './services/geolocation.service';
 import { ForwardingDetectionService } from './services/forwarding-detection.service';
 import { ThirdPartySenderService } from './services/third-party-sender.service';
@@ -42,6 +45,7 @@ import { AuthModule } from '../auth/auth.module';
       ThirdPartySender,
       ReprocessingJob,
       Domain,
+      EmailMessageTracking,
     ]),
     AuthModule,
   ],
@@ -57,6 +61,8 @@ import { AuthModule } from '../auth/auth.module';
     DomainService,
     FileWatcherService,
     GmailDownloaderService,
+    ImapDownloaderService,
+    EmailMessageTrackingService,
     GeolocationService,
     ForwardingDetectionService,
     ThirdPartySenderService,
