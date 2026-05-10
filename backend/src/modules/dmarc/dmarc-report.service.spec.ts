@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { Equal, IsNull, Or } from 'typeorm';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
@@ -127,7 +128,7 @@ describe('DmarcReportService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('CRUD Operations', () => {
@@ -202,6 +203,22 @@ describe('DmarcReportService', () => {
       });
     });
 
+    it('should find report by reportId without loading relations when loadRelations is false', async () => {
+      const mockReport = {
+        id: '123',
+        reportId: 'example.com:123456',
+      } as DmarcReport;
+      mockDmarcReportRepository.findOne.mockResolvedValue(mockReport);
+
+      const result = await service.findByReportId('example.com:123456', false);
+
+      expect(result).toEqual(mockReport);
+      expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
+        where: { reportId: 'example.com:123456' },
+        relations: undefined,
+      });
+    });
+
     it('should find report by composite key', async () => {
       const mockReport = {
         id: '123',
@@ -234,7 +251,34 @@ describe('DmarcReportService', () => {
       });
     });
 
-    it('should handle undefined orgName and email in composite key', async () => {
+    it('should find report by composite key without loading relations when loadRelations is false', async () => {
+      const mockReport = {
+        id: '123',
+        reportId: 'example.com:123456',
+        orgName: 'Google',
+        email: 'noreply@google.com',
+      } as DmarcReport;
+      mockDmarcReportRepository.findOne.mockResolvedValue(mockReport);
+
+      const result = await service.findByCompositeKey(
+        'example.com:123456',
+        'Google',
+        'noreply@google.com',
+        false,
+      );
+
+      expect(result).toEqual(mockReport);
+      expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          reportId: 'example.com:123456',
+          orgName: 'Google',
+          email: 'noreply@google.com',
+        },
+        relations: undefined,
+      });
+    });
+
+    it("should use Or(IsNull, Equal('')) for undefined orgName and email (COALESCE semantics)", async () => {
       const mockReport = {
         id: '123',
         reportId: 'example.com:123456',
@@ -244,11 +288,12 @@ describe('DmarcReportService', () => {
       const result = await service.findByCompositeKey('example.com:123456');
 
       expect(result).toEqual(mockReport);
+      // Mirrors COALESCE(col,'') = '': matches rows stored as NULL *and* rows stored as ''.
       expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
         where: {
           reportId: 'example.com:123456',
-          orgName: undefined,
-          email: undefined,
+          orgName: Or(IsNull(), Equal('')),
+          email: Or(IsNull(), Equal('')),
         },
         relations: {
           records: {
@@ -260,13 +305,13 @@ describe('DmarcReportService', () => {
       });
     });
 
-    it('should preserve empty strings in composite key (not convert to undefined)', async () => {
+    it("should use Or(IsNull, Equal('')) for empty-string orgName/email (COALESCE semantics)", async () => {
       const mockReport = {
         id: '123',
         reportId: 'example.com:123456',
-        orgName: '',
-        email: '',
-      } as DmarcReport;
+        orgName: null,
+        email: null,
+      } as any;
       mockDmarcReportRepository.findOne.mockResolvedValue(mockReport);
 
       const result = await service.findByCompositeKey(
@@ -276,12 +321,13 @@ describe('DmarcReportService', () => {
       );
 
       expect(result).toEqual(mockReport);
-      // Empty strings should be preserved, not converted to undefined
+      // Or(IsNull(), Equal('')) mirrors COALESCE(col,'') = '':
+      // matches rows stored as NULL *and* rows stored as '' (legacy data).
       expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
         where: {
           reportId: 'example.com:123456',
-          orgName: '',
-          email: '',
+          orgName: Or(IsNull(), Equal('')),
+          email: Or(IsNull(), Equal('')),
         },
         relations: {
           records: {
@@ -485,11 +531,6 @@ describe('DmarcReportService', () => {
       mockDmarcReportRepository.save.mockResolvedValue(createdReport);
       mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
       mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
-      mockDmarcReportRepository.findOne.mockResolvedValue({
-        ...createdReport,
-        records: [createdRecord],
-      } as any);
-
       const result = await service.create(reportData);
 
       expect(mockDmarcReportRepository.create).toHaveBeenCalled();
@@ -500,7 +541,8 @@ describe('DmarcReportService', () => {
         reportId: '123',
       });
       expect(mockDmarcRecordRepository.save).toHaveBeenCalled();
-      expect(result.records).toBeDefined();
+      // create() now returns the savedReport directly without eagerly fetching relations
+      expect(result).toEqual(createdReport);
     });
 
     it('should create a new report when reportId is missing (createOrUpdateByReportId)', async () => {
@@ -535,9 +577,7 @@ describe('DmarcReportService', () => {
       const createdReport = { id: '123', ...reportData } as DmarcReport;
 
       // First findOne returns null (report doesn't exist with composite key)
-      mockDmarcReportRepository.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(createdReport);
+      mockDmarcReportRepository.findOne.mockResolvedValueOnce(null);
       mockDmarcReportRepository.create.mockReturnValue(createdReport);
       mockDmarcReportRepository.save.mockResolvedValue(createdReport);
 
@@ -550,16 +590,38 @@ describe('DmarcReportService', () => {
           orgName: 'Test Org',
           email: 'test@example.com',
         },
-        relations: {
-          records: {
-            dkimResults: true,
-            spfResults: true,
-            policyOverrideReasons: true,
-          },
-        },
+        relations: undefined,
       });
       expect(mockDmarcReportRepository.create).toHaveBeenCalled();
       expect(result).toEqual(createdReport);
+    });
+
+    it("should use Or(IsNull, Equal('')) for empty-string orgName/email in createOrUpdateByReportId lookup", async () => {
+      const reportData = {
+        reportId: 'new-report-id',
+        orgName: '',
+        email: '',
+        domain: 'example.com',
+      };
+
+      const createdReport = { id: '123', ...reportData } as DmarcReport;
+
+      mockDmarcReportRepository.findOne.mockResolvedValueOnce(null);
+      mockDmarcReportRepository.create.mockReturnValue(createdReport);
+      mockDmarcReportRepository.save.mockResolvedValue(createdReport);
+
+      await service.createOrUpdateByReportId(reportData);
+
+      // Or(IsNull(), Equal('')) covers both NULL-stored and ''-stored legacy rows,
+      // preventing a false "not found" that would cause a unique constraint violation.
+      expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          reportId: 'new-report-id',
+          orgName: Or(IsNull(), Equal('')),
+          email: Or(IsNull(), Equal('')),
+        },
+        relations: undefined,
+      });
     });
 
     it('should update existing report when reportId exists (createOrUpdateByReportId)', async () => {
