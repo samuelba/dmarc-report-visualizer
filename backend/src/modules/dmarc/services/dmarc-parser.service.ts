@@ -138,7 +138,10 @@ export class DmarcParserService {
 
       // Create the main record
       const dmarcRecord: Partial<DmarcRecord> = {
-        sourceIp: typeof row.source_ip === 'string' ? row.source_ip : undefined,
+        sourceIp:
+          typeof row.source_ip === 'string' && row.source_ip.trim() !== ''
+            ? row.source_ip.trim()
+            : undefined,
         count: row.count ? parseInt(String(row.count), 10) : undefined,
         disposition: normalizeDisposition(policyEvaluated.disposition),
         dmarcDkim: normalizePassFail(policyEvaluated.dkim),
