@@ -150,8 +150,14 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     // Default: messages with attachments from last 10 days. Label filtering is done via labelIds.
     // Exclude processed label by name in query as a safety net (if it exists).
     const processedName = this.getProcessedLabelName();
-    // TODO: remove 10d limit
-    return `has:attachment newer_than:5d -label:${JSON.stringify(processedName)}`;
+    // Also exclude the failed label so permanently-failed messages are not retried
+    const failedName = this.getFailedLabelName();
+    const excludeLabels = [`-label:${JSON.stringify(processedName)}`];
+    if (failedName) {
+      excludeLabels.push(`-label:${JSON.stringify(failedName)}`);
+    }
+    // TODO: remove 5d limit
+    return `has:attachment newer_than:5d ${excludeLabels.join(' ')}`;
   }
 
   private getAuthMode(): 'service_account' | 'oauth' {
@@ -517,6 +523,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     } catch {}
 
     if (count >= threshold) {
+      this.logger.warn(
+        `Message ${messageId} reached failure threshold (${threshold}), marking as permanently failed`,
+      );
       // Add failed label to avoid infinite retries
       const failedName = this.getFailedLabelName();
       if (failedName) {
@@ -531,6 +540,9 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
           } catch {}
         }
       }
+      // Also mark as processed so it's excluded by both label exclusions
+      // (the failed label in the query AND the processed label removal from source)
+      await this.markMessageProcessed(messageId);
       // Reset counter to avoid growth
       this.failureCounts.delete(key);
     }

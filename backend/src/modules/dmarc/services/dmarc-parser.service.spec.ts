@@ -355,6 +355,70 @@ describe('DmarcParserService', () => {
         comment: 'Message was forwarded',
       });
     });
+
+    it('should handle empty/placeholder records with empty source_ip gracefully', async () => {
+      // Some DMARC reporters (e.g. o2.pl) send reports with empty records
+      // when no traffic was observed. The empty source_ip must not be passed
+      // to PostgreSQL's inet column.
+      const emptyRecordXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feedback>
+  <report_metadata>
+    <date_range>
+      <begin>1778191200</begin>
+      <end>1778277600</end>
+    </date_range>
+    <org_name>o2.pl</org_name>
+    <email>dmarc-support@o2.pl</email>
+    <report_id>1778283599.278724786</report_id>
+  </report_metadata>
+  <policy_published>
+    <domain>example.com</domain>
+    <adkim>r</adkim>
+    <aspf>r</aspf>
+    <p>quarantine</p>
+    <sp>quarantine</sp>
+    <pct>100</pct>
+  </policy_published>
+  <record>
+    <row>
+      <source_ip></source_ip>
+      <count>0</count>
+      <policy_evaluated>
+        <disposition></disposition>
+        <dkim></dkim>
+        <spf></spf>
+      </policy_evaluated>
+    </row>
+    <identifiers>
+      <header_from></header_from>
+    </identifiers>
+    <auth_results>
+      <spf>
+        <domain></domain>
+        <result></result>
+      </spf>
+    </auth_results>
+  </record>
+</feedback>`;
+
+      const result = await service.parseXmlReport(emptyRecordXml);
+
+      expect(result).toBeDefined();
+      expect(result.reportId).toBe('1778283599.278724786');
+      expect(result.orgName).toBe('o2.pl');
+      expect(result.records).toHaveLength(1);
+      const record = result.records![0];
+      // Empty source_ip should be normalized to undefined, not empty string
+      expect(record.sourceIp).toBeUndefined();
+      // Empty count string parsed as 0
+      expect(record.count).toBeFalsy();
+      // Empty disposition/dkim/spf should be undefined
+      expect(record.disposition).toBeUndefined();
+      expect(record.dmarcDkim).toBeUndefined();
+      expect(record.dmarcSpf).toBeUndefined();
+      // headerFrom is a varchar column so empty string is acceptable (no DB error)
+      expect(record.headerFrom).toBe('');
+    });
   });
 
   describe('unzipReport', () => {
