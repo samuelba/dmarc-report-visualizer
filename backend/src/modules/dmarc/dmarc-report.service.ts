@@ -1,6 +1,14 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, FindOptionsWhere, ILike, Repository } from 'typeorm';
+import {
+  Between,
+  Equal,
+  FindOptionsWhere,
+  ILike,
+  IsNull,
+  Or,
+  Repository,
+} from 'typeorm';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
 import { DkimResult } from './entities/dkim-result.entity';
@@ -15,6 +23,14 @@ import {
 } from './services/dmarc-search.service';
 
 export { PagedResult };
+
+const REPORT_RELATIONS = {
+  records: {
+    dkimResults: true,
+    spfResults: true,
+    policyOverrideReasons: true,
+  },
+};
 
 @Injectable()
 export class DmarcReportService {
@@ -43,13 +59,7 @@ export class DmarcReportService {
 
   async findAll(): Promise<DmarcReport[]> {
     return this.dmarcReportRepository.find({
-      relations: {
-        records: {
-          dkimResults: true,
-          spfResults: true,
-          policyOverrideReasons: true,
-        },
-      },
+      relations: REPORT_RELATIONS,
     });
   }
 
@@ -87,13 +97,7 @@ export class DmarcReportService {
       order: { [sort]: order.toUpperCase() as 'ASC' | 'DESC' },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      relations: {
-        records: {
-          dkimResults: true,
-          spfResults: true,
-          policyOverrideReasons: true,
-        },
-      },
+      relations: REPORT_RELATIONS,
     });
 
     return { data, total, page, pageSize };
@@ -102,26 +106,17 @@ export class DmarcReportService {
   async findOne(id: string): Promise<DmarcReport | null> {
     return this.dmarcReportRepository.findOne({
       where: { id },
-      relations: {
-        records: {
-          dkimResults: true,
-          spfResults: true,
-          policyOverrideReasons: true,
-        },
-      },
+      relations: REPORT_RELATIONS,
     });
   }
 
-  async findByReportId(reportId: string): Promise<DmarcReport | null> {
+  async findByReportId(
+    reportId: string,
+    loadRelations: boolean = true,
+  ): Promise<DmarcReport | null> {
     return this.dmarcReportRepository.findOne({
       where: { reportId },
-      relations: {
-        records: {
-          dkimResults: true,
-          spfResults: true,
-          policyOverrideReasons: true,
-        },
-      },
+      relations: loadRelations ? REPORT_RELATIONS : undefined,
     });
   }
 
@@ -129,32 +124,30 @@ export class DmarcReportService {
    * Find a report by its composite unique key (reportId + orgName + email)
    * This properly handles uniqueness across different reporting organizations
    *
-   * Note: The database unique constraint uses COALESCE(column, '') to treat NULL
-   * and empty string as equivalent for uniqueness. However, in queries we match
-   * the actual stored values. The constraint ensures no duplicates can exist.
+   * The database unique constraint uses COALESCE(column, '') so NULL and ''
+   * are identical for uniqueness. We mirror that here: when the caller passes
+   * undefined or '' we issue `IS NULL OR = ''`, covering rows stored as either
+   * value. A non-empty value is matched exactly.
    */
   async findByCompositeKey(
     reportId: string,
     orgName?: string,
     email?: string,
+    loadRelations: boolean = true,
   ): Promise<DmarcReport | null> {
+    // An absent / empty orgName or email means COALESCE yields '' in the index;
+    // match both the NULL-stored and ''-stored variants so no legacy row is missed.
+    const nullOrEmpty = Or(IsNull(), Equal(''));
+
     const where: FindOptionsWhere<DmarcReport> = {
       reportId,
-      // Pass values as-is - TypeORM will match them correctly
-      // undefined means: don't filter on this field
-      orgName,
-      email,
+      orgName: orgName ? orgName : nullOrEmpty,
+      email: email ? email : nullOrEmpty,
     };
 
     return this.dmarcReportRepository.findOne({
       where,
-      relations: {
-        records: {
-          dkimResults: true,
-          spfResults: true,
-          policyOverrideReasons: true,
-        },
-      },
+      relations: loadRelations ? REPORT_RELATIONS : undefined,
     });
   }
 
@@ -184,9 +177,8 @@ export class DmarcReportService {
       this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
     }
 
-    // Return the report with all relations loaded
-    const fullReport = await this.findByReportId(savedReport.reportId);
-    return fullReport || savedReport;
+    // Return the saved report directly (we intentionally do not load relations to avoid OOM)
+    return savedReport;
   }
 
   async createOrUpdateByReportId(
@@ -197,11 +189,13 @@ export class DmarcReportService {
     }
 
     // Check if report already exists using composite key (reportId + orgName + email)
-    // This prevents different organizations from overwriting each other's reports
+    // This prevents different organizations from overwriting each other's reports.
+    // Pass loadRelations = false to avoid eager fetching thousands of records, which causes OOM.
     const existing = await this.findByCompositeKey(
       dmarcReport.reportId,
       dmarcReport.orgName,
       dmarcReport.email,
+      false,
     );
 
     if (existing) {
@@ -238,11 +232,9 @@ export class DmarcReportService {
         this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
       }
 
-      const updatedReport = await this.findByCompositeKey(
-        dmarcReport.reportId,
-        dmarcReport.orgName,
-        dmarcReport.email,
-      );
+      const updatedReport = await this.dmarcReportRepository.findOne({
+        where: { id: existing.id },
+      });
       if (!updatedReport) {
         throw new BadRequestException('Failed to find updated DMARC report');
       }
