@@ -391,7 +391,7 @@ export class DmarcSearchService {
       headerFrom: 'rec.headerFrom',
       country: 'rec.geoCountry',
     };
-    const col = map[field as DistinctField];
+    const col = map[field];
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
       .leftJoin('rec.report', 'rep')

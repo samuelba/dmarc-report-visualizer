@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Repository, UpdateResult } from 'typeorm';
+import { Repository } from 'typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { User } from '../entities/user.entity';
@@ -217,7 +217,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 1,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
       jest
         .spyOn(refreshTokenRepository, 'create')
         .mockReturnValue(newRefreshTokenEntity);
@@ -320,7 +320,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 1,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
       jest
         .spyOn(refreshTokenRepository, 'create')
         .mockReturnValue(newRefreshTokenEntity);
@@ -394,7 +394,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 1,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       await service.changePassword(mockUser.id, 'OldPass123!', 'NewPass123!');
 
@@ -439,7 +439,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 2,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       try {
         await service.refreshTokens(refreshToken, 'access-token');
@@ -490,7 +490,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 2,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       await expect(
         service.refreshTokens(refreshToken, 'access-token'),
@@ -614,7 +614,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 1,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
       jest
         .spyOn(refreshTokenRepository, 'create')
         .mockReturnValue(newRefreshTokenEntity);
@@ -690,12 +690,12 @@ describe('AuthService - Theft Detection', () => {
           affected: 0,
           raw: [],
           generatedMaps: [],
-        } as UpdateResult)
+        })
         .mockResolvedValueOnce({
           affected: 2,
           raw: [],
           generatedMaps: [],
-        } as UpdateResult);
+        });
 
       try {
         await service.refreshTokens(refreshToken, 'access-token');
@@ -765,7 +765,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 1,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
       jest
         .spyOn(refreshTokenRepository, 'create')
         .mockReturnValue(newRefreshTokenEntity);
@@ -824,7 +824,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 3,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       try {
         await service.refreshTokens(refreshToken, 'access-token');
@@ -873,7 +873,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 2,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       try {
         await service.refreshTokens(refreshToken, 'access-token');
@@ -923,7 +923,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 2,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       try {
         await service.refreshTokens(refreshToken, 'access-token');
@@ -976,7 +976,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 2,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       // Spy on logger
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
@@ -1039,7 +1039,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 1,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
 
@@ -1091,7 +1091,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 3,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
 
       const loggerWarnSpy = jest.spyOn(service['logger'], 'warn');
 
@@ -1258,7 +1258,7 @@ describe('AuthService - Theft Detection', () => {
         affected: 2,
         raw: [],
         generatedMaps: [],
-      } as UpdateResult);
+      });
       const loggerErrorSpy = jest.spyOn(service['logger'], 'error');
 
       try {
