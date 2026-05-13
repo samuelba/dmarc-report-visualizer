@@ -183,10 +183,7 @@ describe('SmtpConfigService', () => {
             });
 
             // Execute: Should not throw
-            await service.createOrUpdateConfig(
-              dto as SmtpConfigDto,
-              'test-user-id',
-            );
+            await service.createOrUpdateConfig(dto, 'test-user-id');
 
             // Verify: Repository methods were called
             expect(mockRepository.findOne).toHaveBeenCalled();

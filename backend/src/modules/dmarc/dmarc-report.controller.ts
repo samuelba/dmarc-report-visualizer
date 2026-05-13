@@ -401,7 +401,7 @@ export class DmarcReportController {
         page: p,
         pageSize: ps,
       });
-    return { ...result, page: p, pageSize: ps } as any;
+    return { ...result, page: p, pageSize: ps };
   }
 
   @Get('records/distinct')

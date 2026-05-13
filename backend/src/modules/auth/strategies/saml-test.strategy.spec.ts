@@ -31,7 +31,7 @@ describe('SamlTestStrategy', () => {
     nameIDFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
     ID: 'assertion-123',
     notOnOrAfter: new Date(Date.now() + 300000).toISOString(),
-  } as Profile;
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -252,7 +252,7 @@ describe('SamlTestStrategy', () => {
     it('should throw error when no email in assertion', async () => {
       const profileWithoutEmail = {
         ...mockSamlProfile,
-      } as unknown as Profile;
+      };
       // Remove both nameID and email to test error case
       delete (profileWithoutEmail as any).nameID;
       delete (profileWithoutEmail as any).email;
