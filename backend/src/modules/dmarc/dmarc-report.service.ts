@@ -183,7 +183,16 @@ export class DmarcReportService {
 
   async createOrUpdateByReportId(
     dmarcReport: Partial<DmarcReport>,
-  ): Promise<DmarcReport> {
+  ): Promise<DmarcReport | null> {
+    // Skip reports with no meaningful records (e.g. empty placeholder reports
+    // from senders like o2.pl that had zero traffic to report).
+    if (!dmarcReport.records || dmarcReport.records.length === 0) {
+      this.logger.log(
+        `Skipping empty report (reportId=${dmarcReport.reportId || 'n/a'}, org=${dmarcReport.orgName || 'n/a'}): no meaningful records`,
+      );
+      return null;
+    }
+
     if (!dmarcReport.reportId) {
       return this.create(dmarcReport);
     }

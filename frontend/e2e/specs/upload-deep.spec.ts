@@ -67,7 +67,7 @@ test.describe('Upload Page - Deep Interactions', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ message: 'Successfully processed', reportsProcessed: 1 }),
+        body: JSON.stringify({ id: 'some-uuid', reportId: 'report-123', records: [] }),
       });
     });
 
@@ -110,7 +110,7 @@ test.describe('Upload Page - Deep Interactions', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ message: 'Successfully processed', reportsProcessed: 1 }),
+        body: JSON.stringify({ id: 'some-uuid', reportId: 'report-123', records: [] }),
       });
     });
 

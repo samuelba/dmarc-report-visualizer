@@ -146,7 +146,7 @@ describe('UploadComponent', () => {
 
       expect(apiService.upload).toHaveBeenCalledWith(file);
       expect(component.uploadResults().length).toBe(1);
-      expect(component.uploadResults()[0].success).toBe(true);
+      expect(component.uploadResults()[0].status).toBe('success');
       expect(component.isUploading()).toBe(false);
     });
 
@@ -162,9 +162,23 @@ describe('UploadComponent', () => {
       component.uploadFiles();
 
       expect(component.uploadResults().length).toBe(2);
-      expect(component.uploadResults()[0].success).toBe(false);
+      expect(component.uploadResults()[0].status).toBe('error');
       expect(component.uploadResults()[0].message).toBe('Bad file');
-      expect(component.uploadResults()[1].success).toBe(true);
+      expect(component.uploadResults()[1].status).toBe('success');
+    });
+
+    it('should handle skipped uploads with a message', () => {
+      const file = new File([''], 'empty.xml');
+      component.onFileSelect({ target: { files: [file] } } as unknown as Event);
+
+      apiService.upload.mockReturnValue(of({ message: 'Skipped empty placeholder' } as any));
+      component.uploadFiles();
+
+      expect(apiService.upload).toHaveBeenCalledWith(file);
+      expect(component.uploadResults().length).toBe(1);
+      expect(component.uploadResults()[0].status).toBe('skipped');
+      expect(component.uploadResults()[0].message).toBe('Skipped empty placeholder');
+      expect(component.isUploading()).toBe(false);
     });
   });
 });

@@ -400,11 +400,18 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
             const parsed =
               await this.dmarcReportService.parseXmlReport(xmlContent);
             (parsed as any).originalXml = minifyXml(xmlContent);
-            await this.dmarcReportService.createOrUpdateByReportId(parsed);
+            const saved =
+              await this.dmarcReportService.createOrUpdateByReportId(parsed);
             count += 1;
-            this.logger.log(
-              `[${this.instanceId}] Inline processed ${filename}`,
-            );
+            if (saved) {
+              this.logger.log(
+                `[${this.instanceId}] Inline processed ${filename}`,
+              );
+            } else {
+              this.logger.log(
+                `[${this.instanceId}] Skipped empty report ${filename} (no meaningful records)`,
+              );
+            }
             const saveOriginal = this.shouldSaveOriginal();
             if (saveOriginal) {
               const successDir = this.getProcessedSuccessDir();

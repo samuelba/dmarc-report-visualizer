@@ -83,10 +83,13 @@
           <div
             *ngFor="let result of uploadResults()"
             class="result-item"
-            [class.success]="result.success"
-            [class.error]="!result.success"
+            [class.success]="result.status === 'success'"
+            [class.skipped]="result.status === 'skipped'"
+            [class.error]="result.status === 'error'"
           >
-            <mat-icon>{{ result.success ? 'check_circle' : 'error' }}</mat-icon>
+            <mat-icon>{{
+              result.status === 'success' ? 'check_circle' : result.status === 'skipped' ? 'info' : 'error'
+            }}</mat-icon>
             <span class="filename">{{ result.filename }}</span>
             <span class="message">{{ result.message }}</span>
           </div>

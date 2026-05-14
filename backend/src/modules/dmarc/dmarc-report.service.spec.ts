@@ -545,20 +545,54 @@ describe('DmarcReportService', () => {
       expect(result).toEqual(createdReport);
     });
 
-    it('should create a new report when reportId is missing (createOrUpdateByReportId)', async () => {
+    it('should return null when report has no records (createOrUpdateByReportId)', async () => {
+      const reportData = {
+        reportId: 'empty-report-id',
+        orgName: 'Test Org',
+        domain: 'example.com',
+        records: [] as any[],
+      };
+
+      const result = await service.createOrUpdateByReportId(reportData);
+
+      expect(result).toBeNull();
+      expect(mockDmarcReportRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should return null when report has undefined records (createOrUpdateByReportId)', async () => {
+      const reportData = {
+        reportId: 'empty-report-id',
+        orgName: 'Test Org',
+        domain: 'example.com',
+      };
+
+      const result = await service.createOrUpdateByReportId(reportData);
+
+      expect(result).toBeNull();
+      expect(mockDmarcReportRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should create a new report when reportId is missing but has records (createOrUpdateByReportId)', async () => {
       const reportData = {
         orgName: 'Test Org',
         domain: 'example.com',
+        records: [{ sourceIp: '1.2.3.4', count: 1 } as any],
       };
 
       const createdReport = {
         id: '123',
         reportId: 'generated-id',
       } as DmarcReport;
+      const createdRecord = {
+        id: '456',
+        reportId: '123',
+        sourceIp: '1.2.3.4',
+      } as DmarcRecord;
 
       mockDmarcReportRepository.create.mockReturnValue(createdReport);
       mockDmarcReportRepository.save.mockResolvedValue(createdReport);
-      mockDmarcReportRepository.findOne.mockResolvedValue(createdReport);
+      mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
+      mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
 
       const result = await service.createOrUpdateByReportId(reportData);
 
@@ -572,14 +606,22 @@ describe('DmarcReportService', () => {
         orgName: 'Test Org',
         email: 'test@example.com',
         domain: 'example.com',
+        records: [{ sourceIp: '1.2.3.4', count: 1 } as any],
       };
 
-      const createdReport = { id: '123', ...reportData } as DmarcReport;
+      const createdReport = { id: '123', ...reportData } as any as DmarcReport;
+      const createdRecord = {
+        id: '456',
+        reportId: '123',
+        sourceIp: '1.2.3.4',
+      } as DmarcRecord;
 
       // First findOne returns null (report doesn't exist with composite key)
       mockDmarcReportRepository.findOne.mockResolvedValueOnce(null);
       mockDmarcReportRepository.create.mockReturnValue(createdReport);
       mockDmarcReportRepository.save.mockResolvedValue(createdReport);
+      mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
+      mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
 
       const result = await service.createOrUpdateByReportId(reportData);
 
@@ -602,13 +644,21 @@ describe('DmarcReportService', () => {
         orgName: '',
         email: '',
         domain: 'example.com',
+        records: [{ sourceIp: '1.2.3.4', count: 1 } as any],
       };
 
-      const createdReport = { id: '123', ...reportData } as DmarcReport;
+      const createdReport = { id: '123', ...reportData } as any as DmarcReport;
+      const createdRecord = {
+        id: '456',
+        reportId: '123',
+        sourceIp: '1.2.3.4',
+      } as DmarcRecord;
 
       mockDmarcReportRepository.findOne.mockResolvedValueOnce(null);
       mockDmarcReportRepository.create.mockReturnValue(createdReport);
       mockDmarcReportRepository.save.mockResolvedValue(createdReport);
+      mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
+      mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
 
       await service.createOrUpdateByReportId(reportData);
 
@@ -682,6 +732,7 @@ describe('DmarcReportService', () => {
         reportId: 'existing-report-id',
         orgName: 'Test Org',
         email: 'test@example.com',
+        records: [{ sourceIp: '1.2.3.4', count: 1 } as any],
       };
 
       mockDmarcReportRepository.findOne
@@ -691,6 +742,8 @@ describe('DmarcReportService', () => {
       mockDmarcReportRepository.update.mockResolvedValue({
         affected: 1,
       } as any);
+      mockDmarcRecordRepository.create.mockReturnValue(reportData.records[0]);
+      mockDmarcRecordRepository.save.mockResolvedValue(reportData.records[0]);
       mockDmarcParserService.queueIpLookupsForRecords.mockResolvedValue(
         undefined,
       );

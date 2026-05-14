@@ -280,13 +280,28 @@ export class DmarcParserService {
       parsedRecords.push(dmarcRecord);
     }
 
+    // Filter out empty placeholder records that contain no meaningful data.
+    // Some reporters (e.g. o2.pl) send reports with empty records when no
+    // traffic was observed. These records have no source IP, a count of 0,
+    // no header_from, and no auth results — storing them pollutes analytics
+    // with "Unknown" entries.
+    const meaningfulRecords = parsedRecords.filter(
+      (r) => !this.isEmptyPlaceholderRecord(r),
+    );
+    if (meaningfulRecords.length < parsedRecords.length) {
+      const skipped = parsedRecords.length - meaningfulRecords.length;
+      this.logger.log(
+        `Filtered out ${skipped} empty placeholder record(s) from report ${reportMetadata?.report_id || reportMetadata?.reportId || 'unknown'}`,
+      );
+    }
+
     const entityLike: Partial<DmarcReport> = {
       reportId: reportMetadata?.report_id || reportMetadata?.reportId,
       orgName: reportMetadata?.org_name || reportMetadata?.orgName,
       email: reportMetadata?.email,
       domain: policyPublished?.domain,
       policy: policyPublished,
-      records: parsedRecords as DmarcRecord[],
+      records: meaningfulRecords as DmarcRecord[],
       beginDate: beginEpoch ? new Date(beginEpoch * 1000) : undefined,
       endDate: endEpoch ? new Date(endEpoch * 1000) : undefined,
       originalXml: xmlContent,
@@ -574,6 +589,50 @@ export class DmarcParserService {
       return [];
     }
     return Array.isArray(maybeArray) ? maybeArray : [maybeArray];
+  }
+
+  /**
+   * Determine whether a parsed record is an empty placeholder that carries
+   * no meaningful data. Some DMARC reporters send a single record with
+   * count=0, empty source_ip, empty header_from and no auth results when
+   * they observed zero traffic for the reporting period.
+   */
+  private isEmptyPlaceholderRecord(record: Partial<DmarcRecord>): boolean {
+    const hasNoSourceIp = !record.sourceIp;
+    const hasZeroOrNoCount = !record.count || record.count === 0;
+    const hasNoHeaderFrom = !record.headerFrom;
+    const hasNoDisposition = !record.disposition;
+    const hasNoDmarcResults = !record.dmarcDkim && !record.dmarcSpf;
+    const hasNoDkimResults =
+      !(record as any).dkimResults ||
+      (record as any).dkimResults.length === 0 ||
+      (record as any).dkimResults.every((r: any) => !r.domain && !r.result);
+    const hasNoSpfResults =
+      !(record as any).spfResults ||
+      (record as any).spfResults.length === 0 ||
+      (record as any).spfResults.every((r: any) => !r.domain && !r.result);
+    const hasNoEnvelopeTo = !record.envelopeTo;
+    const hasNoEnvelopeFrom = !record.envelopeFrom;
+    const hasNoReasonType = !record.reasonType;
+    const hasNoReasonComment = !record.reasonComment;
+    const hasNoPolicyOverrideReasons =
+      !(record as any).policyOverrideReasons ||
+      (record as any).policyOverrideReasons.length === 0;
+
+    return (
+      hasNoSourceIp &&
+      hasZeroOrNoCount &&
+      hasNoHeaderFrom &&
+      hasNoDisposition &&
+      hasNoDmarcResults &&
+      hasNoDkimResults &&
+      hasNoSpfResults &&
+      hasNoEnvelopeTo &&
+      hasNoEnvelopeFrom &&
+      hasNoReasonType &&
+      hasNoReasonComment &&
+      hasNoPolicyOverrideReasons
+    );
   }
 
   /**

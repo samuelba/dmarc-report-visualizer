@@ -216,7 +216,7 @@ export class ApiService {
   upload(file: File) {
     const form = new FormData();
     form.append('file', file);
-    return this.http.post<DmarcReport>(`${this.apiBase}/dmarc-reports/upload`, form);
+    return this.http.post<DmarcReport | { message: string }>(`${this.apiBase}/dmarc-reports/upload`, form);
   }
 
   authSummary(params: { domain?: string; from?: string; to?: string }) {

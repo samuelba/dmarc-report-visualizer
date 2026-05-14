@@ -115,6 +115,11 @@ mat-card-title {
   color: var(--custom-error-color);
 }
 
+.result-item.skipped {
+  background-color: var(--custom-info-bg-color);
+  color: var(--custom-info-color);
+}
+
 .filename {
   font-weight: 500;
 }

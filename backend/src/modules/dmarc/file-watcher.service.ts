@@ -196,14 +196,20 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
       // Use service-level upsert that safely handles one-to-many relationships
       const saved =
         await this.dmarcReportService.createOrUpdateByReportId(parsed);
-      const savedId = saved.id;
-      if (parsed.reportId) {
-        this.logger.log(
-          `[${this.instanceId}] Upserted DMARC report (reportId=${parsed.reportId}) id=${savedId}`,
-        );
+      if (saved) {
+        const savedId = saved.id;
+        if (parsed.reportId) {
+          this.logger.log(
+            `[${this.instanceId}] Upserted DMARC report (reportId=${parsed.reportId}) id=${savedId}`,
+          );
+        } else {
+          this.logger.log(
+            `[${this.instanceId}] Created DMARC report (no reportId) id=${savedId}`,
+          );
+        }
       } else {
         this.logger.log(
-          `[${this.instanceId}] Created DMARC report (no reportId) id=${savedId}`,
+          `[${this.instanceId}] Skipped empty report ${filePath} (no meaningful records)`,
         );
       }
 
