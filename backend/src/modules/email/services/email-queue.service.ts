@@ -1,16 +1,32 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Optional,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { SendEmailOptions } from './email.service';
+
+const REDIS_REQUIRED_MESSAGE =
+  'Redis is required for the email queue. Set REDIS_HOST to enable SMTP features.';
 
 @Injectable()
 export class EmailQueueService {
   private readonly logger = new Logger(EmailQueueService.name);
 
   constructor(
+    @Optional()
     @InjectQueue('email')
-    private readonly emailQueue: Queue,
+    private readonly emailQueue?: Queue,
   ) {}
+
+  private getQueue(): Queue {
+    if (!this.emailQueue) {
+      throw new ServiceUnavailableException(REDIS_REQUIRED_MESSAGE);
+    }
+    return this.emailQueue;
+  }
 
   /**
    * Queue an email for asynchronous sending
@@ -20,14 +36,14 @@ export class EmailQueueService {
   async queueEmail(options: SendEmailOptions): Promise<string> {
     this.logger.log(`Queueing email to ${options.to}: ${options.subject}`);
 
-    const job = await this.emailQueue.add('send-email', options, {
-      attempts: 3, // Retry up to 3 times
+    const job = await this.getQueue().add('send-email', options, {
+      attempts: 3,
       backoff: {
         type: 'exponential',
-        delay: 1000, // Start with 1 second, then 2s, 4s
+        delay: 1000,
       },
-      removeOnComplete: true, // Clean up completed jobs
-      removeOnFail: false, // Keep failed jobs for debugging
+      removeOnComplete: true,
+      removeOnFail: false,
     });
 
     this.logger.log(`Email queued with job ID: ${job.id}`);
@@ -48,7 +64,7 @@ export class EmailQueueService {
   ): Promise<string> {
     this.logger.log(`Queueing invitation email to ${email}`);
 
-    const job = await this.emailQueue.add(
+    const job = await this.getQueue().add(
       'send-invite-email',
       { email, token, inviterName },
       {

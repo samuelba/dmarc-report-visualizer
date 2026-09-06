@@ -1,5 +1,9 @@
 import { registerAs } from '@nestjs/config';
 
+export const DEFAULT_SAML_ENTITY_ID = 'dmarc-app';
+export const DEFAULT_SAML_ACS_URL =
+  'http://localhost:3000/api/auth/saml/callback';
+
 /**
  * Helper function to convert string environment variables to boolean
  * @param val Environment variable value
@@ -50,15 +54,13 @@ export default registerAs('auth', () => ({
      * SAML Entity ID - unique identifier for this Service Provider
      * Used in SAML metadata and authentication requests
      */
-    entityId: process.env.SAML_ENTITY_ID || 'dmarc-app',
+    entityId: process.env.SAML_ENTITY_ID || DEFAULT_SAML_ENTITY_ID,
 
     /**
      * SAML Assertion Consumer Service URL
      * The endpoint where the Identity Provider sends SAML assertions
      * Must be HTTPS in production
      */
-    acsUrl:
-      process.env.SAML_ACS_URL ||
-      'http://localhost:3000/api/auth/saml/callback',
+    acsUrl: process.env.SAML_ACS_URL || DEFAULT_SAML_ACS_URL,
   },
 }));
