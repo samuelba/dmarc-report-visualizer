@@ -604,20 +604,21 @@ export class DmarcParserService {
     const hasNoDisposition = !record.disposition;
     const hasNoDmarcResults = !record.dmarcDkim && !record.dmarcSpf;
     const hasNoDkimResults =
-      !(record as any).dkimResults ||
-      (record as any).dkimResults.length === 0 ||
-      (record as any).dkimResults.every((r: any) => !r.domain && !r.result);
+      !record.dkimResults ||
+      record.dkimResults.length === 0 ||
+      record.dkimResults.every((r) => !r.domain && !r.result);
     const hasNoSpfResults =
-      !(record as any).spfResults ||
-      (record as any).spfResults.length === 0 ||
-      (record as any).spfResults.every((r: any) => !r.domain && !r.result);
+      !record.spfResults ||
+      record.spfResults.length === 0 ||
+      record.spfResults.every((r) => !r.domain && !r.result);
     const hasNoEnvelopeTo = !record.envelopeTo;
     const hasNoEnvelopeFrom = !record.envelopeFrom;
     const hasNoReasonType = !record.reasonType;
     const hasNoReasonComment = !record.reasonComment;
     const hasNoPolicyOverrideReasons =
-      !(record as any).policyOverrideReasons ||
-      (record as any).policyOverrideReasons.length === 0;
+      !record.policyOverrideReasons ||
+      record.policyOverrideReasons.length === 0 ||
+      record.policyOverrideReasons.every((r) => !r.type && !r.comment);
 
     return (
       hasNoSourceIp &&

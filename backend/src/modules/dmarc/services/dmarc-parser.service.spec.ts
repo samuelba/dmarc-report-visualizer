@@ -511,6 +511,43 @@ describe('DmarcParserService', () => {
       expect(result.records![0].reasonType).toBe('forwarded');
       expect(result.records![0].envelopeTo).toBe('recipient@example.com');
     });
+
+    it('should filter out placeholders that only have empty policy override reason rows', async () => {
+      const emptyReasonXml = `<?xml version="1.0"?>
+<feedback>
+  <report_metadata>
+    <org_name>o2.pl</org_name>
+    <report_id>empty-reason-123</report_id>
+    <date_range><begin>1000000000</begin><end>1000086400</end></date_range>
+  </report_metadata>
+  <policy_published><domain>example.com</domain></policy_published>
+  <record>
+    <row>
+      <source_ip></source_ip>
+      <count>0</count>
+      <policy_evaluated>
+        <disposition></disposition>
+        <dkim></dkim>
+        <spf></spf>
+        <reason>
+          <type></type>
+          <comment></comment>
+        </reason>
+      </policy_evaluated>
+    </row>
+    <identifiers>
+      <header_from></header_from>
+      <envelope_to></envelope_to>
+      <envelope_from></envelope_from>
+    </identifiers>
+    <auth_results></auth_results>
+  </record>
+</feedback>`;
+
+      const result = await service.parseXmlReport(emptyReasonXml);
+
+      expect(result.records).toHaveLength(0);
+    });
   });
 
   describe('unzipReport', () => {
