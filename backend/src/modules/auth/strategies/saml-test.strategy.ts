@@ -7,6 +7,10 @@ import {
 } from '@node-saml/passport-saml';
 import { SamlConfig as NodeSamlConfig } from '@node-saml/node-saml';
 import { ConfigService } from '@nestjs/config';
+import {
+  DEFAULT_SAML_ACS_URL,
+  DEFAULT_SAML_ENTITY_ID,
+} from '../../../config/auth.config';
 import { SamlService } from '../services/saml.service';
 import { User } from '../entities/user.entity';
 
@@ -36,8 +40,10 @@ export class SamlTestStrategy extends PassportStrategy(Strategy, 'saml-test') {
       {
         // SP Configuration from environment
         // Use the SAME callback URL as production so IdP ACS URL matches
-        callbackUrl: configService.get<string>('SAML_ACS_URL') || '',
-        issuer: configService.get<string>('SAML_ENTITY_ID') || '',
+        callbackUrl:
+          configService.get<string>('SAML_ACS_URL') || DEFAULT_SAML_ACS_URL,
+        issuer:
+          configService.get<string>('SAML_ENTITY_ID') || DEFAULT_SAML_ENTITY_ID,
 
         // IdP Configuration - loaded dynamically
         entryPoint: '...placeholder...', // Will be loaded from database

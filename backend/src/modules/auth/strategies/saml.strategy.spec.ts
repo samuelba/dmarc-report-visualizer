@@ -102,6 +102,30 @@ describe('SamlStrategy', () => {
     expect(strategy).toBeDefined();
   });
 
+  it('should construct when SAML env vars are unset', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SamlStrategy,
+        {
+          provide: SamlService,
+          useValue: {
+            getConfig: jest.fn(),
+            createFreshSamlOptions: jest.fn(),
+            createFreshSamlInstance: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(() => undefined),
+          },
+        },
+      ],
+    }).compile();
+
+    expect(module.get<SamlStrategy>(SamlStrategy)).toBeDefined();
+  });
+
   describe('authenticate', () => {
     it('should load configuration from database', async () => {
       jest.spyOn(samlService, 'getConfig').mockResolvedValue(mockSamlConfig);

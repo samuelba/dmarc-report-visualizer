@@ -19,6 +19,7 @@ import { SAML, SamlConfig as NodeSamlConfig } from '@node-saml/node-saml';
 import { SamlConfig } from '../entities/saml-config.entity';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../enums/user-role.enum';
+import { isRedisConfigured } from '../../../config/redis.config';
 
 export interface SamlConfigDto {
   idpMetadataXml?: string;
@@ -74,7 +75,27 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
    * Initialize Redis connection on module initialization
    */
   async onModuleInit() {
-    const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
+    const redisHost = this.configService.get<string>('REDIS_HOST');
+    if (!isRedisConfigured(redisHost)) {
+      this.logger.log(
+        'REDIS_HOST is not set; SAML replay protection is disabled.',
+      );
+    } else {
+      await this.connectRedis(redisHost);
+    }
+
+    const forceEnablePasswordLogin = this.configService.get<string>(
+      'FORCE_ENABLE_PASSWORD_LOGIN',
+      'false',
+    );
+    if (forceEnablePasswordLogin === 'true') {
+      this.logger.warn(
+        'Password login is force-enabled via environment variable. This overrides database configuration.',
+      );
+    }
+  }
+
+  private async connectRedis(redisHost: string): Promise<void> {
     const redisPort = this.configService.get<number>('REDIS_PORT', 6379);
     const redisPassword = this.configService.get<string>('REDIS_PASSWORD');
 
@@ -85,9 +106,8 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
         password: redisPassword,
         retryStrategy: (times) => {
           if (times > 50) {
-            // Stop after 50 attempts
             this.logger.error('Max Redis retry attempts reached, giving up');
-            return null; // Returning null stops retrying
+            return null;
           }
           const delay = Math.min(times * 50, 2000);
           return delay;
@@ -105,7 +125,6 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
         this.logger.log(`Connected to Redis at ${redisHost}:${redisPort}`);
       });
 
-      // Test connection
       await this.redis.ping();
       this.logger.log('Redis connection successful');
     } catch (error) {
@@ -113,17 +132,6 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
         `Failed to connect to Redis: ${error.message}. SAML replay protection will be disabled.`,
       );
       this.redis = null;
-    }
-
-    // Check if password login is force-enabled via environment variable
-    const forceEnablePasswordLogin = this.configService.get<string>(
-      'FORCE_ENABLE_PASSWORD_LOGIN',
-      'false',
-    );
-    if (forceEnablePasswordLogin === 'true') {
-      this.logger.warn(
-        'Password login is force-enabled via environment variable. This overrides database configuration.',
-      );
     }
   }
 

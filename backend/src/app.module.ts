@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
@@ -9,6 +9,27 @@ import { AuthModule } from './modules/auth/auth.module';
 import { EmailModule } from './modules/email/email.module';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
+import { isRedisConfigured } from './config/redis.config';
+
+function getOptionalBullRoot(): DynamicModule[] {
+  if (!isRedisConfigured()) {
+    return [];
+  }
+
+  return [
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get('REDIS_HOST'),
+          port: configService.get('REDIS_PORT'),
+          password: configService.get('REDIS_PASSWORD'),
+        },
+      }),
+    }),
+  ];
+}
 
 @Module({
   imports: [
@@ -24,19 +45,9 @@ import authConfig from './config/auth.config';
         return { ...dbConfig };
       },
     }),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('REDIS_HOST'),
-          port: configService.get('REDIS_PORT'),
-          password: configService.get('REDIS_PASSWORD'),
-        },
-      }),
-    }),
+    ...getOptionalBullRoot(),
     AuthModule,
-    EmailModule,
+    EmailModule.register(),
     DmarcModule,
   ],
   controllers: [AppController],
