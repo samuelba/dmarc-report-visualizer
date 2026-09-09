@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { affectedRowCount } from './utils/affected-row-count';
 
 export const EMPTY_PLACEHOLDER_RECORD_SQL = `
   "sourceIp" IS NULL
@@ -27,26 +28,6 @@ export const EMPTY_PLACEHOLDER_RECORD_SQL = `
         AND ((por.type IS NOT NULL AND por.type != '') OR (por.comment IS NOT NULL AND por.comment != ''))
     )
 `;
-
-export function affectedRowCount(result: unknown): number {
-  if (result && typeof result === 'object') {
-    const record = result as Record<string, unknown>;
-    if (typeof record.rowCount === 'number') {
-      return record.rowCount;
-    }
-    if (typeof record.affected === 'number') {
-      return record.affected;
-    }
-  }
-  if (
-    Array.isArray(result) &&
-    result.length > 1 &&
-    typeof result[1] === 'number'
-  ) {
-    return result[1];
-  }
-  return 0;
-}
 
 export class RemoveEmptyPlaceholderRecords1741000000000 implements MigrationInterface {
   name = 'RemoveEmptyPlaceholderRecords1741000000000';
