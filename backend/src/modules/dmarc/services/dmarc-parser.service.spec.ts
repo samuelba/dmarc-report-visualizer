@@ -356,10 +356,10 @@ describe('DmarcParserService', () => {
       });
     });
 
-    it('should handle empty/placeholder records with empty source_ip gracefully', async () => {
+    it('should filter out empty placeholder records (e.g. o2.pl zero-traffic reports)', async () => {
       // Some DMARC reporters (e.g. o2.pl) send reports with empty records
-      // when no traffic was observed. The empty source_ip must not be passed
-      // to PostgreSQL's inet column.
+      // when no traffic was observed. These should be filtered out entirely
+      // to avoid polluting analytics with "Unknown" entries.
       const emptyRecordXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feedback>
   <report_metadata>
@@ -406,18 +406,147 @@ describe('DmarcParserService', () => {
       expect(result).toBeDefined();
       expect(result.reportId).toBe('1778283599.278724786');
       expect(result.orgName).toBe('o2.pl');
+      // Empty placeholder records should be filtered out
+      expect(result.records).toHaveLength(0);
+    });
+
+    it('should NOT filter out records that have actual data', async () => {
+      // A record with real data (even with count=1) should never be filtered
+      const realRecordXml = `<?xml version="1.0"?>
+<feedback>
+  <report_metadata>
+    <org_name>test.com</org_name>
+    <report_id>test-real-123</report_id>
+    <date_range><begin>1000000000</begin><end>1000086400</end></date_range>
+  </report_metadata>
+  <policy_published><domain>example.com</domain></policy_published>
+  <record>
+    <row>
+      <source_ip>192.0.2.1</source_ip>
+      <count>1</count>
+      <policy_evaluated><disposition>none</disposition><dkim>pass</dkim><spf>pass</spf></policy_evaluated>
+    </row>
+    <identifiers><header_from>example.com</header_from></identifiers>
+    <auth_results><dkim><domain>example.com</domain><result>pass</result></dkim></auth_results>
+  </record>
+</feedback>`;
+
+      const result = await service.parseXmlReport(realRecordXml);
+
       expect(result.records).toHaveLength(1);
-      const record = result.records![0];
-      // Empty source_ip should be normalized to undefined, not empty string
-      expect(record.sourceIp).toBeUndefined();
-      // Empty count string parsed as 0
-      expect(record.count).toBeFalsy();
-      // Empty disposition/dkim/spf should be undefined
-      expect(record.disposition).toBeUndefined();
-      expect(record.dmarcDkim).toBeUndefined();
-      expect(record.dmarcSpf).toBeUndefined();
-      // headerFrom is a varchar column so empty string is acceptable (no DB error)
-      expect(record.headerFrom).toBe('');
+      expect(result.records![0].sourceIp).toBe('192.0.2.1');
+      expect(result.records![0].headerFrom).toBe('example.com');
+    });
+
+    it('should filter only empty placeholder records in a mixed report', async () => {
+      // Report with one real record and one empty placeholder
+      const mixedXml = `<?xml version="1.0"?>
+<feedback>
+  <report_metadata>
+    <org_name>mixed.com</org_name>
+    <report_id>mixed-123</report_id>
+    <date_range><begin>1000000000</begin><end>1000086400</end></date_range>
+  </report_metadata>
+  <policy_published><domain>example.com</domain></policy_published>
+  <record>
+    <row>
+      <source_ip>10.0.0.1</source_ip>
+      <count>5</count>
+      <policy_evaluated><disposition>none</disposition><dkim>pass</dkim><spf>pass</spf></policy_evaluated>
+    </row>
+    <identifiers><header_from>example.com</header_from></identifiers>
+    <auth_results><dkim><domain>example.com</domain><result>pass</result></dkim></auth_results>
+  </record>
+  <record>
+    <row>
+      <source_ip></source_ip>
+      <count>0</count>
+      <policy_evaluated><disposition></disposition><dkim></dkim><spf></spf></policy_evaluated>
+    </row>
+    <identifiers><header_from></header_from></identifiers>
+    <auth_results><spf><domain></domain><result></result></spf></auth_results>
+  </record>
+</feedback>`;
+
+      const result = await service.parseXmlReport(mixedXml);
+
+      // Only the real record should remain
+      expect(result.records).toHaveLength(1);
+      expect(result.records![0].sourceIp).toBe('10.0.0.1');
+      expect(result.records![0].count).toBe(5);
+    });
+
+    it('should NOT filter out records that have envelopeTo, envelopeFrom, or reason (even without source IP)', async () => {
+      const edgeCaseXml = `<?xml version="1.0"?>
+<feedback>
+  <report_metadata>
+    <org_name>edge.com</org_name>
+    <report_id>edge-123</report_id>
+    <date_range><begin>1000000000</begin><end>1000086400</end></date_range>
+  </report_metadata>
+  <policy_published><domain>example.com</domain></policy_published>
+  <record>
+    <row>
+      <source_ip></source_ip>
+      <count>0</count>
+      <policy_evaluated>
+        <disposition></disposition>
+        <reason>
+          <type>forwarded</type>
+          <comment>Message was forwarded</comment>
+        </reason>
+      </policy_evaluated>
+    </row>
+    <identifiers>
+      <header_from></header_from>
+      <envelope_to>recipient@example.com</envelope_to>
+    </identifiers>
+    <auth_results></auth_results>
+  </record>
+</feedback>`;
+
+      const result = await service.parseXmlReport(edgeCaseXml);
+
+      expect(result.records).toHaveLength(1);
+      expect(result.records![0].reasonType).toBe('forwarded');
+      expect(result.records![0].envelopeTo).toBe('recipient@example.com');
+    });
+
+    it('should filter out placeholders that only have empty policy override reason rows', async () => {
+      const emptyReasonXml = `<?xml version="1.0"?>
+<feedback>
+  <report_metadata>
+    <org_name>o2.pl</org_name>
+    <report_id>empty-reason-123</report_id>
+    <date_range><begin>1000000000</begin><end>1000086400</end></date_range>
+  </report_metadata>
+  <policy_published><domain>example.com</domain></policy_published>
+  <record>
+    <row>
+      <source_ip></source_ip>
+      <count>0</count>
+      <policy_evaluated>
+        <disposition></disposition>
+        <dkim></dkim>
+        <spf></spf>
+        <reason>
+          <type></type>
+          <comment></comment>
+        </reason>
+      </policy_evaluated>
+    </row>
+    <identifiers>
+      <header_from></header_from>
+      <envelope_to></envelope_to>
+      <envelope_from></envelope_from>
+    </identifiers>
+    <auth_results></auth_results>
+  </record>
+</feedback>`;
+
+      const result = await service.parseXmlReport(emptyReasonXml);
+
+      expect(result.records).toHaveLength(0);
     });
   });
 

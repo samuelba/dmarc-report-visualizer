@@ -184,7 +184,7 @@ export class DmarcReportController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadDmarcReport(
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<DmarcReport> {
+  ): Promise<DmarcReport | { message: string }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -196,7 +196,15 @@ export class DmarcReportController {
     const dmarcReportData =
       await this.dmarcReportService.parseXmlReport(xmlContent);
     (dmarcReportData as any).originalXml = minifyXml(xmlContent);
-    return this.dmarcReportService.createOrUpdateByReportId(dmarcReportData);
+    const result =
+      await this.dmarcReportService.createOrUpdateByReportId(dmarcReportData);
+    if (!result) {
+      return {
+        message:
+          'Report skipped: no meaningful records (empty placeholder report)',
+      };
+    }
+    return result;
   }
 
   @Post('process-directory')
@@ -228,7 +236,15 @@ export class DmarcReportController {
           const result =
             await this.dmarcReportService.createOrUpdateByReportId(parsed);
 
-          processed.push({ file, id: result.id, reportId: result.reportId });
+          if (result) {
+            processed.push({ file, id: result.id, reportId: result.reportId });
+          } else {
+            processed.push({
+              file,
+              skipped: true,
+              reason: 'empty placeholder report',
+            });
+          }
         } catch (error) {
           processed.push({ file, error: String(error) });
         }

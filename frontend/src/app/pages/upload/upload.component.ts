@@ -21,7 +21,9 @@ export class UploadComponent {
   public readonly isUploading = signal(false);
   public readonly uploadProgress = signal(0);
   public readonly uploadStatus = signal('');
-  public readonly uploadResults = signal<Array<{ filename: string; success: boolean; message: string }>>([]);
+  public readonly uploadResults = signal<
+    Array<{ filename: string; status: 'success' | 'skipped' | 'error'; message: string }>
+  >([]);
 
   public isDragOver = false;
 
@@ -115,12 +117,13 @@ export class UploadComponent {
     this.uploadStatus.set(`Uploading ${file.name} (${index + 1}/${files.length})`);
 
     this.api.upload(file).subscribe({
-      next: () => {
+      next: (response) => {
         const results = this.uploadResults();
+        const isSkipped = response !== null && typeof response === 'object' && 'message' in response;
         results.push({
           filename: file.name,
-          success: true,
-          message: 'Upload successful',
+          status: isSkipped ? 'skipped' : 'success',
+          message: isSkipped ? (response as { message: string }).message : 'Upload successful',
         });
         this.uploadResults.set([...results]);
 
@@ -134,7 +137,7 @@ export class UploadComponent {
         const results = this.uploadResults();
         results.push({
           filename: file.name,
-          success: false,
+          status: 'error',
           message: error?.error?.message || error.message || 'Upload failed',
         });
         this.uploadResults.set([...results]);

@@ -350,6 +350,141 @@ describe('DmarcReportController', () => {
           'zip',
         );
       });
+
+      it('should return skip message when createOrUpdateByReportId returns null (empty placeholder report)', async () => {
+        const mockFile = {
+          buffer: Buffer.from('<xml>empty</xml>'),
+          originalname: 'empty-report.xml',
+        } as Express.Multer.File;
+
+        mockDmarcReportService.unzipReport.mockResolvedValue(
+          '<xml>empty</xml>',
+        );
+        mockDmarcReportService.parseXmlReport.mockResolvedValue({
+          reportId: 'empty-report',
+        });
+        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+
+        const result = await controller.uploadDmarcReport(mockFile);
+
+        expect(result).toEqual({
+          message:
+            'Report skipped: no meaningful records (empty placeholder report)',
+        });
+        expect(
+          mockDmarcReportService.createOrUpdateByReportId,
+        ).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('processDirectory', () => {
+    let fsMock: {
+      readdir: jest.SpyInstance;
+      readFile: jest.SpyInstance;
+    };
+
+    beforeEach(() => {
+      const fsPromises = require('fs/promises');
+      fsMock = {
+        readdir: jest.spyOn(fsPromises, 'readdir'),
+        readFile: jest.spyOn(fsPromises, 'readFile'),
+      };
+    });
+
+    afterEach(() => {
+      fsMock.readdir.mockRestore();
+      fsMock.readFile.mockRestore();
+    });
+
+    it('should include a saved-report entry when createOrUpdateByReportId returns a report', async () => {
+      const fakeDir = '/fake/reports';
+      const fakeBuffer = Buffer.from('<xml>report</xml>');
+      const xmlContent = '<xml>report</xml>';
+      const parsedData = { reportId: 'rpt-1', domain: 'example.com' };
+      const savedReport = {
+        id: 'uuid-saved',
+        reportId: 'rpt-1',
+      } as DmarcReport;
+
+      fsMock.readdir.mockResolvedValue(['report.xml']);
+      fsMock.readFile.mockResolvedValue(fakeBuffer);
+      mockDmarcReportService.unzipReport.mockResolvedValue(xmlContent);
+      mockDmarcReportService.parseXmlReport.mockResolvedValue(parsedData);
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(
+        savedReport,
+      );
+
+      const result = await controller.processDirectory({
+        directory: fakeDir,
+      });
+
+      expect(result.directory).toBe(fakeDir);
+      expect(result.processed).toEqual([
+        { file: 'report.xml', id: 'uuid-saved', reportId: 'rpt-1' },
+      ]);
+    });
+
+    it('should include a skipped entry when createOrUpdateByReportId returns null (empty placeholder report)', async () => {
+      const fakeDir = '/fake/reports';
+      const fakeBuffer = Buffer.from('<xml>empty</xml>');
+      const xmlContent = '<xml>empty</xml>';
+
+      fsMock.readdir.mockResolvedValue(['empty.xml']);
+      fsMock.readFile.mockResolvedValue(fakeBuffer);
+      mockDmarcReportService.unzipReport.mockResolvedValue(xmlContent);
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({
+        reportId: 'empty',
+      });
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+
+      const result = await controller.processDirectory({
+        directory: fakeDir,
+      });
+
+      expect(result.directory).toBe(fakeDir);
+      expect(result.processed).toEqual([
+        {
+          file: 'empty.xml',
+          skipped: true,
+          reason: 'empty placeholder report',
+        },
+      ]);
+    });
+
+    it('should include an error entry when processing throws', async () => {
+      const fakeDir = '/fake/reports';
+
+      fsMock.readdir.mockResolvedValue(['broken.xml']);
+      fsMock.readFile.mockResolvedValue(Buffer.from('bad'));
+      mockDmarcReportService.unzipReport.mockRejectedValue(
+        new Error('parse failed'),
+      );
+
+      const result = await controller.processDirectory({
+        directory: fakeDir,
+      });
+
+      expect(result.processed).toEqual([
+        { file: 'broken.xml', error: 'Error: parse failed' },
+      ]);
+    });
+
+    it('should skip non-matching file extensions', async () => {
+      fsMock.readdir.mockResolvedValue(['readme.txt', 'report.xml']);
+      fsMock.readFile.mockResolvedValue(Buffer.from('<xml/>'));
+      mockDmarcReportService.unzipReport.mockResolvedValue('<xml/>');
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({});
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        id: 'uuid-1',
+        reportId: 'r1',
+      });
+
+      const result = await controller.processDirectory({ directory: '/fake' });
+
+      // Only report.xml should have been processed
+      expect(result.processed).toHaveLength(1);
+      expect(result.processed[0]).toMatchObject({ file: 'report.xml' });
     });
   });
 
