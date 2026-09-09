@@ -34,13 +34,7 @@ export class DkimResult {
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   result:
-    | 'none'
-    | 'pass'
-    | 'fail'
-    | 'policy'
-    | 'neutral'
-    | 'temperror'
-    | 'permerror';
+    'none' | 'pass' | 'fail' | 'policy' | 'neutral' | 'temperror' | 'permerror';
 
   @Column({ type: 'text', nullable: true })
   humanResult: string;
