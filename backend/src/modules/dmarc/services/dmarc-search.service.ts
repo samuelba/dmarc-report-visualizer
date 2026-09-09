@@ -379,11 +379,7 @@ export class DmarcSearchService {
       return rows.map((r) => r.v).filter(Boolean);
     }
     type DistinctField =
-      | 'sourceIp'
-      | 'envelopeTo'
-      | 'envelopeFrom'
-      | 'headerFrom'
-      | 'country';
+      'sourceIp' | 'envelopeTo' | 'envelopeFrom' | 'headerFrom' | 'country';
     const map: Record<DistinctField, string> = {
       sourceIp: 'rec.sourceIp',
       envelopeTo: 'rec.envelopeTo',
