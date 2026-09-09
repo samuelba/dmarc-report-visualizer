@@ -1,10 +1,21 @@
 import {
   EMPTY_PLACEHOLDER_RECORD_SQL,
   RemoveEmptyPlaceholderRecords1741000000000,
-  affectedRowCount,
 } from './1741000000000-remove-empty-placeholder-records';
+import { affectedRowCount } from './utils/affected-row-count';
+import * as placeholderMigration from './1741000000000-remove-empty-placeholder-records';
 
 describe('RemoveEmptyPlaceholderRecords1741000000000', () => {
+  describe('TypeORM export contract', () => {
+    it('only exports functions whose names end with a 13-digit timestamp', () => {
+      for (const [name, value] of Object.entries(placeholderMigration)) {
+        if (typeof value === 'function') {
+          expect(name).toMatch(/\d{13}$/);
+        }
+      }
+    });
+  });
+
   describe('EMPTY_PLACEHOLDER_RECORD_SQL', () => {
     it('treats empty-string envelope and reason columns as empty', () => {
       expect(EMPTY_PLACEHOLDER_RECORD_SQL).toContain(

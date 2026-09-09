@@ -20,18 +20,29 @@ async function ensureBackupDirectory(backupDir: string): Promise<void> {
   }
 }
 
+function isMigrationLoadError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('migration name is wrong');
+}
+
 async function checkPendingMigrations(
   dataSource: DataSource,
 ): Promise<boolean> {
   try {
     await dataSource.initialize();
-    const pendingMigrations = await dataSource.showMigrations();
-    await dataSource.destroy();
-    return pendingMigrations;
+    return await dataSource.showMigrations();
   } catch (error) {
     console.error('Error checking pending migrations:', error);
-    // If we can't check, assume there might be migrations and proceed with backup
+    if (isMigrationLoadError(error)) {
+      throw error;
+    }
+    // If we can't check (e.g. DB unreachable), assume there might be
+    // migrations and proceed with backup
     return true;
+  } finally {
+    if (dataSource.isInitialized) {
+      await dataSource.destroy();
+    }
   }
 }
 
