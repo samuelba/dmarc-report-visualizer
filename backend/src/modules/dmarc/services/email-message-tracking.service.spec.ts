@@ -367,61 +367,28 @@ describe('EmailMessageTrackingService', () => {
     });
   });
 
-  describe('getFailedMessages', () => {
-    it('should return failed messages ordered by lastAttemptAt ASC', async () => {
-      const failed = [
-        { messageId: '1', status: ProcessingStatus.FAILED, attemptCount: 1 },
-        { messageId: '2', status: ProcessingStatus.FAILED, attemptCount: 2 },
-      ];
-      mockQueryBuilder.getMany.mockResolvedValue(failed);
+  describe('scheduledCleanup', () => {
+    it('should delete old successful records', async () => {
+      mockQueryBuilder.execute.mockResolvedValue({ affected: 4 });
 
-      const result = await service.getFailedMessages();
+      await service.scheduledCleanup();
 
-      expect(result).toEqual(failed);
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
-        'tracking.status = :status',
-        { status: ProcessingStatus.FAILED },
-      );
-      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith(
-        'tracking.lastAttemptAt',
-        'ASC',
-      );
+      expect(mockQueryBuilder.delete).toHaveBeenCalled();
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith('status = :status', {
+        status: ProcessingStatus.SUCCESS,
+      });
     });
 
-    it('should filter by source when provided', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+    it('should log and not throw when cleanup fails', async () => {
+      const error = new Error('Database error');
+      const errorSpy = jest.spyOn(service['logger'], 'error');
+      mockQueryBuilder.execute.mockRejectedValue(error);
 
-      await service.getFailedMessages(EmailSource.IMAP);
+      await expect(service.scheduledCleanup()).resolves.not.toThrow();
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'tracking.source = :source',
-        { source: EmailSource.IMAP },
-      );
-    });
-
-    it('should filter by maxAttempts when provided', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
-
-      await service.getFailedMessages(undefined, 5);
-
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'tracking.attemptCount < :maxAttempts',
-        { maxAttempts: 5 },
-      );
-    });
-
-    it('should filter by both source and maxAttempts', async () => {
-      mockQueryBuilder.getMany.mockResolvedValue([]);
-
-      await service.getFailedMessages(EmailSource.GMAIL, 3);
-
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'tracking.source = :source',
-        { source: EmailSource.GMAIL },
-      );
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'tracking.attemptCount < :maxAttempts',
-        { maxAttempts: 3 },
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Email tracking cleanup failed',
+        error.stack,
       );
     });
   });

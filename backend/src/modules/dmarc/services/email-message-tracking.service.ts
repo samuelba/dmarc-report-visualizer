@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -180,26 +181,19 @@ export class EmailMessageTrackingService {
     });
   }
 
-  /**
-   * Get all failed messages for retry
-   */
-  async getFailedMessages(
-    source?: EmailSource,
-    maxAttempts?: number,
-  ): Promise<EmailMessageTracking[]> {
-    const query = this.trackingRepository
-      .createQueryBuilder('tracking')
-      .where('tracking.status = :status', { status: ProcessingStatus.FAILED });
+  @Cron('0 0 3 * * *') // Daily at 3 AM
+  async scheduledCleanup(): Promise<void> {
+    this.logger.log('Starting email tracking cleanup job');
 
-    if (source) {
-      query.andWhere('tracking.source = :source', { source });
+    try {
+      await this.cleanupOldRecords();
+      this.logger.log('Email tracking cleanup completed successfully');
+    } catch (error) {
+      this.logger.error(
+        'Email tracking cleanup failed',
+        error instanceof Error ? error.stack : undefined,
+      );
     }
-
-    if (maxAttempts) {
-      query.andWhere('tracking.attemptCount < :maxAttempts', { maxAttempts });
-    }
-
-    return await query.orderBy('tracking.lastAttemptAt', 'ASC').getMany();
   }
 
   /**
