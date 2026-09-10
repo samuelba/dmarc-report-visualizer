@@ -85,7 +85,6 @@ describe('ImapDownloaderService', () => {
     markSuccess: jest.fn(),
     markFailed: jest.fn(),
     getTracking: jest.fn(),
-    getFailedMessages: jest.fn(),
     cleanupOldRecords: jest.fn(),
   };
 
