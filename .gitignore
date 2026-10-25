@@ -16,6 +16,7 @@ node_modules
 /.idea
 /.kiro
 /.vscode
+/.cursor
 
 # Working docs
 /*IP_LOOKUP*.md
@@ -24,12 +25,14 @@ node_modules
 /COMPOSITE_UNIQUE_CONSTRAINT.md
 /DATABASE_NORMALIZATION.md
 /DOMAINS*.md
+/frontend/E2E_TESTING.md
 /FRONTEND_ENHANCEMENTS.md
 /REDIS_SECURITY.md
 /SMART_AUTH_INTERCEPTOR.md
 /SMART_FALLBACK_STRATEGY.md
 /TASKS_GMAIL_ATTACHEMENT_DOWNLOAD.md
 /TASKS.md
+/frontend/UNIT_TESTING.md
 TODOs.md
 TOTP_*.md
 /backend/src/modules/auth/exceptions/README.md
@@ -44,6 +47,10 @@ TOTP_*.md
 /scripts/dmarc_reports
 /verify-backup-system.sh
 client_*.json
+/frontend/e2e-results
+/frontend/playwright-report
+/test-results
+/mise.toml
 
 # Backups
 *.sql
