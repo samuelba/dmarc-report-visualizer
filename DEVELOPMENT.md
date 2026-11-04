@@ -4,8 +4,8 @@ This guide explains how to run the Angular frontend, NestJS backend, and Postgre
 
 ## Prerequisites
 
-- Node.js 20+
-- npm 8+
+- Node.js 26
+- npm 12
 - Docker and Docker Compose (for PostgreSQL and optional backend in containers)
 
 ## Quick Start (Recommended)
