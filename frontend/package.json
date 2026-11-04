@@ -68,5 +68,11 @@
     "serve": "^14.2.6",
     "typescript": "~5.8.2",
     "vitest": "^3.1.1"
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.6.0": true,
+    "esbuild@0.28.1": true,
+    "lmdb@3.4.2": true,
+    "msgpackr-extract@3.0.6": true
   }
 }
