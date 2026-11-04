@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import angular from '@analogjs/vite-plugin-angular';
 
 export default defineConfig({
@@ -14,12 +13,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/app/**/*.ts'],
-      exclude: [
-        'src/app/**/*.spec.ts',
-        'src/main.ts',
-        'src/environments/**',
-        'src/app/shared/material.module.ts',
-      ],
+      exclude: ['src/app/**/*.spec.ts', 'src/main.ts', 'src/environments/**', 'src/app/shared/material.module.ts'],
     },
   },
 });
