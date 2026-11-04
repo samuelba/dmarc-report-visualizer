@@ -13,8 +13,8 @@ This is the backend service for the DMARC Report application. It's built with Ne
 
 ## Prerequisites
 
-- Node.js (v18 or later)
-- npm (v8 or later)
+- Node.js 26
+- npm 12
 - PostgreSQL (v14 or later)
 - Docker and Docker Compose (optional, for containerized setup)
 

@@ -1,10 +1,10 @@
-FROM node:20-alpine AS development
+FROM node:26-alpine AS development
 
 WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install -g npm@12 && npm ci
 
 COPY . .
 
@@ -12,13 +12,13 @@ EXPOSE 4200
 
 CMD ["npm", "run", "start:docker", "--", "--host", "0.0.0.0", "--port", "4200"]
 
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 
 WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install -g npm@12 && npm ci
 
 COPY . .
 
