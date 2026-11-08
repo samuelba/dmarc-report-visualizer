@@ -57,6 +57,66 @@ jobs:
           flags: backend
           fail_ci_if_error: false
 
+  backend-imap-e2e:
+    name: Backend IMAP E2E (GreenMail)
+    runs-on: ubuntu-latest
+    needs: backend
+
+    # Same services and ports as docker-compose.imap-test.yml
+    services:
+      greenmail:
+        image: greenmail/standalone:2.1.3
+        env:
+          GREENMAIL_OPTS: >-
+            -Dgreenmail.setup.test.all
+            -Dgreenmail.hostname=0.0.0.0
+            -Dgreenmail.auth.disabled
+            -Dgreenmail.users=dmarc:secret@test.local
+            -Dgreenmail.users.login=email
+        ports:
+          - 13025:3025
+          - 13143:3143
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dmarc_imap_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+
+    strategy:
+      matrix:
+        node-version: [26.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Use npm 12
+        run: npm install -g npm@12
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      # Builds, then runs test/imap/imap.e2e-spec.ts (waits for GreenMail itself)
+      - name: Run IMAP E2E test
+        working-directory: ./backend
+        run: npm run test:e2e:imap
+
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest

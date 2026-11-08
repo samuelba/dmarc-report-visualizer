@@ -264,29 +264,77 @@ FROM email_message_tracking
 WHERE source = 'imap' AND status = 'failed';
 ```
 
-## Testing Locally with GreenMail
+## Testing
 
-[GreenMail](https://greenmail-mail-test.github.io/greenmail/) is a throwaway SMTP + IMAP server, handy for trying the downloader without a real mailbox:
+Everything needed to test the downloader against a real IMAP server, without a real mailbox, is in the repo:
+
+| File | Purpose |
+|---|---|
+| [`docker-compose.imap-test.yml`](../docker-compose.imap-test.yml) | [GreenMail](https://greenmail-mail-test.github.io/greenmail/) (SMTP + IMAP test server) and a throwaway Postgres (in-memory) |
+| `backend/test/imap/imap-test.env` | Backend settings for that stack (overrides `backend/.env`) |
+| `backend/test/imap/fixtures.ts` | Example mails: every report format plus mail that must be ignored |
+| `backend/test/imap/imap.e2e-spec.ts` | Automated end-to-end test |
+
+The stack uses offset ports, so it runs next to the normal dev stack: SMTP `13025`, IMAP `13143`, Postgres `55432`. GreenMail accepts any password and creates mailboxes on first use; `dmarc@test.local` (password `secret`) exists from the start. Report IP geolocation is offline (`geoip-lite`) and no other ingestion path is enabled.
+
+### Try it manually
 
 ```bash
-docker run --rm -p 3025:3025 -p 3143:3143 \
-  -e GREENMAIL_OPTS="-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=dmarc:secret@test.local -Dgreenmail.users.login=email" \
-  greenmail/standalone:2.1.3
+cd backend
+npm run imap-test:up         # start GreenMail + Postgres (waits until healthy)
+npm run imap-test:backend    # backend with live reload on :3000, polling every 10s
+# in a second terminal:
+npm run imap-test:seed       # send the example mails to dmarc@test.local
+npm run imap-test:inspect    # show every folder and whether each mail is read
+npm run imap-test:down       # stop and wipe everything
 ```
 
-```env
-ENABLE_IMAP_DOWNLOADER=true
-IMAP_HOST=localhost
-IMAP_PORT=3143
-IMAP_TLS=false
-IMAP_USER=dmarc@test.local
-IMAP_PASSWORD=secret
-IMAP_PROCESSED_FOLDER=DMARC_Processed
-IMAP_FAILED_FOLDER=DMARC_Failed
-IMAP_POLL_INTERVAL_MS=10000
+The frontend works as usual (`cd frontend && npm start`); the database starts empty, so create the first admin user on first login.
+
+After two or three polls `imap-test:inspect` shows:
+
+```
+INBOX            Lunch tomorrow?, Your invoice      (still unread: no report attached)
+DMARC_Processed  5 report mails                     (imported)
+DMARC_Failed     the broken report                  (after IMAP_FAILURE_THRESHOLD=3 attempts)
 ```
 
-Then send mail with a report attached to `dmarc@test.local` via SMTP on `localhost:3025` (e.g. with `swaks --to dmarc@test.local --server localhost:3025 --attach @report.xml.gz` or a small nodemailer script). Add a few ordinary mails as well to confirm they stay unread in the INBOX.
+`imap-test:seed` creates new report IDs on every run, so you can seed repeatedly. Use `-- --to someone@test.local` with `seed`, or `-- --user someone@test.local` with `inspect`, for another mailbox.
+
+#### Example mails
+
+| Mail | Expected result |
+|---|---|
+| Report as plain `.xml` | imported, moved to `DMARC_Processed` |
+| Report as `.xml.gz` | imported, moved |
+| Report as `.zip` | imported, moved |
+| Report as unnamed `application/gzip` part | imported, moved (detected by MIME type) |
+| Report `.xml.gz` next to a `logo.png` | report imported, image ignored, moved |
+| Plain mail without attachment | untouched, stays unread in INBOX |
+| Mail with a PDF and a PNG | untouched, stays unread in INBOX |
+| `.xml.gz` that is not gzip | fails, retried, moved to `DMARC_Failed` after 3 attempts; one copy in `reports/processed/failure/` |
+
+All reports are synthetic (`example.com`, built from `backend/test/reports/`).
+
+### Automated end-to-end test
+
+```bash
+cd backend
+npm run imap-test:up
+npm run test:e2e:imap        # builds, then runs the test (~15 s)
+```
+
+The test drops and recreates its own database (`dmarc_imap_e2e`, so all migrations run on an empty database) and uses a fresh GreenMail mailbox for every run. It boots the full application, sends the example mails and triggers the polls itself. It then checks:
+
+- every report format is imported, together with its records
+- reports are moved to the processed folder, and other mail stays unread in the INBOX
+- tracking rows (`success` / `skipped` / `failed`) are keyed by mailbox, UIDVALIDITY and UID
+- the broken report is retried up to the threshold, moved to the failed folder, and leaves exactly one failure file
+- later polls import nothing twice, and still pick up a report that arrives afterwards
+
+The application is loaded from `dist/` because the TypeORM config loads entities and migrations from there; `test:e2e:imap` builds first.
+
+CI runs the same test in the `Backend IMAP E2E (GreenMail)` job, with GreenMail and Postgres as service containers. `npm run test:e2e` (the other e2e tests) skips it.
 
 ## IMAP vs Gmail Downloader
 

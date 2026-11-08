@@ -1,0 +1,14 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": "imap/.*\\.e2e-spec\\.ts$",
+  "setupFiles": ["<rootDir>/imap/setup-env.ts"],
+  "testTimeout": 120000,
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "transformIgnorePatterns": [
+    "node_modules/(?!(@oozcitak|xmlbuilder2)/)"
+  ]
+}
