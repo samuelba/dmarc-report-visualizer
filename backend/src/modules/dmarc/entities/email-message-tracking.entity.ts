@@ -17,6 +17,8 @@ export enum ProcessingStatus {
   PROCESSING = 'processing',
   SUCCESS = 'success',
   FAILED = 'failed',
+  /** Message contains no DMARC report; it is left untouched in the mailbox */
+  SKIPPED = 'skipped',
 }
 
 @Entity('email_message_tracking')

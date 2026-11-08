@@ -335,6 +335,51 @@ describe('EmailMessageTrackingService', () => {
     });
   });
 
+  describe('markSkipped', () => {
+    const messageId = 'INBOX:1:42';
+    const source = EmailSource.IMAP;
+    const account = 'user@example.com';
+
+    it('should create a new SKIPPED record if none exists', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+      const created = { messageId, status: ProcessingStatus.SKIPPED };
+      mockRepository.create.mockReturnValue(created);
+      mockRepository.save.mockResolvedValue(created);
+
+      const result = await service.markSkipped(messageId, source, account);
+
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId,
+          source,
+          accountIdentifier: account,
+          status: ProcessingStatus.SKIPPED,
+          processedAt: expect.any(Date),
+        }),
+      );
+      expect(result).toBe(created);
+    });
+
+    it('should update an existing record to SKIPPED and clear errors', async () => {
+      const existing = {
+        messageId,
+        status: ProcessingStatus.PROCESSING,
+        attemptCount: 1,
+        errorMessage: 'old error',
+        processedAt: null,
+      };
+      mockRepository.findOne.mockResolvedValue(existing);
+      mockRepository.save.mockImplementation((t) => Promise.resolve(t));
+
+      const result = await service.markSkipped(messageId, source, account);
+
+      expect(result.status).toBe(ProcessingStatus.SKIPPED);
+      expect(result.errorMessage).toBeNull();
+      expect(result.processedAt).toBeInstanceOf(Date);
+      expect(result.attemptCount).toBe(1);
+    });
+  });
+
   describe('getTracking', () => {
     it('should return the tracking record', async () => {
       const tracking = {
@@ -368,15 +413,18 @@ describe('EmailMessageTrackingService', () => {
   });
 
   describe('scheduledCleanup', () => {
-    it('should delete old successful records', async () => {
+    it('should delete old successful and skipped records', async () => {
       mockQueryBuilder.execute.mockResolvedValue({ affected: 4 });
 
       await service.scheduledCleanup();
 
       expect(mockQueryBuilder.delete).toHaveBeenCalled();
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('status = :status', {
-        status: ProcessingStatus.SUCCESS,
-      });
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'status IN (:...statuses)',
+        {
+          statuses: [ProcessingStatus.SUCCESS, ProcessingStatus.SKIPPED],
+        },
+      );
     });
 
     it('should log and not throw when cleanup fails', async () => {
@@ -394,16 +442,19 @@ describe('EmailMessageTrackingService', () => {
   });
 
   describe('cleanupOldRecords', () => {
-    it('should delete old SUCCESS records and return count', async () => {
+    it('should delete old SUCCESS and SKIPPED records and return count', async () => {
       mockQueryBuilder.execute.mockResolvedValue({ affected: 15 });
 
       const result = await service.cleanupOldRecords(90);
 
       expect(result).toBe(15);
       expect(mockQueryBuilder.delete).toHaveBeenCalled();
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('status = :status', {
-        status: ProcessingStatus.SUCCESS,
-      });
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'status IN (:...statuses)',
+        {
+          statuses: [ProcessingStatus.SUCCESS, ProcessingStatus.SKIPPED],
+        },
+      );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'processedAt < :cutoffDate',
         expect.objectContaining({ cutoffDate: expect.any(Date) }),

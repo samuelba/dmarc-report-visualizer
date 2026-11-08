@@ -165,6 +165,41 @@ export class EmailMessageTrackingService {
   }
 
   /**
+   * Mark a message as skipped (it contains no DMARC report).
+   * Recorded so the message is not downloaded again on every poll.
+   */
+  async markSkipped(
+    messageId: string,
+    source: EmailSource,
+    accountIdentifier: string,
+  ): Promise<EmailMessageTracking> {
+    let tracking = await this.trackingRepository.findOne({
+      where: {
+        messageId,
+        source,
+        accountIdentifier,
+      },
+    });
+
+    if (!tracking) {
+      tracking = this.trackingRepository.create({
+        messageId,
+        source,
+        accountIdentifier,
+        status: ProcessingStatus.SKIPPED,
+        processedAt: new Date(),
+        attemptCount: 1,
+      });
+    } else {
+      tracking.status = ProcessingStatus.SKIPPED;
+      tracking.processedAt = new Date();
+      tracking.errorMessage = null;
+    }
+
+    return await this.trackingRepository.save(tracking);
+  }
+
+  /**
    * Get tracking record for a message
    */
   async getTracking(
@@ -197,7 +232,7 @@ export class EmailMessageTrackingService {
   }
 
   /**
-   * Clean up old successful tracking records
+   * Clean up old successful and skipped tracking records
    */
   async cleanupOldRecords(daysToKeep: number = 90): Promise<number> {
     const cutoffDate = new Date();
@@ -206,7 +241,9 @@ export class EmailMessageTrackingService {
     const result = await this.trackingRepository
       .createQueryBuilder()
       .delete()
-      .where('status = :status', { status: ProcessingStatus.SUCCESS })
+      .where('status IN (:...statuses)', {
+        statuses: [ProcessingStatus.SUCCESS, ProcessingStatus.SKIPPED],
+      })
       .andWhere('processedAt < :cutoffDate', { cutoffDate })
       .execute();
 

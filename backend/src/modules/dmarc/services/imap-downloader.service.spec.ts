@@ -9,23 +9,30 @@ import {
 } from '../entities/email-message-tracking.entity';
 import type { Attachment } from 'mailparser';
 
-// Mock ImapFlow
-jest.mock('imapflow', () => {
-  return {
-    ImapFlow: jest.fn().mockImplementation(() => ({
-      on: jest.fn(),
-      connect: jest.fn().mockResolvedValue(undefined),
-      close: jest.fn(),
-      getMailboxLock: jest.fn().mockResolvedValue({ release: jest.fn() }),
-      search: jest.fn().mockResolvedValue([]),
-      fetchOne: jest.fn(),
-      messageMove: jest.fn().mockResolvedValue(undefined),
-      messageFlagsAdd: jest.fn().mockResolvedValue(undefined),
-      mailboxCreate: jest.fn().mockResolvedValue(undefined),
-      usable: true,
-    })),
-  };
+// imapflow resolves messageMove() to a result object on success and to `false`
+// on failure (it never rejects for a NO response).
+const MOVE_OK = { path: 'INBOX', destination: 'Processed' };
+
+// A fresh mock IMAP client. UIDVALIDITY 7 => tracking keys look like "INBOX:7:<uid>".
+const createMockImapClient = (): any => ({
+  on: jest.fn(),
+  connect: jest.fn().mockResolvedValue(undefined),
+  logout: jest.fn().mockResolvedValue(undefined),
+  close: jest.fn(),
+  getMailboxLock: jest.fn().mockResolvedValue({ release: jest.fn() }),
+  search: jest.fn().mockResolvedValue([]),
+  fetchOne: jest.fn(),
+  messageMove: jest.fn().mockResolvedValue(MOVE_OK),
+  messageFlagsAdd: jest.fn().mockResolvedValue(true),
+  mailboxCreate: jest.fn().mockResolvedValue({ path: 'x', created: true }),
+  mailbox: { uidValidity: BigInt(7) },
+  usable: true,
 });
+
+// Mock ImapFlow
+jest.mock('imapflow', () => ({
+  ImapFlow: jest.fn(),
+}));
 
 // Mock mailparser
 jest.mock('mailparser', () => ({
@@ -84,6 +91,7 @@ describe('ImapDownloaderService', () => {
     markProcessing: jest.fn(),
     markSuccess: jest.fn(),
     markFailed: jest.fn(),
+    markSkipped: jest.fn(),
     getTracking: jest.fn(),
     cleanupOldRecords: jest.fn(),
   };
@@ -111,6 +119,8 @@ describe('ImapDownloaderService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // clearAllMocks keeps queued *Once values; drop them so tests stay isolated
+    mockTrackingService.getTracking.mockReset();
   });
 
   it('should be defined', () => {
@@ -143,10 +153,36 @@ describe('ImapDownloaderService', () => {
 
       service.onModuleInit();
 
-      expect(service['imapClient']).not.toBeNull();
+      // Connections are opened per poll, not at startup
+      expect(service['imapClient']).toBeNull();
       expect(service['intervalHandle']).not.toBeNull();
 
       // Clean up interval
+      if (service['intervalHandle']) {
+        clearInterval(service['intervalHandle']);
+        service['intervalHandle'] = null;
+      }
+    });
+
+    it('should warn when the search criteria would rescan already-read mail', () => {
+      const configRescan = {
+        ...defaultConfigValues,
+        ENABLE_IMAP_DOWNLOADER: 'true',
+        IMAP_SEARCH_CRITERIA: 'ALL',
+        IMAP_PROCESSED_FOLDER: '',
+      };
+      mockConfigService.get.mockImplementation(
+        (key: string) => configRescan[key],
+      );
+      jest.spyOn(service as any, 'pollOnce').mockResolvedValue(undefined);
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      service.onModuleInit();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('IMAP_PROCESSED_FOLDER'),
+      );
+
       if (service['intervalHandle']) {
         clearInterval(service['intervalHandle']);
         service['intervalHandle'] = null;
@@ -197,24 +233,25 @@ describe('ImapDownloaderService', () => {
   });
 
   describe('onModuleDestroy', () => {
-    it('should clear interval and close client', () => {
-      // Set up a fake interval and client
+    it('should clear interval and log out an active client', async () => {
       service['intervalHandle'] = setInterval(() => {}, 100000);
       const mockClient = {
+        logout: jest.fn().mockResolvedValue(undefined),
         close: jest.fn(),
       };
       service['imapClient'] = mockClient as any;
 
-      service.onModuleDestroy();
+      await service.onModuleDestroy();
 
       expect(service['intervalHandle']).toBeNull();
-      expect(mockClient.close).toHaveBeenCalled();
+      expect(mockClient.logout).toHaveBeenCalled();
       expect(service['imapClient']).toBeNull();
     });
 
-    it('should handle close errors gracefully', () => {
+    it('should force-close the client when logout fails', async () => {
       service['intervalHandle'] = setInterval(() => {}, 100000);
       const mockClient = {
+        logout: jest.fn().mockRejectedValue(new Error('Logout failed')),
         close: jest.fn().mockImplementation(() => {
           throw new Error('Close failed');
         }),
@@ -222,38 +259,29 @@ describe('ImapDownloaderService', () => {
       service['imapClient'] = mockClient as any;
 
       // Should not throw
-      service.onModuleDestroy();
+      await service.onModuleDestroy();
 
+      expect(mockClient.close).toHaveBeenCalled();
       expect(service['intervalHandle']).toBeNull();
       expect(service['imapClient']).toBeNull();
     });
 
-    it('should handle case when no interval or client exists', () => {
+    it('should handle case when no interval or client exists', async () => {
       service['intervalHandle'] = null;
       service['imapClient'] = null;
 
       // Should not throw
-      service.onModuleDestroy();
+      await service.onModuleDestroy();
     });
   });
 
   describe('pollOnce', () => {
     let mockImapClient: any;
+    const { ImapFlow } = require('imapflow');
 
     beforeEach(() => {
-      mockImapClient = {
-        usable: true,
-        connect: jest.fn().mockResolvedValue(undefined),
-        close: jest.fn(),
-        getMailboxLock: jest.fn().mockResolvedValue({ release: jest.fn() }),
-        search: jest.fn().mockResolvedValue([]),
-        fetchOne: jest.fn(),
-        messageMove: jest.fn().mockResolvedValue(undefined),
-        messageFlagsAdd: jest.fn().mockResolvedValue(undefined),
-        mailboxCreate: jest.fn().mockResolvedValue(undefined),
-        on: jest.fn(),
-      };
-      service['imapClient'] = mockImapClient;
+      mockImapClient = createMockImapClient();
+      ImapFlow.mockImplementation(() => mockImapClient);
       mockConfigService.get.mockImplementation(
         (key: string) => defaultConfigValues[key],
       );
@@ -264,22 +292,46 @@ describe('ImapDownloaderService', () => {
 
       await service['pollOnce']();
 
+      expect(ImapFlow).not.toHaveBeenCalled();
       expect(mockImapClient.getMailboxLock).not.toHaveBeenCalled();
     });
 
-    it('should skip if client not initialized', async () => {
-      service['imapClient'] = null;
+    it('should open a fresh connection per poll and log out afterwards', async () => {
+      await service['pollOnce']();
+      await service['pollOnce']();
+
+      expect(ImapFlow).toHaveBeenCalledTimes(2);
+      expect(mockImapClient.connect).toHaveBeenCalledTimes(2);
+      expect(mockImapClient.logout).toHaveBeenCalledTimes(2);
+      expect(service['imapClient']).toBeNull();
+    });
+
+    it('should force-close the connection when logout fails', async () => {
+      mockImapClient.logout.mockRejectedValue(new Error('Logout failed'));
 
       await service['pollOnce']();
 
-      expect(service['isRunning']).toBe(false);
+      expect(mockImapClient.close).toHaveBeenCalled();
+      expect(service['imapClient']).toBeNull();
     });
 
-    it('should search for messages and skip already processed', async () => {
+    it('should not search when the connection fails', async () => {
+      mockImapClient.connect.mockRejectedValue(new Error('Connection refused'));
+
+      await service['pollOnce']();
+
+      expect(mockImapClient.getMailboxLock).not.toHaveBeenCalled();
+      expect(service['isRunning']).toBe(false);
+      expect(service['imapClient']).toBeNull();
+    });
+
+    it('should skip messages already processed or skipped', async () => {
       mockImapClient.search.mockResolvedValue([1, 2, 3]);
-      mockTrackingService.getTracking.mockResolvedValue({
-        status: ProcessingStatus.SUCCESS,
-      });
+      mockTrackingService.getTracking
+        .mockResolvedValueOnce({ status: ProcessingStatus.SUCCESS })
+        .mockResolvedValueOnce({ status: ProcessingStatus.SKIPPED })
+        .mockResolvedValueOnce({ status: ProcessingStatus.SUCCESS });
+      const handleMessageSpy = jest.spyOn(service as any, 'handleMessage');
 
       await service['pollOnce']();
 
@@ -288,6 +340,8 @@ describe('ImapDownloaderService', () => {
         { uid: true },
       );
       expect(mockTrackingService.getTracking).toHaveBeenCalledTimes(3);
+      expect(handleMessageSpy).not.toHaveBeenCalled();
+      expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
     });
 
     it('should mark permanently failed messages as seen using UIDs', async () => {
@@ -309,8 +363,6 @@ describe('ImapDownloaderService', () => {
     it('should handle messages that are not yet processed', async () => {
       mockImapClient.search.mockResolvedValue([42]);
       mockTrackingService.getTracking.mockResolvedValue(null);
-
-      // Mock the handleMessage to prevent full flow
       const handleMessageSpy = jest
         .spyOn(service as any, 'handleMessage')
         .mockResolvedValue(undefined);
@@ -319,42 +371,56 @@ describe('ImapDownloaderService', () => {
 
       expect(handleMessageSpy).toHaveBeenCalledWith(
         42,
+        'INBOX:7:42',
         expect.any(String),
         'dmarc@example.com',
       );
     });
 
-    it('should reconnect if client is not usable', async () => {
-      mockImapClient.usable = false;
-      mockImapClient.search.mockResolvedValue([]);
+    it('should scope the tracking key to mailbox and UIDVALIDITY', async () => {
+      const configCustomMailbox = {
+        ...defaultConfigValues,
+        IMAP_MAILBOX: 'DMARC',
+      };
+      mockConfigService.get.mockImplementation(
+        (key: string) => configCustomMailbox[key],
+      );
+      mockImapClient.mailbox = { uidValidity: BigInt(123) };
+      mockImapClient.search.mockResolvedValue([5]);
+      mockTrackingService.getTracking.mockResolvedValue({
+        status: ProcessingStatus.SUCCESS,
+      });
 
       await service['pollOnce']();
 
-      expect(mockImapClient.connect).toHaveBeenCalled();
+      expect(mockImapClient.getMailboxLock).toHaveBeenCalledWith('DMARC');
+      expect(mockTrackingService.getTracking).toHaveBeenCalledWith(
+        'DMARC:123:5',
+        EmailSource.IMAP,
+        'dmarc@example.com',
+      );
     });
 
-    it('should recreate client if reconnect fails', async () => {
-      mockImapClient.usable = false;
-      mockImapClient.connect.mockRejectedValue(new Error('Connection refused'));
-      mockImapClient.search.mockResolvedValue([]);
-
-      // After closeImapClient + initializeImapClient, a new mock client is needed
-      const initSpy = jest
-        .spyOn(service as any, 'initializeImapClient')
-        .mockImplementation(() => {
-          const newClient = {
-            ...mockImapClient,
-            usable: true,
-            connect: jest.fn().mockResolvedValue(undefined),
-            getMailboxLock: jest.fn().mockResolvedValue({ release: jest.fn() }),
-            search: jest.fn().mockResolvedValue([]),
-          };
-          service['imapClient'] = newClient;
-        });
+    it('should treat a reused UID under a new UIDVALIDITY as a new message', async () => {
+      mockImapClient.mailbox = { uidValidity: BigInt(8) };
+      mockImapClient.search.mockResolvedValue([5]);
+      mockTrackingService.getTracking.mockImplementation((key: string) =>
+        Promise.resolve(
+          key === 'INBOX:7:5' ? { status: ProcessingStatus.SUCCESS } : null,
+        ),
+      );
+      const handleMessageSpy = jest
+        .spyOn(service as any, 'handleMessage')
+        .mockResolvedValue(undefined);
 
       await service['pollOnce']();
 
-      expect(initSpy).toHaveBeenCalled();
+      expect(handleMessageSpy).toHaveBeenCalledWith(
+        5,
+        'INBOX:8:5',
+        expect.any(String),
+        'dmarc@example.com',
+      );
     });
 
     it('should handle search returning false', async () => {
@@ -376,6 +442,7 @@ describe('ImapDownloaderService', () => {
       await service['pollOnce']();
 
       expect(releaseFn).toHaveBeenCalled();
+      expect(mockImapClient.logout).toHaveBeenCalled();
     });
 
     it('should reset isRunning after poll completes', async () => {
@@ -398,56 +465,171 @@ describe('ImapDownloaderService', () => {
   describe('handleMessage', () => {
     let mockImapClient: any;
     const { simpleParser } = require('mailparser');
+    const KEY = 'INBOX:7:1';
+
+    const fetchResult = {
+      source: Buffer.from('raw email'),
+      envelope: {},
+    };
+
+    const mockSuccessfulParse = (): void => {
+      mockDmarcReportService.unzipReport.mockResolvedValue('<xml>data</xml>');
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({
+        reportId: 'rpt1',
+      });
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        id: 'saved-report-id',
+      });
+    };
 
     beforeEach(() => {
-      mockImapClient = {
-        usable: true,
-        fetchOne: jest.fn(),
-        messageMove: jest.fn().mockResolvedValue(undefined),
-        messageFlagsAdd: jest.fn().mockResolvedValue(undefined),
-        mailboxCreate: jest.fn().mockResolvedValue(undefined),
-        on: jest.fn(),
-        close: jest.fn(),
-      };
+      mockImapClient = createMockImapClient();
       service['imapClient'] = mockImapClient;
       mockConfigService.get.mockImplementation(
         (key: string) => defaultConfigValues[key],
       );
+      mockTrackingService.markProcessing.mockResolvedValue({});
+      mockTrackingService.markSuccess.mockResolvedValue({});
+      mockTrackingService.markSkipped.mockResolvedValue({});
+      mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
     });
 
-    it('should mark message as processing', async () => {
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: Buffer.from('raw email'),
-        envelope: {},
-        bodyStructure: {},
-      });
+    it('should mark message as processing using the tracking key', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
       simpleParser.mockResolvedValue({ attachments: [] });
-      mockTrackingService.markProcessing.mockResolvedValue({});
 
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
 
       expect(mockTrackingService.markProcessing).toHaveBeenCalledWith(
-        '1',
+        KEY,
         EmailSource.IMAP,
         'user@example.com',
       );
     });
 
-    it('should skip messages with no attachments and mark as processed', async () => {
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: Buffer.from('raw email'),
-        envelope: {},
-        bodyStructure: {},
-      });
+    it('should leave messages without attachments untouched and record them as skipped', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
       simpleParser.mockResolvedValue({ attachments: [] });
-      mockTrackingService.markProcessing.mockResolvedValue({});
 
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
 
       expect(mockImapClient.fetchOne).toHaveBeenCalledWith(
         '1',
         expect.objectContaining({ source: true }),
         { uid: true },
+      );
+      expect(mockTrackingService.markSkipped).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+      );
+      expect(mockTrackingService.markSuccess).not.toHaveBeenCalled();
+      expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
+      expect(mockImapClient.messageMove).not.toHaveBeenCalled();
+    });
+
+    it('should ignore messages whose attachments are not reports', async () => {
+      const fs = require('fs/promises');
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        attachments: [
+          {
+            filename: 'invoice.pdf',
+            contentType: 'application/pdf',
+            content: Buffer.from('%PDF'),
+          },
+          {
+            filename: 'photo.jpg',
+            contentType: 'image/jpeg',
+            content: Buffer.from('jpeg'),
+          },
+        ],
+      });
+
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
+
+      expect(mockDmarcReportService.unzipReport).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
+      expect(mockTrackingService.markSkipped).toHaveBeenCalled();
+      expect(mockTrackingService.markFailed).not.toHaveBeenCalled();
+      expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
+      expect(mockImapClient.messageMove).not.toHaveBeenCalled();
+    });
+
+    it('should process only report attachments when mixed with other files', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        attachments: [
+          {
+            filename: 'logo.png',
+            contentType: 'image/png',
+            content: Buffer.from('png'),
+          },
+          {
+            filename: 'google.com!example.com!1!2.xml.gz',
+            contentType: 'application/gzip',
+            content: Buffer.from('gz'),
+          },
+        ],
+      });
+      mockSuccessfulParse();
+
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
+
+      expect(mockDmarcReportService.unzipReport).toHaveBeenCalledTimes(1);
+      expect(mockDmarcReportService.unzipReport).toHaveBeenCalledWith(
+        Buffer.from('gz'),
+        'gz',
+      );
+      expect(mockTrackingService.markSuccess).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+        'saved-report-id',
+      );
+    });
+
+    it('should process inline attachments and mark success', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        attachments: [
+          { filename: 'report.xml', content: Buffer.from('<xml>data</xml>') },
+        ],
+      });
+      mockSuccessfulParse();
+
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
+
+      expect(mockTrackingService.markSuccess).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+        'saved-report-id',
       );
       expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith(
         '1',
@@ -456,65 +638,7 @@ describe('ImapDownloaderService', () => {
       );
     });
 
-    it('should handle fetch returning no result', async () => {
-      mockImapClient.fetchOne.mockResolvedValue(null);
-      mockTrackingService.markProcessing.mockResolvedValue({});
-      mockTrackingService.markFailed.mockResolvedValue({});
-
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
-
-      // Should call handleFailure which eventually calls markFailed after threshold
-    });
-
-    it('should handle fetch returning no source', async () => {
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: null,
-        envelope: {},
-      });
-      mockTrackingService.markProcessing.mockResolvedValue({});
-      mockTrackingService.markFailed.mockResolvedValue({});
-
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
-
-      // Error handled internally
-    });
-
-    it('should process attachments inline and mark success', async () => {
-      const attachment = {
-        filename: 'report.xml',
-        content: Buffer.from('<xml>data</xml>'),
-      };
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: Buffer.from('raw email'),
-        envelope: {},
-        bodyStructure: {},
-      });
-      simpleParser.mockResolvedValue({ attachments: [attachment] });
-      mockTrackingService.markProcessing.mockResolvedValue({});
-      mockDmarcReportService.unzipReport.mockResolvedValue('<xml>data</xml>');
-      mockDmarcReportService.parseXmlReport.mockResolvedValue({
-        reportId: 'rpt1',
-      });
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        id: 'saved-report-id',
-      });
-      mockTrackingService.markSuccess.mockResolvedValue({});
-      mockTrackingService.getTracking.mockResolvedValue({
-        status: ProcessingStatus.SUCCESS,
-      });
-
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
-
-      expect(mockTrackingService.markSuccess).toHaveBeenCalledWith(
-        '1',
-        EmailSource.IMAP,
-        'user@example.com',
-        'saved-report-id',
-      );
-      expect(mockImapClient.messageFlagsAdd).toHaveBeenCalled();
-    });
-
-    it('should mark success when tracking status is not success after processing (legacy mode)', async () => {
+    it('should mark success in legacy (file watcher) mode', async () => {
       const configLegacy = {
         ...defaultConfigValues,
         IMAP_PROCESS_INLINE: 'false',
@@ -522,28 +646,22 @@ describe('ImapDownloaderService', () => {
       mockConfigService.get.mockImplementation(
         (key: string) => configLegacy[key],
       );
-
-      const attachment = {
-        filename: 'report.xml',
-        content: Buffer.from('<xml>data</xml>'),
-      };
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: Buffer.from('raw email'),
-        envelope: {},
-        bodyStructure: {},
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        attachments: [
+          { filename: 'report.xml', content: Buffer.from('<xml>data</xml>') },
+        ],
       });
-      simpleParser.mockResolvedValue({ attachments: [attachment] });
-      mockTrackingService.markProcessing.mockResolvedValue({});
-      mockTrackingService.getTracking.mockResolvedValue({
-        status: ProcessingStatus.PROCESSING,
-      });
-      mockTrackingService.markSuccess.mockResolvedValue({});
 
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
 
-      // Should call markSuccess because status was still PROCESSING
       expect(mockTrackingService.markSuccess).toHaveBeenCalledWith(
-        '1',
+        KEY,
         EmailSource.IMAP,
         'user@example.com',
         undefined,
@@ -551,28 +669,27 @@ describe('ImapDownloaderService', () => {
     });
 
     it('should mark success when createOrUpdateByReportId returns null', async () => {
-      const attachment = {
-        filename: 'empty.xml',
-        content: Buffer.from('<xml></xml>'),
-      };
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: Buffer.from('raw email'),
-        envelope: {},
-        bodyStructure: {},
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        attachments: [
+          { filename: 'empty.xml', content: Buffer.from('<xml></xml>') },
+        ],
       });
-      simpleParser.mockResolvedValue({ attachments: [attachment] });
-      mockTrackingService.markProcessing.mockResolvedValue({});
       mockDmarcReportService.unzipReport.mockResolvedValue('<xml></xml>');
       mockDmarcReportService.parseXmlReport.mockResolvedValue({
         reportId: 'empty-rpt',
       });
       mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
-      mockTrackingService.markSuccess.mockResolvedValue({});
 
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
 
       expect(mockTrackingService.markSuccess).toHaveBeenCalledWith(
-        '1',
+        KEY,
         EmailSource.IMAP,
         'user@example.com',
         undefined,
@@ -585,37 +702,123 @@ describe('ImapDownloaderService', () => {
       );
     });
 
-    it('should handle all attachment failures', async () => {
-      const attachment = {
-        filename: 'report.xml',
-        content: Buffer.from('bad data'),
-      };
-      mockImapClient.fetchOne.mockResolvedValue({
-        source: Buffer.from('raw email'),
-        envelope: {},
-        bodyStructure: {},
+    it('should record a failure when all report attachments fail', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        attachments: [{ filename: 'report.xml', content: Buffer.from('bad') }],
       });
-      simpleParser.mockResolvedValue({ attachments: [attachment] });
-      mockTrackingService.markProcessing.mockResolvedValue({});
       mockDmarcReportService.unzipReport.mockRejectedValue(
         new Error('Invalid XML'),
       );
 
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
 
-      // handleFailure was called (internal failure count incremented)
-      // Message is NOT moved/marked as processed since all attachments failed
+      expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+        expect.stringContaining('Invalid XML'),
+      );
+      // Below threshold: message is left for a retry
       expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
     });
 
-    it('should throw when IMAP client is null', async () => {
+    it('should record a failure when fetch returns no result', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(null);
+
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
+
+      expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+        expect.stringContaining('Failed to fetch message UID 1'),
+      );
+    });
+
+    it('should record a failure when fetch returns no source', async () => {
+      mockImapClient.fetchOne.mockResolvedValue({ source: null, envelope: {} });
+
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
+
+      expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+        expect.stringContaining('has no source data'),
+      );
+    });
+
+    it('should record a failure when IMAP client is null', async () => {
       service['imapClient'] = null;
-      mockTrackingService.markProcessing.mockResolvedValue({});
-      mockTrackingService.markFailed.mockResolvedValue({});
 
-      await service['handleMessage'](1, '/tmp/download', 'user@example.com');
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
 
-      // Error should be handled by the catch block
+      expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
+        KEY,
+        EmailSource.IMAP,
+        'user@example.com',
+        expect.stringContaining('IMAP client not initialized'),
+      );
+    });
+  });
+
+  describe('isReportAttachment', () => {
+    const att = (filename: string | undefined, contentType = '') =>
+      ({
+        filename,
+        contentType,
+        content: Buffer.from(''),
+      }) as unknown as Attachment;
+
+    it.each([
+      'report.xml',
+      'REPORT.XML',
+      'google.com!example.com!1!2.xml.gz',
+      'report.gz',
+      'report.zip',
+    ])('should accept report file name %s', (name) => {
+      expect(service['isReportAttachment'](att(name))).toBe(true);
+    });
+
+    it.each([
+      'application/gzip',
+      'application/x-gzip',
+      'application/zip',
+      'application/x-zip-compressed',
+      'application/xml',
+      'text/xml',
+    ])('should accept report content type %s without a usable name', (type) => {
+      expect(service['isReportAttachment'](att(undefined, type))).toBe(true);
+    });
+
+    it.each([
+      ['invoice.pdf', 'application/pdf'],
+      ['photo.jpg', 'image/jpeg'],
+      ['notes.txt', 'text/plain'],
+      [undefined, 'image/png'],
+    ])('should reject %s (%s)', (name, type) => {
+      expect(service['isReportAttachment'](att(name, type))).toBe(false);
     });
   });
 
@@ -624,9 +827,11 @@ describe('ImapDownloaderService', () => {
 
     beforeEach(() => {
       mockImapClient = {
-        messageMove: jest.fn().mockResolvedValue(undefined),
-        messageFlagsAdd: jest.fn().mockResolvedValue(undefined),
-        mailboxCreate: jest.fn().mockResolvedValue(undefined),
+        messageMove: jest.fn().mockResolvedValue(MOVE_OK),
+        messageFlagsAdd: jest.fn().mockResolvedValue(true),
+        mailboxCreate: jest
+          .fn()
+          .mockResolvedValue({ path: 'x', created: true }),
       };
       service['imapClient'] = mockImapClient;
     });
@@ -672,8 +877,8 @@ describe('ImapDownloaderService', () => {
         (key: string) => configWithFolder[key],
       );
       mockImapClient.messageMove
-        .mockRejectedValueOnce(new Error('Folder not found'))
-        .mockResolvedValueOnce(undefined);
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(MOVE_OK);
 
       await service['markMessageProcessed'](42);
 
@@ -694,7 +899,7 @@ describe('ImapDownloaderService', () => {
       mockConfigService.get.mockImplementation(
         (key: string) => configWithFolder[key],
       );
-      mockImapClient.messageMove.mockRejectedValue(new Error('Move failed'));
+      mockImapClient.messageMove.mockResolvedValue(false);
       mockImapClient.mailboxCreate.mockRejectedValue(
         new Error('Create failed'),
       );
@@ -705,6 +910,59 @@ describe('ImapDownloaderService', () => {
         '42',
         ['\\Seen'],
         { uid: true },
+      );
+    });
+
+    it('should fall back to mark as seen when the server refuses the move after creating the folder', async () => {
+      const configWithFolder = {
+        ...defaultConfigValues,
+        IMAP_PROCESSED_FOLDER: 'Processed',
+      };
+      mockConfigService.get.mockImplementation(
+        (key: string) => configWithFolder[key],
+      );
+      mockImapClient.messageMove.mockResolvedValue(false);
+
+      await service['markMessageProcessed'](42);
+
+      expect(mockImapClient.mailboxCreate).toHaveBeenCalledWith('Processed');
+      expect(mockImapClient.messageMove).toHaveBeenCalledTimes(2);
+      expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith(
+        '42',
+        ['\\Seen'],
+        { uid: true },
+      );
+    });
+
+    it('should create the folder and retry when the move throws', async () => {
+      const configWithFolder = {
+        ...defaultConfigValues,
+        IMAP_PROCESSED_FOLDER: 'Processed',
+      };
+      mockConfigService.get.mockImplementation(
+        (key: string) => configWithFolder[key],
+      );
+      mockImapClient.messageMove
+        .mockRejectedValueOnce(new Error('Connection hiccup'))
+        .mockResolvedValueOnce(MOVE_OK);
+
+      await service['markMessageProcessed'](42);
+
+      expect(mockImapClient.mailboxCreate).toHaveBeenCalledWith('Processed');
+      expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
+    });
+
+    it('should warn when the server refuses to set the Seen flag', async () => {
+      mockConfigService.get.mockImplementation(
+        (key: string) => defaultConfigValues[key],
+      );
+      mockImapClient.messageFlagsAdd.mockResolvedValue(false);
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      await service['markMessageProcessed'](42);
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Could not mark message UID 42 as seen'),
       );
     });
 
@@ -721,9 +979,11 @@ describe('ImapDownloaderService', () => {
 
     beforeEach(() => {
       mockImapClient = {
-        messageMove: jest.fn().mockResolvedValue(undefined),
-        messageFlagsAdd: jest.fn().mockResolvedValue(undefined),
-        mailboxCreate: jest.fn().mockResolvedValue(undefined),
+        messageMove: jest.fn().mockResolvedValue(MOVE_OK),
+        messageFlagsAdd: jest.fn().mockResolvedValue(true),
+        mailboxCreate: jest
+          .fn()
+          .mockResolvedValue({ path: 'x', created: true }),
       };
       service['imapClient'] = mockImapClient;
       mockConfigService.get.mockImplementation(
@@ -733,7 +993,7 @@ describe('ImapDownloaderService', () => {
 
     it('should increment failure count below threshold', async () => {
       mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
-      await service['handleFailure']('msg1', 'user@example.com', 'Error');
+      await service['handleFailure'](1, 'msg1', 'user@example.com', 'Error');
 
       expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
         'msg1',
@@ -756,7 +1016,12 @@ describe('ImapDownloaderService', () => {
 
       mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 3 });
 
-      await service['handleFailure']('msg1', 'user@example.com', 'Parse error');
+      await service['handleFailure'](
+        1,
+        'msg1',
+        'user@example.com',
+        'Parse error',
+      );
 
       expect(mockTrackingService.markFailed).toHaveBeenCalledWith(
         'msg1',
@@ -765,7 +1030,7 @@ describe('ImapDownloaderService', () => {
         'Parse error',
       );
       expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith(
-        'msg1',
+        '1',
         ['\\Seen'],
         { uid: true },
       );
@@ -783,10 +1048,10 @@ describe('ImapDownloaderService', () => {
 
       mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
 
-      await service['handleFailure']('msg1', 'user@example.com', 'Error');
+      await service['handleFailure'](1, 'msg1', 'user@example.com', 'Error');
 
       expect(mockImapClient.messageMove).toHaveBeenCalledWith(
-        'msg1',
+        '1',
         'FailedMessages',
         { uid: true },
       );
@@ -803,10 +1068,10 @@ describe('ImapDownloaderService', () => {
       );
       mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
       mockImapClient.messageMove
-        .mockRejectedValueOnce(new Error('Folder not found'))
-        .mockResolvedValueOnce(undefined);
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(MOVE_OK);
 
-      await service['handleFailure']('msg1', 'user@example.com', 'Error');
+      await service['handleFailure'](1, 'msg1', 'user@example.com', 'Error');
 
       expect(mockImapClient.mailboxCreate).toHaveBeenCalledWith(
         'FailedMessages',
@@ -825,16 +1090,16 @@ describe('ImapDownloaderService', () => {
         (key: string) => configWithFailedFolder[key],
       );
       mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
-      mockImapClient.messageMove.mockRejectedValue(new Error('Move failed'));
+      mockImapClient.messageMove.mockResolvedValue(false);
       mockImapClient.mailboxCreate.mockRejectedValue(
         new Error('Create failed'),
       );
 
-      await service['handleFailure']('msg1', 'user@example.com', 'Error');
+      await service['handleFailure'](1, 'msg1', 'user@example.com', 'Error');
 
       expect(mockTrackingService.markFailed).toHaveBeenCalled();
       expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith(
-        'msg1',
+        '1',
         ['\\Seen'],
         { uid: true },
       );
@@ -844,6 +1109,7 @@ describe('ImapDownloaderService', () => {
       mockTrackingService.markFailed.mockResolvedValue({ attemptCount: 1 });
 
       await service['handleFailure'](
+        1,
         'msg1',
         'user@example.com',
         'Authentication failed for user dmarc@example.com with password password123',
@@ -935,6 +1201,24 @@ describe('ImapDownloaderService', () => {
       const result = service['getSearchCriteria']();
 
       expect(result).toEqual({ subject: 'DMARC' });
+    });
+
+    it('should combine UNSEEN with a quoted SUBJECT', () => {
+      mockConfigService.get.mockReturnValue('UNSEEN SUBJECT "DMARC Report"');
+
+      expect(service['getSearchCriteria']()).toEqual({
+        unseen: true,
+        subject: 'DMARC Report',
+      });
+    });
+
+    it('should combine criteria regardless of order and case', () => {
+      mockConfigService.get.mockReturnValue('subject Report unseen');
+
+      expect(service['getSearchCriteria']()).toEqual({
+        unseen: true,
+        subject: 'Report',
+      });
     });
 
     it('should fall back to unseen for unrecognized criteria', () => {
@@ -1106,8 +1390,6 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
-        'msg1',
-        'user@example.com',
       );
 
       expect(result).toEqual({
@@ -1134,12 +1416,7 @@ describe('ImapDownloaderService', () => {
       });
       const fs = require('fs/promises');
 
-      await service['processAttachment'](
-        attachment,
-        '/tmp/download',
-        'msg1',
-        'user@example.com',
-      );
+      await service['processAttachment'](attachment, '/tmp/download');
 
       expect(fs.writeFile).toHaveBeenCalled();
     });
@@ -1157,8 +1434,6 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
-        'msg1',
-        'user@example.com',
       );
 
       expect(result.success).toBe(true);
@@ -1176,8 +1451,6 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
-        'msg1',
-        'user@example.com',
       );
 
       expect(result).toEqual({
@@ -1187,6 +1460,32 @@ describe('ImapDownloaderService', () => {
       expect(result.reportId).toBeUndefined();
     });
 
+    it('should decode unnamed gzip attachments using their MIME type', async () => {
+      const unnamed = {
+        filename: undefined,
+        contentType: 'application/gzip',
+        content: Buffer.from('gz'),
+      } as unknown as Attachment;
+      mockDmarcReportService.unzipReport.mockResolvedValue('<xml>data</xml>');
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({
+        reportId: 'r1',
+      });
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        id: 'report-uuid',
+      });
+
+      const result = await service['processAttachment'](
+        unnamed,
+        '/tmp/download',
+      );
+
+      expect(mockDmarcReportService.unzipReport).toHaveBeenCalledWith(
+        Buffer.from('gz'),
+        'gz',
+      );
+      expect(result.filename).toBe('report.xml.gz');
+    });
+
     it('should save failed attachment and rethrow on inline error', async () => {
       mockDmarcReportService.unzipReport.mockRejectedValue(
         new Error('Parse error'),
@@ -1194,12 +1493,7 @@ describe('ImapDownloaderService', () => {
       const fs = require('fs/promises');
 
       await expect(
-        service['processAttachment'](
-          attachment,
-          '/tmp/download',
-          'msg1',
-          'user@example.com',
-        ),
+        service['processAttachment'](attachment, '/tmp/download'),
       ).rejects.toThrow('Parse error');
 
       // Failed attachment should be saved to failure dir
