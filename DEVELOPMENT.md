@@ -62,6 +62,22 @@ npm run docker:up
 
 Note: If you run the API in Docker, you can still run the Angular dev server locally as above.
 
+## Testing the IMAP Downloader
+
+A throwaway GreenMail (SMTP + IMAP) server, example report mails and an end-to-end test are included:
+
+```bash
+cd backend
+npm run imap-test:up         # GreenMail + Postgres on offset ports
+npm run test:e2e:imap        # automated end-to-end test
+npm run imap-test:backend    # or try it by hand: backend against GreenMail...
+npm run imap-test:seed       # ...send example mails
+npm run imap-test:inspect    # ...see what happened to them
+npm run imap-test:down
+```
+
+See [Testing in docs/IMAP_DOWNLOADER.md](docs/IMAP_DOWNLOADER.md#testing) for details.
+
 ## Database Migrations
 
 The backend uses TypeORM migrations.

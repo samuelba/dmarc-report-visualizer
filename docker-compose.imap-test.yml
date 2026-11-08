@@ -1,0 +1,53 @@
+# Throwaway stack for testing the IMAP downloader locally and in CI:
+#   - GreenMail: SMTP + IMAP test server (accepts any login, auto-creates mailboxes)
+#   - Postgres:  database kept in tmpfs, wiped on every `down`
+#
+# Ports are offset from the defaults so this can run next to the normal dev stack.
+# See "Testing" in docs/IMAP_DOWNLOADER.md.
+#
+#   cd backend
+#   npm run imap-test:up        # start the stack
+#   npm run test:e2e:imap       # automated end-to-end test
+#   npm run imap-test:backend   # or: run the backend against it, then
+#   npm run imap-test:seed      #     send example mails to dmarc@test.local
+#   npm run imap-test:down
+
+name: dmarc-imap-test
+
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.3
+    environment:
+      # auth.disabled: any username/password is accepted and a mailbox is created
+      # on first use. dmarc@test.local (password: secret) exists from the start.
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.all
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.auth.disabled
+        -Dgreenmail.users=dmarc:secret@test.local
+        -Dgreenmail.users.login=email
+    ports:
+      - "${IMAP_TEST_SMTP_PORT:-13025}:3025"
+      - "${IMAP_TEST_IMAP_PORT:-13143}:3143"
+      - "${IMAP_TEST_IMAPS_PORT:-13993}:3993"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/3143"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dmarc_imap_test
+    ports:
+      - "${IMAP_TEST_DB_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
