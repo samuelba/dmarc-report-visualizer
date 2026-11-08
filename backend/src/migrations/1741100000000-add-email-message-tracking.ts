@@ -1,9 +1,14 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { UUID_GENERATE_V7_FUNCTION_SQL } from './utils/uuid-v7-function';
 
 export class AddEmailMessageTracking1741100000000 implements MigrationInterface {
   name = 'AddEmailMessageTracking1741100000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // AddUuidV7174090000000 sorts last on fresh databases (see util), so make
+    // sure the default-value function exists before creating the table.
+    await queryRunner.query(UUID_GENERATE_V7_FUNCTION_SQL);
+
     await queryRunner.query(`
       CREATE TABLE email_message_tracking (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v7(),
