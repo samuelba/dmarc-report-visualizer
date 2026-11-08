@@ -1390,6 +1390,7 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
+        'INBOX:7:1',
       );
 
       expect(result).toEqual({
@@ -1416,7 +1417,11 @@ describe('ImapDownloaderService', () => {
       });
       const fs = require('fs/promises');
 
-      await service['processAttachment'](attachment, '/tmp/download');
+      await service['processAttachment'](
+        attachment,
+        '/tmp/download',
+        'INBOX:7:1',
+      );
 
       expect(fs.writeFile).toHaveBeenCalled();
     });
@@ -1434,6 +1439,7 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
+        'INBOX:7:1',
       );
 
       expect(result.success).toBe(true);
@@ -1451,6 +1457,7 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
+        'INBOX:7:1',
       );
 
       expect(result).toEqual({
@@ -1477,6 +1484,7 @@ describe('ImapDownloaderService', () => {
       const result = await service['processAttachment'](
         unnamed,
         '/tmp/download',
+        'INBOX:7:1',
       );
 
       expect(mockDmarcReportService.unzipReport).toHaveBeenCalledWith(
@@ -1493,11 +1501,55 @@ describe('ImapDownloaderService', () => {
       const fs = require('fs/promises');
 
       await expect(
-        service['processAttachment'](attachment, '/tmp/download'),
+        service['processAttachment'](attachment, '/tmp/download', 'INBOX:7:1'),
       ).rejects.toThrow('Parse error');
 
       // Failed attachment should be saved to failure dir
       expect(fs.writeFile).toHaveBeenCalled();
+    });
+
+    it('should overwrite the same failure file on retries instead of adding copies', async () => {
+      mockDmarcReportService.unzipReport.mockRejectedValue(
+        new Error('Parse error'),
+      );
+      const fs = require('fs/promises');
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await expect(
+          service['processAttachment'](
+            attachment,
+            '/tmp/download',
+            'INBOX:7:5',
+          ),
+        ).rejects.toThrow('Parse error');
+      }
+
+      const paths: string[] = (fs.writeFile as jest.Mock).mock.calls.map(
+        (c: unknown[]) => String(c[0]),
+      );
+      expect(paths).toHaveLength(3);
+      expect(new Set(paths).size).toBe(1);
+      expect(paths[0]).toMatch(
+        /reports\/processed\/failure\/INBOX_7_5-report\.xml$/,
+      );
+    });
+
+    it('should make mailbox names safe for use in failure file names', async () => {
+      mockDmarcReportService.unzipReport.mockRejectedValue(
+        new Error('Parse error'),
+      );
+      const fs = require('fs/promises');
+
+      await expect(
+        service['processAttachment'](
+          attachment,
+          '/tmp/download',
+          '[Gmail]/All Mail:7:5',
+        ),
+      ).rejects.toThrow('Parse error');
+
+      const savedPath: string = fs.writeFile.mock.calls[0][0];
+      expect(savedPath).toMatch(/failure\/_Gmail__All_Mail_7_5-report\.xml$/);
     });
   });
 });

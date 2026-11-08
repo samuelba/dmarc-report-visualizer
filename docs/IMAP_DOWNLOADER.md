@@ -169,7 +169,7 @@ Each tracking record stores:
 1. If processing an attachment fails, it's retried on the next poll cycle
 2. After `IMAP_FAILURE_THRESHOLD` consecutive failures (default: 3), the message is marked as permanently failed
 3. If `IMAP_FAILED_FOLDER` is configured, permanently failed messages are moved there
-4. Failed attachments (in inline mode) are saved to `reports/processed/failure/` for manual inspection
+4. Failed attachments (in inline mode) are saved to `reports/processed/failure/` for manual inspection, named `<mailbox>_<UIDVALIDITY>_<UID>-<filename>` (e.g. `INBOX_1794166203_5-report.xml.gz`). Retries overwrite the same file, so there is one copy per attachment rather than one per attempt
 
 ### Connection Recovery
 

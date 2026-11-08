@@ -366,7 +366,11 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
 
     for (const attachment of attachments) {
       try {
-        const result = await this.processAttachment(attachment, downloadDir);
+        const result = await this.processAttachment(
+          attachment,
+          downloadDir,
+          trackingKey,
+        );
         attachmentsProcessed++;
         this.logger.log(
           `[${this.instanceId}] Processed attachment ${result.filename} from UID ${uid}`,
@@ -404,6 +408,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
   private async processAttachment(
     attachment: Attachment,
     downloadDir: string,
+    trackingKey: string,
   ): Promise<AttachmentResult> {
     const filename = this.getAttachmentFilename(attachment);
     const buffer = attachment.content;
@@ -445,18 +450,25 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
 
       return { success: true, filename, reportId: savedReport.id };
     } catch (err) {
-      await this.saveFailedAttachment(filename, buffer);
+      await this.saveFailedAttachment(trackingKey, filename, buffer);
       throw err;
     }
   }
 
+  /**
+   * Keeps one copy per message attachment for inspection. The name is derived
+   * from the tracking key, so retries of the same message overwrite the file
+   * instead of piling up a copy per attempt.
+   */
   private async saveFailedAttachment(
+    trackingKey: string,
     filename: string,
     buffer: Buffer,
   ): Promise<void> {
+    const safeKey = trackingKey.replace(/[^A-Za-z0-9._-]/g, '_');
     const failPath = path.join(
       this.getProcessedFailureDir(),
-      `${Date.now()}-${filename}`,
+      `${safeKey}-${filename}`,
     );
     try {
       await fs.writeFile(failPath, buffer);
