@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fc from 'fast-check';
+import * as nodemailer from 'nodemailer';
 import { EmailService } from './email.service';
 import { SmtpConfigService } from './smtp-config.service';
 import { SmtpConfig } from '../entities/smtp-config.entity';
@@ -15,8 +16,22 @@ describe('EmailService - Property-Based Tests', () => {
   let emailService: EmailService;
   let smtpConfigService: SmtpConfigService;
   let mockRepository: Partial<Repository<SmtpConfig>>;
+  let sendMail: jest.Mock;
 
   beforeEach(async () => {
+    // Never open real SMTP connections: with 100 runs per property, DNS lookups
+    // of smtp.example.com alone could exceed the 5 s test timeout on CI.
+    // The fake keeps the real transport options so they can still be asserted.
+    sendMail = jest.fn().mockResolvedValue({ messageId: '<test@localhost>' });
+    jest
+      .spyOn(nodemailer, 'createTransport')
+      .mockImplementation(
+        (options: unknown) =>
+          ({ options, sendMail, close: jest.fn() }) as unknown as ReturnType<
+            typeof nodemailer.createTransport
+          >,
+      );
+
     // Create mock repository
     mockRepository = {
       findOne: jest.fn(),
@@ -52,6 +67,10 @@ describe('EmailService - Property-Based Tests', () => {
 
     emailService = module.get<EmailService>(EmailService);
     smtpConfigService = module.get<SmtpConfigService>(SmtpConfigService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   /**
@@ -180,10 +199,11 @@ describe('EmailService - Property-Based Tests', () => {
               text: 'Test message',
             });
 
-            // Verify configuration was used (will fail to send but config should be applied)
-            if (result.diagnostics) {
-              expect(result.diagnostics.host).toBe('smtp.example.com');
-            }
+            expect(result.success).toBe(true);
+            expect(result.diagnostics?.host).toBe('smtp.example.com');
+            expect(sendMail).toHaveBeenLastCalledWith(
+              expect.objectContaining({ replyTo: testData.replyToEmail }),
+            );
           },
         ),
         { numRuns: 100 },
@@ -281,19 +301,21 @@ describe('EmailService - Property-Based Tests', () => {
 
             (mockRepository.findOne as jest.Mock).mockResolvedValue(mockConfig);
 
-            // Try to send an email (will fail due to fake SMTP, but we can check the attempt)
             const result = await emailService.sendEmail({
               to: testData.recipientEmail,
               subject: 'Test',
               text: 'Test message',
             });
 
-            // The email will fail to send due to fake SMTP server, but we verify
-            // that the configuration was used (diagnostics should show the config)
-            if (result.diagnostics) {
-              expect(result.diagnostics.host).toBe('smtp.example.com');
-              expect(result.diagnostics.port).toBe(587);
-            }
+            expect(result.success).toBe(true);
+            expect(result.diagnostics?.host).toBe('smtp.example.com');
+            expect(result.diagnostics?.port).toBe(587);
+            expect(sendMail).toHaveBeenLastCalledWith(
+              expect.objectContaining({
+                from: `"${testData.fromName}" <${testData.fromEmail}>`,
+                to: testData.recipientEmail,
+              }),
+            );
           },
         ),
         { numRuns: 100 },
