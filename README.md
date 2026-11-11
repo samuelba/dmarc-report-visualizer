@@ -16,7 +16,13 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 
 ## Quick Start
 
-1) Copy the `.env.example` file to `.env` and adjust as needed
+1) Copy the `.env.sample` file to `.env` and adjust as needed. Set `JWT_SECRET` to a new random value before the first start:
+
+    ```bash
+    openssl rand -base64 48
+    ```
+
+    Don't change it later on a running installation: it logs everyone out and breaks existing 2FA enrolments. See [SECRETS.md](docs/SECRETS.md).
 
 2) Download the docker images
 

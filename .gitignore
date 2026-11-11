@@ -55,3 +55,4 @@ client_*.json
 # Backups
 *.sql
 *.sql.gz
+/SECURITY_AUDIT_dmarc_2026-11-11.md
