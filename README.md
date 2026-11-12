@@ -22,7 +22,7 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
     openssl rand -base64 48
     ```
 
-    Don't change it later on a running installation: it logs everyone out and breaks existing 2FA enrolments. See [SECRETS.md](docs/SECRETS.md).
+    Also set `TOTP_ENCRYPTION_KEY` (generated the same way) so 2FA does not depend on `JWT_SECRET`. Without it, changing `JWT_SECRET` later breaks existing 2FA enrolments. See [SECRETS.md](docs/SECRETS.md).
 
 2) Download the docker images
 

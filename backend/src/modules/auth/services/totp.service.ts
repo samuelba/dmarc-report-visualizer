@@ -1,12 +1,21 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
-import * as crypto from 'crypto';
 import { User } from '../entities/user.entity';
 import { PasswordService } from './password.service';
+import { VersionedCipher } from '../../../common/crypto/versioned-cipher';
+import {
+  createTotpCipher,
+  prepareStoredTotpSecrets,
+} from '../utils/totp-encryption';
 import {
   InvalidTotpCodeException,
   TotpAlreadyEnabledException,
@@ -16,9 +25,9 @@ import {
 } from '../exceptions/totp.exception';
 
 @Injectable()
-export class TotpService {
+export class TotpService implements OnModuleInit {
   private readonly logger = new Logger(TotpService.name);
-  private readonly encryptionKey: Buffer;
+  private readonly cipher: VersionedCipher;
   private readonly totpWindow: number;
   private readonly totpStep: number;
   private readonly totpIssuer: string;
@@ -29,13 +38,14 @@ export class TotpService {
     private readonly configService: ConfigService,
     private readonly passwordService: PasswordService,
   ) {
-    // Derive encryption key from JWT_SECRET
     const jwtSecret = this.configService.get<string>('JWT_SECRET');
     if (!jwtSecret) {
       throw new Error('JWT_SECRET is required for TOTP encryption');
     }
-    // Use SHA-256 to derive a 32-byte key from JWT_SECRET
-    this.encryptionKey = crypto.createHash('sha256').update(jwtSecret).digest();
+    this.cipher = createTotpCipher(
+      jwtSecret,
+      this.configService.get<string>('TOTP_ENCRYPTION_KEY'),
+    );
 
     // TOTP configuration
     this.totpWindow = parseInt(
@@ -202,58 +212,34 @@ export class TotpService {
   }
 
   /**
+   * Check stored TOTP secrets against the configured keys at startup and
+   * re-encrypt them once TOTP_ENCRYPTION_KEY is set.
+   */
+  async onModuleInit(): Promise<void> {
+    await prepareStoredTotpSecrets(
+      this.userRepository,
+      this.cipher,
+      this.logger,
+    );
+  }
+
+  /**
    * Encrypt a TOTP secret using AES-256-GCM
    * @param secret The base32 encoded secret to encrypt
-   * @returns Encrypted secret in format: iv:authTag:encryptedData (all hex encoded)
+   * @returns `v2:iv:authTag:data` with TOTP_ENCRYPTION_KEY, otherwise `iv:authTag:data` (hex)
    */
   encryptSecret(secret: string): string {
-    // Generate a random initialization vector
-    const iv = crypto.randomBytes(16);
-
-    // Create cipher
-    const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
-
-    // Encrypt the secret
-    let encrypted = cipher.update(secret, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-
-    // Get authentication tag
-    const authTag = cipher.getAuthTag();
-
-    // Return format: iv:authTag:encryptedData
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    return this.cipher.encrypt(secret);
   }
 
   /**
    * Decrypt a TOTP secret using AES-256-GCM
-   * @param encryptedSecret The encrypted secret in format: iv:authTag:encryptedData
+   * @param encryptedSecret A value produced by encryptSecret, in either format
    * @returns Decrypted base32 encoded secret
    */
   decryptSecret(encryptedSecret: string): string {
     try {
-      // Parse the encrypted secret
-      const parts = encryptedSecret.split(':');
-      if (parts.length !== 3) {
-        throw new Error('Invalid encrypted secret format');
-      }
-
-      const iv = Buffer.from(parts[0], 'hex');
-      const authTag = Buffer.from(parts[1], 'hex');
-      const encrypted = parts[2];
-
-      // Create decipher
-      const decipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        this.encryptionKey,
-        iv,
-      );
-      decipher.setAuthTag(authTag);
-
-      // Decrypt the secret
-      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
-
-      return decrypted;
+      return this.cipher.decrypt(encryptedSecret);
     } catch (error) {
       this.logger.error(
         'Error decrypting TOTP secret',
