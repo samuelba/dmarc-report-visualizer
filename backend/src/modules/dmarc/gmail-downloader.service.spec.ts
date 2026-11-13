@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { GmailDownloaderService } from './gmail-downloader.service';
 import { DmarcReportService } from './dmarc-report.service';
 import { gmail_v1 } from 'googleapis';
+import {
+  ReportLimits,
+  ReportTooLargeError,
+} from './config/report-limits.config';
 
 describe('GmailDownloaderService', () => {
   let service: GmailDownloaderService;
@@ -663,6 +667,149 @@ describe('GmailDownloaderService', () => {
     it('should handle destruction when no interval is set', () => {
       (service as any).intervalHandle = null;
       expect(() => service.onModuleDestroy()).not.toThrow();
+    });
+  });
+
+  describe('size limits', () => {
+    const attachmentData = Buffer.from('report').toString('base64url');
+    let gmailClient: {
+      users: {
+        messages: {
+          get: jest.Mock;
+          modify: jest.Mock;
+          attachments: { get: jest.Mock };
+        };
+      };
+    };
+    let handleFailure: jest.SpyInstance;
+
+    const overrideLimits = (overrides: Partial<ReportLimits>): void => {
+      (service as unknown as { limits: ReportLimits }).limits = {
+        ...(service as any).limits,
+        ...overrides,
+      };
+    };
+
+    const message = (sizeEstimate: number, attachmentSize: number) => ({
+      data: {
+        sizeEstimate,
+        payload: {
+          parts: [
+            {
+              filename: 'report.xml.gz',
+              body: { attachmentId: 'att1', size: attachmentSize },
+            },
+          ],
+        },
+      },
+    });
+
+    beforeEach(() => {
+      gmailClient = {
+        users: {
+          messages: {
+            get: jest.fn(),
+            modify: jest.fn().mockResolvedValue({}),
+            attachments: {
+              get: jest
+                .fn()
+                .mockResolvedValue({ data: { data: attachmentData } }),
+            },
+          },
+        },
+      };
+      (service as any).gmailClient = gmailClient;
+      handleFailure = jest
+        .spyOn(service as any, 'handleFailure')
+        .mockResolvedValue(undefined);
+    });
+
+    it('should skip an oversized message without downloading attachments', async () => {
+      overrideLimits({ maxMessageBytes: 1000 });
+      gmailClient.users.messages.get.mockResolvedValue(message(5000, 10));
+
+      const count = await (service as any).handleMessage('m1', '/tmp/dl');
+
+      expect(count).toBe(0);
+      expect(gmailClient.users.messages.attachments.get).not.toHaveBeenCalled();
+      expect(handleFailure).toHaveBeenCalledWith('m1', '', null, '', true);
+    });
+
+    it('should skip an oversized attachment before downloading it', async () => {
+      overrideLimits({ maxFileBytes: 100 });
+      gmailClient.users.messages.get.mockResolvedValue(message(10, 500));
+
+      await (service as any).handleMessage('m1', '/tmp/dl');
+
+      expect(gmailClient.users.messages.attachments.get).not.toHaveBeenCalled();
+      expect(mockDmarcReportService.unzipReport).not.toHaveBeenCalled();
+      expect(handleFailure).toHaveBeenCalledWith(
+        'm1',
+        'report.xml.gz',
+        null,
+        'att1',
+        true,
+      );
+    });
+
+    it('should fail permanently when the report decompresses too large', async () => {
+      gmailClient.users.messages.get.mockResolvedValue(message(10, 6));
+      mockDmarcReportService.unzipReport.mockRejectedValue(
+        new ReportTooLargeError('too big'),
+      );
+
+      await (service as any).handleMessage('m1', '/tmp/dl');
+
+      expect(handleFailure).toHaveBeenCalledWith(
+        'm1',
+        'report.xml.gz',
+        expect.any(Buffer),
+        'att1',
+        true,
+      );
+    });
+
+    it('should count ordinary failures towards the retry threshold', async () => {
+      gmailClient.users.messages.get.mockResolvedValue(message(10, 6));
+      mockDmarcReportService.unzipReport.mockRejectedValue(new Error('bad'));
+
+      await (service as any).handleMessage('m1', '/tmp/dl');
+
+      expect(handleFailure).toHaveBeenCalledWith(
+        'm1',
+        'report.xml.gz',
+        expect.any(Buffer),
+        'att1',
+        false,
+      );
+    });
+
+    it('should mark a permanent failure as processed on the first attempt', async () => {
+      handleFailure.mockRestore();
+      const markProcessed = jest
+        .spyOn(service as any, 'markMessageProcessed')
+        .mockResolvedValue(undefined);
+
+      await (service as any).handleFailure(
+        'm1',
+        'report.xml',
+        null,
+        'att1',
+        true,
+      );
+
+      expect(markProcessed).toHaveBeenCalledWith('m1');
+    });
+
+    it('should not mark an ordinary first failure as processed', async () => {
+      handleFailure.mockRestore();
+      const markProcessed = jest
+        .spyOn(service as any, 'markMessageProcessed')
+        .mockResolvedValue(undefined);
+
+      await (service as any).handleFailure('m1', 'report.xml', null, 'att1');
+
+      expect(markProcessed).not.toHaveBeenCalled();
     });
   });
 });

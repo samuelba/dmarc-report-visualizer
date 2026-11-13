@@ -1,6 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  createReportUploadOptions,
   DEFAULT_REPORT_LIMITS,
   getReportLimits,
   ReportTooLargeError,
@@ -56,5 +57,13 @@ describe('ReportTooLargeError', () => {
 
     expect(error.getStatus()).toBe(HttpStatus.PAYLOAD_TOO_LARGE);
     expect(error.message).toBe('too big');
+  });
+});
+
+describe('createReportUploadOptions', () => {
+  it('should cap uploads at one file of REPORT_MAX_FILE_BYTES', () => {
+    expect(
+      createReportUploadOptions(configWith({ REPORT_MAX_FILE_BYTES: '1234' })),
+    ).toEqual({ limits: { fileSize: 1234, files: 1 } });
   });
 });

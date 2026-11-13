@@ -1,5 +1,6 @@
 import { Logger, PayloadTooLargeException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { MulterModuleOptions } from '@nestjs/platform-express';
 
 const MIB = 1024 * 1024;
 
@@ -62,6 +63,14 @@ export function getReportLimits(config: ConfigService): ReportLimits {
     maxMessageBytes: read('maxMessageBytes'),
     maxFailureArchiveFiles: read('maxFailureArchiveFiles'),
   });
+}
+
+export function createReportUploadOptions(
+  config: ConfigService,
+): MulterModuleOptions {
+  return {
+    limits: { fileSize: getReportLimits(config).maxFileBytes, files: 1 },
+  };
 }
 
 export class ReportTooLargeError extends PayloadTooLargeException {

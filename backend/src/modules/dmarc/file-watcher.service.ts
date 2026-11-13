@@ -10,6 +10,7 @@ import chokidar, { FSWatcher } from 'chokidar';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { minifyXml } from './utils/xml-minifier.util';
+import { getReportLimits, ReportLimits } from './config/report-limits.config';
 
 @Injectable()
 export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
@@ -18,11 +19,14 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly processingPaths = new Set<string>();
   private readonly instanceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   private isVerbose = false;
+  private readonly limits: ReportLimits;
 
   constructor(
     private readonly config: ConfigService,
     private readonly dmarcReportService: DmarcReportService,
-  ) {}
+  ) {
+    this.limits = getReportLimits(config);
+  }
 
   async onModuleInit(): Promise<void> {
     const enabled =
@@ -151,6 +155,16 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
     return path.extname(lower).replace('.', '');
   }
 
+  private async deleteFile(filePath: string): Promise<void> {
+    await fs
+      .unlink(filePath)
+      .catch((err) =>
+        this.logger.warn(
+          `[${this.instanceId}] Failed to delete ${filePath}: ${String(err)}`,
+        ),
+      );
+  }
+
   private async handleFileAdd(filePath: string): Promise<void> {
     if (this.processingPaths.has(filePath)) {
       if (this.isVerbose) {
@@ -172,6 +186,15 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
       const stat = await fs.stat(filePath).catch(() => null);
       if (stat) {
         this.logger.log(`[${this.instanceId}] File size: ${stat.size} bytes`);
+      }
+      if (stat && stat.size > this.limits.maxFileBytes) {
+        this.logger.warn(
+          `[${this.instanceId}] Skipping ${filePath}: ${stat.size} bytes exceeds ${this.limits.maxFileBytes}`,
+        );
+        if (deleteProcessed) {
+          await this.deleteFile(filePath);
+        }
+        return;
       }
       const buffer = await fs.readFile(filePath);
       const fileType = this.getFileTypeFromPath(filePath);
@@ -214,13 +237,7 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
       }
 
       if (deleteProcessed) {
-        await fs
-          .unlink(filePath)
-          .catch((err) =>
-            this.logger.warn(
-              `[${this.instanceId}] Failed to delete ${filePath}: ${String(err)}`,
-            ),
-          );
+        await this.deleteFile(filePath);
       }
     } catch (err) {
       this.logger.error(

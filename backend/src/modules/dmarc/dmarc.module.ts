@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
+import { MulterModule } from '@nestjs/platform-express';
+import { createReportUploadOptions } from './config/report-limits.config';
 import { DmarcReportController } from './dmarc-report.controller';
 import { ThirdPartySenderController } from './controllers/third-party-sender.controller';
 import { ReprocessingController } from './controllers/reprocessing.controller';
@@ -48,6 +51,10 @@ import { AuthModule } from '../auth/auth.module';
       EmailMessageTracking,
     ]),
     AuthModule,
+    MulterModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: createReportUploadOptions,
+    }),
   ],
   controllers: [
     DmarcReportController,

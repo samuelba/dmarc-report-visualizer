@@ -170,6 +170,7 @@ Each tracking record stores:
 2. After `IMAP_FAILURE_THRESHOLD` consecutive failures (default: 3), the message is marked as permanently failed
 3. If `IMAP_FAILED_FOLDER` is configured, permanently failed messages are moved there
 4. Failed attachments (in inline mode) are saved to `reports/processed/failure/` for manual inspection, named `<mailbox>_<UIDVALIDITY>_<UID>-<filename>` (e.g. `INBOX_1794166203_5-report.xml.gz`). Retries overwrite the same file, so there is one copy per attachment rather than one per attempt
+5. Messages or attachments over the [report size limits](REPORT_LIMITS.md) are marked as permanently failed on the first attempt, without downloading the message body when its size is already too large
 
 ### Connection Recovery
 
@@ -331,6 +332,7 @@ The test drops and recreates its own database (`dmarc_imap_e2e`, so all migratio
 - tracking rows (`success` / `skipped` / `failed`) are keyed by mailbox, UIDVALIDITY and UID
 - the broken report is retried up to the threshold, moved to the failed folder, and leaves exactly one failure file
 - later polls import nothing twice, and still pick up a report that arrives afterwards
+- mail over the [report size limits](REPORT_LIMITS.md) (a gzip bomb, a ZIP bomb, an oversized attachment and an oversized message) fails permanently on the first attempt and is moved to the failed folder; the oversized message is rejected by its size before its body is downloaded. `imap-test.env` lowers `REPORT_MAX_FILE_BYTES` and `REPORT_MAX_MESSAGE_BYTES` so these fixtures stay small
 
 The application is loaded from `dist/` because the TypeORM config loads entities and migrations from there; `test:e2e:imap` builds first.
 
