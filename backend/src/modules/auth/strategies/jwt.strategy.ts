@@ -6,7 +6,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Request } from 'express';
 import { User } from '../entities/user.entity';
-import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { JwtPayload, TOKEN_TYPE } from '../interfaces/jwt-payload.interface';
+import {
+  deriveTokenKey,
+  JWT_ALGORITHM,
+  requireJwtSecret,
+} from '../utils/jwt-keys';
 
 /**
  * JWT Strategy for Passport authentication
@@ -19,10 +24,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {
-    const secret = configService.get<string>('JWT_SECRET');
-    if (!secret) {
-      throw new Error('JWT_SECRET is not configured');
-    }
+    const accessKey = deriveTokenKey(
+      requireJwtSecret(configService.get<string>('JWT_SECRET')),
+      TOKEN_TYPE.ACCESS,
+    );
 
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
@@ -32,7 +37,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
       ]),
       ignoreExpiration: false,
-      secretOrKey: secret,
+      secretOrKey: accessKey,
+      algorithms: [JWT_ALGORITHM],
     });
   }
 
@@ -47,6 +53,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     organizationId?: string;
     authProvider: string;
   }> {
+    // Only access tokens may authenticate requests (second check besides the per-type signing key)
+    if (payload?.type !== TOKEN_TYPE.ACCESS) {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
     // Verify user still exists in database
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },

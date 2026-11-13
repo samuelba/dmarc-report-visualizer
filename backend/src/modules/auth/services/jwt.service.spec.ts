@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
+import { Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from './jwt.service';
+import { deriveTokenKey, JWT_SECRET_SAMPLE_VALUE } from '../utils/jwt-keys';
 
 describe('JwtService', () => {
   let service: JwtService;
@@ -27,7 +28,7 @@ describe('JwtService', () => {
               const config = {
                 JWT_ACCESS_EXPIRATION: '15m',
                 JWT_REFRESH_EXPIRATION: '7d',
-                JWT_SECRET: 'test-secret',
+                JWT_SECRET: 'test-secret-at-least-32-characters-long',
               };
               return config[key] || defaultValue;
             }),
@@ -72,8 +73,9 @@ describe('JwtService', () => {
           role,
           authProvider,
           organizationId,
+          type: 'access',
         },
-        { expiresIn: '15m' },
+        expect.objectContaining({ expiresIn: '15m', algorithm: 'HS256' }),
       );
     });
 
@@ -101,8 +103,9 @@ describe('JwtService', () => {
           role,
           authProvider,
           organizationId: undefined,
+          type: 'access',
         },
-        { expiresIn: '15m' },
+        expect.objectContaining({ expiresIn: '15m', algorithm: 'HS256' }),
       );
     });
 
@@ -139,8 +142,9 @@ describe('JwtService', () => {
         {
           sub: userId,
           tokenId,
+          type: 'refresh',
         },
-        { expiresIn: '7d' },
+        expect.objectContaining({ expiresIn: '7d', algorithm: 'HS256' }),
       );
     });
 
@@ -166,6 +170,7 @@ describe('JwtService', () => {
       const expectedPayload = {
         sub: 'user-123',
         tokenId: 'token-456',
+        type: 'refresh',
         iat: 1234567890,
         exp: 1235172690,
       };
@@ -175,7 +180,10 @@ describe('JwtService', () => {
       const payload = service.verifyRefreshToken(token);
 
       expect(payload).toEqual(expectedPayload);
-      expect(nestJwtService.verify).toHaveBeenCalledWith(token);
+      expect(nestJwtService.verify).toHaveBeenCalledWith(
+        token,
+        expect.objectContaining({ algorithms: ['HS256'] }),
+      );
     });
 
     it('should throw UnauthorizedException for invalid refresh token', () => {
@@ -204,6 +212,19 @@ describe('JwtService', () => {
         UnauthorizedException,
       );
     });
+
+    it.each([['access'], ['totp_temp'], [undefined]])(
+      'should reject a token of type %s',
+      (type) => {
+        jest
+          .spyOn(nestJwtService, 'verify')
+          .mockReturnValue({ sub: 'user-123', tokenId: 'token-456', type });
+
+        expect(() => service.verifyRefreshToken('token')).toThrow(
+          UnauthorizedException,
+        );
+      },
+    );
   });
 
   describe('verifyAccessTokenIgnoreExpiration', () => {
@@ -214,6 +235,7 @@ describe('JwtService', () => {
         email: 'test@example.com',
         authProvider: 'local',
         organizationId: 'org-456',
+        type: 'access',
         iat: 1234567890,
         exp: 1234568790, // Expired
       };
@@ -223,9 +245,13 @@ describe('JwtService', () => {
       const payload = service.verifyAccessTokenIgnoreExpiration(token);
 
       expect(payload).toEqual(expectedPayload);
-      expect(nestJwtService.verify).toHaveBeenCalledWith(token, {
-        ignoreExpiration: true,
-      });
+      expect(nestJwtService.verify).toHaveBeenCalledWith(
+        token,
+        expect.objectContaining({
+          ignoreExpiration: true,
+          algorithms: ['HS256'],
+        }),
+      );
     });
 
     it('should throw UnauthorizedException for invalid access token signature', () => {
@@ -253,6 +279,200 @@ describe('JwtService', () => {
       expect(() => service.verifyAccessTokenIgnoreExpiration(token)).toThrow(
         UnauthorizedException,
       );
+    });
+
+    it.each([['refresh'], ['totp_temp'], [undefined]])(
+      'should reject a token of type %s',
+      (type) => {
+        jest
+          .spyOn(nestJwtService, 'verify')
+          .mockReturnValue({ sub: 'user-123', type });
+
+        expect(() =>
+          service.verifyAccessTokenIgnoreExpiration('token'),
+        ).toThrow(UnauthorizedException);
+      },
+    );
+  });
+
+  describe('token type separation with real signing', () => {
+    let realService: JwtService;
+
+    beforeEach(() => {
+      realService = new JwtService(new NestJwtService(), configService);
+    });
+
+    it('should not accept a TOTP temp token as a refresh token', () => {
+      const tempToken = realService.generateTempToken('user-123', 'a@b.c');
+
+      expect(() => realService.verifyRefreshToken(tempToken)).toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should not accept an access token as a refresh token', () => {
+      const accessToken = realService.generateAccessToken(
+        'user-123',
+        'a@b.c',
+        'user',
+        'local',
+      );
+
+      expect(() => realService.verifyRefreshToken(accessToken)).toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should not accept a refresh or temp token where an access token is expected', () => {
+      const refreshToken = realService.generateRefreshToken('user-123', 'rt');
+      const tempToken = realService.generateTempToken('user-123', 'a@b.c');
+
+      expect(() =>
+        realService.verifyAccessTokenIgnoreExpiration(refreshToken),
+      ).toThrow(UnauthorizedException);
+      expect(() =>
+        realService.verifyAccessTokenIgnoreExpiration(tempToken),
+      ).toThrow(UnauthorizedException);
+    });
+
+    it('should not accept an access or refresh token as a TOTP temp token', () => {
+      const accessToken = realService.generateAccessToken(
+        'user-123',
+        'a@b.c',
+        'user',
+        'local',
+      );
+      const refreshToken = realService.generateRefreshToken('user-123', 'rt');
+
+      expect(() => realService.verifyTempToken(accessToken)).toThrow(
+        UnauthorizedException,
+      );
+      expect(() => realService.verifyTempToken(refreshToken)).toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('should accept each token type where that type is expected', () => {
+      const accessToken = realService.generateAccessToken(
+        'user-123',
+        'a@b.c',
+        'user',
+        'local',
+      );
+      const refreshToken = realService.generateRefreshToken('user-123', 'rt');
+      const tempToken = realService.generateTempToken('user-123', 'a@b.c');
+
+      expect(
+        realService.verifyAccessTokenIgnoreExpiration(accessToken),
+      ).toMatchObject({ sub: 'user-123', type: 'access' });
+      expect(realService.verifyRefreshToken(refreshToken)).toMatchObject({
+        sub: 'user-123',
+        tokenId: 'rt',
+        type: 'refresh',
+      });
+      expect(realService.verifyTempToken(tempToken)).toEqual({
+        sub: 'user-123',
+        email: 'a@b.c',
+      });
+    });
+
+    it('should reject a token with the right type claim but signed with another type key', () => {
+      const forged = new NestJwtService().sign(
+        { sub: 'user-123', tokenId: 'rt', type: 'refresh' },
+        {
+          secret: deriveTokenKey(
+            'test-secret-at-least-32-characters-long',
+            'access',
+          ),
+        },
+      );
+
+      expect(() => realService.verifyRefreshToken(forged)).toThrow(
+        'Invalid or expired refresh token',
+      );
+    });
+
+    it('should reject tokens signed directly with JWT_SECRET, as issued before per-type keys', () => {
+      const legacySigner = new NestJwtService({
+        secret: 'test-secret-at-least-32-characters-long',
+      });
+      const legacyAccess = legacySigner.sign({
+        sub: 'user-123',
+        type: 'access',
+      });
+      const legacyRefresh = legacySigner.sign({
+        sub: 'user-123',
+        tokenId: 'rt',
+        type: 'refresh',
+      });
+
+      expect(() =>
+        realService.verifyAccessTokenIgnoreExpiration(legacyAccess),
+      ).toThrow('Invalid access token');
+      expect(() => realService.verifyRefreshToken(legacyRefresh)).toThrow(
+        'Invalid or expired refresh token',
+      );
+    });
+
+    it('should reject a token signed with the right key but a different algorithm', () => {
+      const hs512 = new NestJwtService().sign(
+        { sub: 'user-123', type: 'access' },
+        {
+          secret: deriveTokenKey(
+            'test-secret-at-least-32-characters-long',
+            'access',
+          ),
+          algorithm: 'HS512',
+        },
+      );
+
+      expect(() =>
+        realService.verifyAccessTokenIgnoreExpiration(hs512),
+      ).toThrow('Invalid access token');
+    });
+  });
+
+  describe('JWT_SECRET handling at startup', () => {
+    const configWith = (secret: string | undefined) =>
+      ({
+        get: jest.fn((key: string, defaultValue?: string) =>
+          key === 'JWT_SECRET' ? secret : defaultValue,
+        ),
+      }) as unknown as ConfigService;
+
+    let errorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      errorSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      errorSpy.mockRestore();
+    });
+
+    it('should refuse to start without JWT_SECRET', () => {
+      expect(
+        () => new JwtService(new NestJwtService(), configWith(undefined)),
+      ).toThrow('JWT_SECRET is not configured');
+    });
+
+    it.each([
+      ['the .env.sample value', JWT_SECRET_SAMPLE_VALUE],
+      ['a short secret', 'too-short'],
+    ])('should log an error when JWT_SECRET is %s', (_label, secret) => {
+      new JwtService(new NestJwtService(), configWith(secret));
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('JWT_SECRET'),
+      );
+    });
+
+    it('should not log an error for a strong JWT_SECRET', () => {
+      new JwtService(new NestJwtService(), configWith('x'.repeat(48)));
+
+      expect(errorSpy).not.toHaveBeenCalled();
     });
   });
 

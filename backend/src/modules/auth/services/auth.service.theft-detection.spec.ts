@@ -182,6 +182,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -285,6 +286,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -351,6 +353,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -413,6 +416,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -464,6 +468,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -517,6 +522,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -552,6 +558,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -579,6 +586,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -649,6 +657,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -730,6 +739,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -798,6 +808,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -847,6 +858,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -897,6 +909,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -950,6 +963,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -1013,6 +1027,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -1065,6 +1080,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -1127,6 +1143,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -1178,6 +1195,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };
@@ -1232,6 +1250,7 @@ describe('AuthService - Theft Detection', () => {
       const tokenPayload = {
         sub: mockUser.id,
         tokenId: 'token-uuid-123',
+        type: 'refresh' as const,
         iat: Date.now(),
         exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
       };

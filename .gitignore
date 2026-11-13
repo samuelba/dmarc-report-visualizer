@@ -20,7 +20,6 @@ node_modules
 
 # Working docs
 /*IP_LOOKUP*.md
-/AUTHENTICATION*.md
 /backend/*IP_LOOKUP*.md
 /COMPOSITE_UNIQUE_CONSTRAINT.md
 /DATABASE_NORMALIZATION.md
@@ -55,3 +54,4 @@ client_*.json
 # Backups
 *.sql
 *.sql.gz
+/SECURITY_AUDIT_dmarc_2026-11-11.md

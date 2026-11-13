@@ -1,14 +1,69 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService as NestJwtService, JwtSignOptions } from '@nestjs/jwt';
-import { RefreshTokenPayload } from '../interfaces/jwt-payload.interface';
+import {
+  JwtService as NestJwtService,
+  JwtSignOptions,
+  JwtVerifyOptions,
+} from '@nestjs/jwt';
+import {
+  JwtPayload,
+  RefreshTokenPayload,
+  TempTokenPayload,
+  TOKEN_TYPE,
+  TokenType,
+} from '../interfaces/jwt-payload.interface';
+import {
+  deriveTokenKey,
+  findJwtSecretWeakness,
+  JWT_ALGORITHM,
+  requireJwtSecret,
+} from '../utils/jwt-keys';
 
 @Injectable()
 export class JwtService {
+  private readonly logger = new Logger(JwtService.name);
+  private readonly keys: Readonly<Record<TokenType, Buffer>>;
+
   constructor(
     private readonly nestJwtService: NestJwtService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    const secret = requireJwtSecret(
+      this.configService.get<string>('JWT_SECRET'),
+    );
+
+    const weakness = findJwtSecretWeakness(secret);
+    if (weakness) {
+      this.logger.error(
+        `${weakness} Generate a new one with "openssl rand -base64 48". Read docs/SECRETS.md before changing it on an existing installation.`,
+      );
+    }
+
+    this.keys = Object.freeze({
+      [TOKEN_TYPE.ACCESS]: deriveTokenKey(secret, TOKEN_TYPE.ACCESS),
+      [TOKEN_TYPE.REFRESH]: deriveTokenKey(secret, TOKEN_TYPE.REFRESH),
+      [TOKEN_TYPE.TOTP_TEMP]: deriveTokenKey(secret, TOKEN_TYPE.TOTP_TEMP),
+    });
+  }
+
+  private signOptions(type: TokenType, expiresIn: string): JwtSignOptions {
+    return {
+      secret: this.keys[type],
+      algorithm: JWT_ALGORITHM,
+      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
+    };
+  }
+
+  private verifyOptions(
+    type: TokenType,
+    overrides: Partial<JwtVerifyOptions> = {},
+  ): JwtVerifyOptions {
+    return {
+      secret: this.keys[type],
+      algorithms: [JWT_ALGORITHM],
+      ...overrides,
+    };
+  }
 
   /**
    * Generate an access token with 15-minute expiration
@@ -32,6 +87,7 @@ export class JwtService {
       role,
       authProvider,
       organizationId,
+      type: TOKEN_TYPE.ACCESS,
     };
 
     const expiresIn = this.configService.get<string>(
@@ -39,9 +95,10 @@ export class JwtService {
       '15m',
     );
 
-    return this.nestJwtService.sign(payload, {
-      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
-    });
+    return this.nestJwtService.sign(
+      payload,
+      this.signOptions(TOKEN_TYPE.ACCESS, expiresIn),
+    );
   }
 
   /**
@@ -54,6 +111,7 @@ export class JwtService {
     const payload = {
       sub: userId,
       tokenId,
+      type: TOKEN_TYPE.REFRESH,
     };
 
     const expiresIn = this.configService.get<string>(
@@ -61,9 +119,10 @@ export class JwtService {
       '7d',
     );
 
-    return this.nestJwtService.sign(payload, {
-      expiresIn: expiresIn as JwtSignOptions['expiresIn'],
-    });
+    return this.nestJwtService.sign(
+      payload,
+      this.signOptions(TOKEN_TYPE.REFRESH, expiresIn),
+    );
   }
 
   /**
@@ -73,11 +132,17 @@ export class JwtService {
    * @throws UnauthorizedException if token is invalid or expired
    */
   verifyRefreshToken(token: string): RefreshTokenPayload {
+    let payload: RefreshTokenPayload;
     try {
-      return this.nestJwtService.verify<RefreshTokenPayload>(token);
+      payload = this.nestJwtService.verify<RefreshTokenPayload>(
+        token,
+        this.verifyOptions(TOKEN_TYPE.REFRESH),
+      );
     } catch (_error) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+    this.assertTokenType(payload, TOKEN_TYPE.REFRESH);
+    return payload;
   }
 
   /**
@@ -87,13 +152,28 @@ export class JwtService {
    * @returns Decoded access token payload
    * @throws UnauthorizedException if token is invalid (signature, structure, etc.)
    */
-  verifyAccessTokenIgnoreExpiration(token: string): any {
+  verifyAccessTokenIgnoreExpiration(token: string): JwtPayload {
+    let payload: JwtPayload;
     try {
-      return this.nestJwtService.verify(token, {
-        ignoreExpiration: true, // Allow expired tokens
-      });
+      payload = this.nestJwtService.verify<JwtPayload>(
+        token,
+        this.verifyOptions(TOKEN_TYPE.ACCESS, { ignoreExpiration: true }),
+      );
     } catch (_error) {
       throw new UnauthorizedException('Invalid access token');
+    }
+    this.assertTokenType(payload, TOKEN_TYPE.ACCESS);
+    return payload;
+  }
+
+  /**
+   * Ensure a verified token is of the expected type. Each type already has its
+   * own signing key; this is a second, independent check on the claim.
+   * @throws UnauthorizedException if the type claim does not match
+   */
+  assertTokenType(payload: { type?: unknown }, expected: TokenType): void {
+    if (payload?.type !== expected) {
+      throw new UnauthorizedException('Invalid token type');
     }
   }
 
@@ -159,12 +239,13 @@ export class JwtService {
     const payload = {
       sub: userId,
       email,
-      type: 'totp_temp',
+      type: TOKEN_TYPE.TOTP_TEMP,
     };
 
-    return this.nestJwtService.sign(payload, {
-      expiresIn: '5m',
-    });
+    return this.nestJwtService.sign(
+      payload,
+      this.signOptions(TOKEN_TYPE.TOTP_TEMP, '5m'),
+    );
   }
 
   /**
@@ -175,16 +256,12 @@ export class JwtService {
    */
   verifyTempToken(token: string): { sub: string; email: string } {
     try {
-      const payload = this.nestJwtService.verify<{
-        sub: string;
-        email: string;
-        type: string;
-      }>(token);
+      const payload = this.nestJwtService.verify<TempTokenPayload>(
+        token,
+        this.verifyOptions(TOKEN_TYPE.TOTP_TEMP),
+      );
 
-      // Verify it's a temp token
-      if (payload.type !== 'totp_temp') {
-        throw new UnauthorizedException('Invalid token type');
-      }
+      this.assertTokenType(payload, TOKEN_TYPE.TOTP_TEMP);
 
       return {
         sub: payload.sub,

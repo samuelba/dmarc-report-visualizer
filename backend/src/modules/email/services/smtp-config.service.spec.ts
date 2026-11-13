@@ -64,9 +64,10 @@ describe('SmtpConfigService', () => {
           // Verify: Encrypted value is different from original
           expect(encrypted).not.toBe(password);
 
-          // Verify: Encrypted value has expected format (iv:authTag:encryptedData)
+          // Verify: Encrypted value has expected format (v2:iv:authTag:encryptedData)
           const parts = encrypted.split(':');
-          expect(parts).toHaveLength(3);
+          expect(parts).toHaveLength(4);
+          expect(parts[0]).toBe('v2');
 
           // Execute: Decrypt the password
           const decrypted = service.decryptPassword(encrypted);

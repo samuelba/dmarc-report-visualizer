@@ -16,7 +16,13 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 
 ## Quick Start
 
-1) Copy the `.env.example` file to `.env` and adjust as needed
+1) Copy the `.env.sample` file to `.env` and adjust as needed. Set `JWT_SECRET` to a new random value before the first start:
+
+    ```bash
+    openssl rand -base64 48
+    ```
+
+    Also set `TOTP_ENCRYPTION_KEY` (generated the same way) so 2FA does not depend on `JWT_SECRET`. Without it, changing `JWT_SECRET` later breaks existing 2FA enrolments. See [SECRETS.md](docs/SECRETS.md).
 
 2) Download the docker images
 
@@ -46,7 +52,7 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 - Gmail integration to download reports from email attachments
 - IMAP integration to download reports from email attachments - See [IMAP_DOWNLOADER.md](docs/IMAP_DOWNLOADER.md) for details
 - Automatic database backups before migrations - See [BACKUP_SYSTEM.md](docs/BACKUP_SYSTEM.md) for details
-- Authentication (username/password with optional 2FA or SAML/SSO)
+- Authentication (username/password with optional 2FA or SAML/SSO) - See [AUTHENTICATION_DEPLOYMENT.md](docs/AUTHENTICATION_DEPLOYMENT.md) for production setup and [SECRETS.md](docs/SECRETS.md) for the secrets it needs
 - User management
 - SMTP email service for sending user invitations and notifications - See [EMAIL_SMTP.md](docs/EMAIL_SMTP.md) for details
 

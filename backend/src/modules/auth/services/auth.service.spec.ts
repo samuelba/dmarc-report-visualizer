@@ -356,13 +356,16 @@ describe('AuthService', () => {
     const tokenPayload = {
       sub: mockUser.id,
       tokenId: 'token-uuid-123',
+      type: 'refresh' as const,
       iat: Date.now(),
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
     };
     const accessTokenPayload = {
       sub: mockUser.id,
       email: mockUser.email,
+      role: mockUser.role,
       authProvider: 'local',
+      type: 'access' as const,
       iat: Date.now(),
       exp: Date.now() - 1000, // Expired
     };
@@ -428,7 +431,9 @@ describe('AuthService', () => {
       const mismatchedAccessPayload = {
         sub: 'different-user-id',
         email: 'other@example.com',
+        role: 'user',
         authProvider: 'local',
+        type: 'access' as const,
         iat: Date.now(),
         exp: Date.now() - 1000,
       };
@@ -540,6 +545,7 @@ describe('AuthService', () => {
     const tokenPayload = {
       sub: mockUser.id,
       tokenId: 'token-uuid-123',
+      type: 'refresh' as const,
       iat: Date.now(),
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
     };

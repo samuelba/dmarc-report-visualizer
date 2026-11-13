@@ -1,18 +1,27 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 import { SmtpConfig } from '../entities/smtp-config.entity';
 import { SmtpConfigDto } from '../dto/smtp-config.dto';
+import { VersionedCipher } from '../../../common/crypto/versioned-cipher';
+import {
+  createSmtpCipher,
+  findSmtpKeyWeakness,
+  prepareStoredSmtpPassword,
+  SMTP_PASSWORD_UNREADABLE_HINT,
+} from '../utils/smtp-encryption';
 
 @Injectable()
-export class SmtpConfigService {
+export class SmtpConfigService implements OnModuleInit {
+  private readonly logger = new Logger(SmtpConfigService.name);
   private readonly SINGLETON_ID = 1;
-  private readonly ALGORITHM = 'aes-256-gcm';
-  private readonly IV_LENGTH = 16;
-  private readonly AUTH_TAG_LENGTH = 16;
-  private readonly encryptionKey: Buffer;
+  private readonly cipher: VersionedCipher;
 
   constructor(
     @InjectRepository(SmtpConfig)
@@ -24,48 +33,50 @@ export class SmtpConfigService {
       throw new Error('SMTP_ENCRYPTION_KEY environment variable is required');
     }
 
-    // Ensure key is 32 bytes for AES-256
-    this.encryptionKey = Buffer.from(key.padEnd(32, '0').slice(0, 32));
+    const weakness = findSmtpKeyWeakness(key);
+    if (weakness) {
+      this.logger.warn(
+        `${weakness} Generate one with "openssl rand -base64 48"; after changing it, re-enter the SMTP password in the SMTP settings.`,
+      );
+    }
+
+    this.cipher = createSmtpCipher(key);
+  }
+
+  /**
+   * Re-encrypt a stored SMTP password still in the legacy format at startup.
+   */
+  async onModuleInit(): Promise<void> {
+    await prepareStoredSmtpPassword(
+      this.smtpConfigRepository,
+      this.cipher,
+      this.logger,
+    );
   }
 
   /**
    * Encrypt a password using AES-256-GCM
-   * Format: iv:authTag:encryptedData (all hex encoded)
+   * Format: v2:iv:authTag:encryptedData (all hex encoded)
    */
   encryptPassword(password: string): string {
-    const iv = randomBytes(this.IV_LENGTH);
-    const cipher = createCipheriv(this.ALGORITHM, this.encryptionKey, iv);
-
-    let encrypted = cipher.update(password, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-
-    const authTag = cipher.getAuthTag();
-
-    // Combine iv, authTag, and encrypted data
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    return this.cipher.encrypt(password);
   }
 
   /**
-   * Decrypt a password using AES-256-GCM
-   * Expects format: iv:authTag:encryptedData (all hex encoded)
+   * Decrypt a password produced by encryptPassword, in either the current or
+   * the legacy format
+   * @throws Error with a hint to re-enter the password if it cannot be decrypted
    */
   decryptPassword(encryptedPassword: string): string {
-    const parts = encryptedPassword.split(':');
-    if (parts.length !== 3) {
-      throw new Error('Invalid encrypted password format');
+    try {
+      return this.cipher.decrypt(encryptedPassword);
+    } catch (error) {
+      this.logger.error(
+        SMTP_PASSWORD_UNREADABLE_HINT,
+        error instanceof Error ? error.stack : error,
+      );
+      throw new Error(SMTP_PASSWORD_UNREADABLE_HINT);
     }
-
-    const [ivHex, authTagHex, encryptedHex] = parts;
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
-
-    const decipher = createDecipheriv(this.ALGORITHM, this.encryptionKey, iv);
-    decipher.setAuthTag(authTag);
-
-    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-
-    return decrypted;
   }
 
   /**

@@ -6,10 +6,14 @@ The SMTP Email Service enables the application to send emails such as user invit
 
 1. **Add to Environment Variables**
 
-   Add the encryption key to your `.env` file:
+   Generate an encryption key and add it to your `.env` file:
    ```bash
-   SMTP_ENCRYPTION_KEY=your-generated-key-here
+   openssl rand -base64 48
    ```
+   ```bash
+   SMTP_ENCRYPTION_KEY=<generated-key>
+   ```
+   If it is not set, `docker-compose.yml` falls back to a publicly known example value and the backend logs a warning at startup. After changing the key, re-enter the SMTP password in the SMTP settings: the stored one can no longer be decrypted.
 
 2. **Configure SMTP Settings**
 
@@ -91,8 +95,8 @@ Use the "Send Test Email" feature in the SMTP settings to verify your configurat
 The following environment variable is required for SMTP functionality:
 
 ```bash
-# Required: Encryption key for storing SMTP credentials
-SMTP_ENCRYPTION_KEY=your-encryption-key-here
+# Required: Encryption key for storing SMTP credentials (openssl rand -base64 48)
+SMTP_ENCRYPTION_KEY=<generated-key>
 ```
 
 ## Email Queue and Retry Logic

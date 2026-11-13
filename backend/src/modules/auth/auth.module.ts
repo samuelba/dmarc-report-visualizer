@@ -1,8 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule as NestJwtModule, JwtModuleOptions } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule as NestJwtModule } from '@nestjs/jwt';
+import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PassportModule } from '@nestjs/passport';
 import { User } from './entities/user.entity';
@@ -44,26 +44,9 @@ import { EmailModule } from '../email/email.module';
       InviteToken,
     ]),
     forwardRef(() => EmailModule), // Use forwardRef to handle circular dependency
-    NestJwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService): JwtModuleOptions => {
-        const secret = configService.get<string>('JWT_SECRET');
-        if (!secret) {
-          throw new Error('JWT_SECRET is not configured');
-        }
-        const expiresIn = configService.get<string>(
-          'JWT_ACCESS_EXPIRATION',
-          '15m',
-        );
-        return {
-          secret,
-          signOptions: {
-            expiresIn,
-          },
-        } as JwtModuleOptions;
-      },
-      inject: [ConfigService],
-    }),
+    // No default secret: JwtService signs and verifies every token type with
+    // its own derived key, so a call without an explicit key fails closed.
+    NestJwtModule.register({}),
   ],
   controllers: [AuthController],
   providers: [
