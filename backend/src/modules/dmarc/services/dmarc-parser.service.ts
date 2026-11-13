@@ -1,8 +1,10 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { XMLParser, X2jOptions } from 'fast-xml-parser';
 import * as zlib from 'zlib';
+import { promisify } from 'util';
 const AdmZip = require('adm-zip');
 import * as unzipper from 'unzipper';
+import { ConfigService } from '@nestjs/config';
 import { DmarcReport } from '../entities/dmarc-report.entity';
 import { DmarcRecord } from '../entities/dmarc-record.entity';
 import { DkimResult } from '../entities/dkim-result.entity';
@@ -11,17 +13,55 @@ import { PolicyOverrideReason } from '../entities/policy-override-reason.entity'
 import { GeolocationService } from './geolocation.service';
 import { ForwardingDetectionService } from './forwarding-detection.service';
 import { IpLookupQueueService } from './ip-lookup-queue.service';
+import {
+  getReportLimits,
+  ReportLimits,
+  ReportTooLargeError,
+} from '../config/report-limits.config';
+
+const gunzipAsync = promisify(zlib.gunzip);
+const inflateAsync = promisify(zlib.inflate);
+const inflateRawAsync = promisify(zlib.inflateRaw);
+
+interface AdmZipEntry {
+  entryName: string;
+  isDirectory: boolean;
+  header: { encrypted: boolean; size: number; method: number };
+  getCompressedData(): Buffer;
+}
+
+interface UnzipperFile {
+  path: string;
+  type?: string;
+  uncompressedSize?: number;
+  stream(): NodeJS.ReadableStream;
+}
+
+const ZIP_METHOD_STORED = 0;
+const ZIP_METHOD_DEFLATED = 8;
+const ZLIB_TOO_LARGE = 'ERR_BUFFER_TOO_LARGE';
+const ZIP_FORMAT_ERROR_MARKERS = [
+  'Invalid or unsupported zip format',
+  'Invalid CEN header',
+  'Invalid LOC header',
+  'bad signature',
+  'Invalid zip file',
+];
 
 @Injectable()
 export class DmarcParserService {
   private readonly logger = new Logger(DmarcParserService.name);
   private useAsyncIpLookup = true; // Toggle between sync and async IP lookup
+  private readonly limits: ReportLimits;
 
   constructor(
     private geolocationService: GeolocationService,
     private forwardingDetectionService: ForwardingDetectionService,
     private ipLookupQueueService: IpLookupQueueService,
-  ) {}
+    configService: ConfigService,
+  ) {
+    this.limits = getReportLimits(configService);
+  }
 
   /**
    * Enable or disable async IP lookup (default: true)
@@ -311,7 +351,9 @@ export class DmarcParserService {
   }
 
   /**
-   * Unzip and extract DMARC report from various compressed formats
+   * Unzip and extract DMARC report from various compressed formats.
+   * Every path is bounded by the configured report limits, so a small
+   * compressed input cannot expand into an arbitrarily large buffer.
    * @param fileBuffer The file buffer to process
    * @param fileType The file type/extension (e.g., 'zip', 'gz', 'xml')
    * @returns The extracted XML content as a string
@@ -320,15 +362,19 @@ export class DmarcParserService {
     if (!fileBuffer || !Buffer.isBuffer(fileBuffer)) {
       throw new BadRequestException('Invalid file buffer');
     }
+    if (fileBuffer.length > this.limits.maxFileBytes) {
+      throw new ReportTooLargeError(
+        `Report file exceeds ${this.limits.maxFileBytes} bytes`,
+      );
+    }
 
     const type = (fileType || '').toLowerCase();
     this.logger.debug(
       `Processing file: type=${type}, size=${fileBuffer.length} bytes`,
     );
 
-    // Direct text/XML
     if (type === 'xml' || type === 'txt') {
-      return fileBuffer.toString('utf8');
+      return this.toXmlString(fileBuffer);
     }
 
     // Signature-based sniffing to fix mislabeled attachments
@@ -343,208 +389,232 @@ export class DmarcParserService {
       type === 'zip' ||
       ((!type || type === 'gz' || type === 'gzip') && looksLikeZip);
 
-    if (typeIsGzip) {
-      try {
-        return this.decompressGzipToString(fileBuffer);
-      } catch (_e) {
-        throw new BadRequestException('Failed to decompress gzip file');
-      }
+    if (typeIsGzip || (!typeIsZip && looksLikeGzip)) {
+      return this.toXmlString(await this.decompressGzipOrFail(fileBuffer));
     }
 
     if (typeIsZip) {
-      this.logger.debug('Processing as ZIP file');
-      // Try AdmZip first
-      try {
-        this.logger.debug('Attempting AdmZip extraction');
-        const zip = new AdmZip(fileBuffer);
-        const entries = zip.getEntries().filter((e) => !e.isDirectory);
-        this.logger.debug(`AdmZip found ${entries.length} entries`);
-        if (entries.length === 0) {
-          throw new BadRequestException('ZIP archive is empty');
-        }
-        // Prefer .xml files
-        const xmlEntry = entries.find((e) =>
-          e.entryName.toLowerCase().endsWith('.xml'),
-        );
-        if (xmlEntry) {
-          this.logger.debug(`Found XML entry: ${xmlEntry.entryName}`);
-          const data: Buffer = xmlEntry.getData() as Buffer;
-          const result = data.toString('utf8');
-          this.logger.debug(
-            `AdmZip extraction successful: ${result.length} characters`,
-          );
-          return result;
-        }
-        // Next, look for .xml.gz or any .gz and gunzip
-        const gzEntry = entries.find(
-          (e) =>
-            e.entryName.toLowerCase().endsWith('.xml.gz') ||
-            e.entryName.toLowerCase().endsWith('.gz'),
-        );
-        if (gzEntry) {
-          this.logger.debug(`Found GZ entry: ${gzEntry.entryName}`);
-          const data: Buffer = gzEntry.getData() as Buffer;
-          const result = this.decompressGzipToString(data);
-          this.logger.debug(
-            `AdmZip GZ extraction successful: ${result.length} characters`,
-          );
-          return result;
-        }
-        // Fallback to first file as text
-        this.logger.debug(
-          `Using first entry as fallback: ${entries[0].entryName}`,
-        );
-        const data: Buffer = entries[0].getData() as Buffer;
-        const result = data.toString('utf8');
-        this.logger.debug(
-          `AdmZip fallback extraction successful: ${result.length} characters`,
-        );
-        return result;
-      } catch (admZipError) {
-        // Log the AdmZip error for debugging
-        const admZipMsg =
-          admZipError instanceof Error
-            ? admZipError.message
-            : String(admZipError);
-        this.logger.warn(`AdmZip failed for file: ${admZipMsg}`);
-        this.logger.debug(
-          `AdmZip error stack: ${
-            admZipError instanceof Error && admZipError.stack
-              ? admZipError.stack
-              : 'no-stack'
-          }`,
-        );
-
-        // Only fallback to unzipper for specific ZIP format errors
-        // For other errors (like data extraction issues), re-throw immediately
-        const isZipFormatError =
-          admZipError instanceof Error &&
-          (admZipError.message.includes('Invalid or unsupported zip format') ||
-            admZipError.message.includes('Invalid CEN header') ||
-            admZipError.message.includes('Invalid LOC header') ||
-            admZipError.message.includes('bad signature') ||
-            admZipError.message.includes('Invalid zip file'));
-
-        if (!isZipFormatError) {
-          // This is likely a data processing error, not a ZIP format issue
-          // Re-throw as the original error since AdmZip could read the ZIP
-          throw new BadRequestException(
-            `ZIP processing failed: ${admZipError.message}`,
-          );
-        }
-
-        this.logger.debug(
-          'AdmZip failed with ZIP format error, trying unzipper fallback',
-        );
-      }
-
-      this.logger.debug('Attempting unzipper extraction as fallback');
-      try {
-        const archive = await unzipper.Open.buffer(fileBuffer);
-        const files = archive.files.filter(
-          (f) =>
-            !f.path.endsWith('/') &&
-            !f.type?.toLowerCase().includes('directory'),
-        );
-        this.logger.debug(`Unzipper found ${files.length} files`);
-        if (files.length === 0) {
-          throw new BadRequestException('ZIP archive is empty');
-        }
-        // Prefer .xml files
-        const xmlFile = files.find((f) =>
-          f.path.toLowerCase().endsWith('.xml'),
-        );
-        if (xmlFile) {
-          this.logger.debug(`Found XML file: ${xmlFile.path}`);
-          const xmlBuf: Buffer = (await xmlFile.buffer()) as Buffer;
-          const result = xmlBuf.toString('utf8');
-          this.logger.debug(
-            `Unzipper extraction successful: ${result.length} characters`,
-          );
-          return result;
-        }
-        // Next, look for .xml.gz or any .gz
-        const gzFile = files.find(
-          (f) =>
-            f.path.toLowerCase().endsWith('.xml.gz') ||
-            f.path.toLowerCase().endsWith('.gz'),
-        );
-        if (gzFile) {
-          this.logger.debug(`Found GZ file: ${gzFile.path}`);
-          const gzBuf: Buffer = (await gzFile.buffer()) as Buffer;
-          const result = this.decompressGzipToString(gzBuf);
-          this.logger.debug(
-            `Unzipper GZ extraction successful: ${result.length} characters`,
-          );
-          return result;
-        }
-        // Fallback: first file as text
-        this.logger.debug(`Using first file as fallback: ${files[0].path}`);
-        const xmlBuf: Buffer = (await files[0].buffer()) as Buffer;
-        const result = xmlBuf.toString('utf8');
-        this.logger.debug(
-          `Unzipper fallback extraction successful: ${result.length} characters`,
-        );
-        return result;
-      } catch (err: unknown) {
-        this.logger.warn(
-          `Unzipper failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        this.logger.debug(
-          `Unzipper error stack: ${
-            err instanceof Error && err.stack ? err.stack : 'no-stack'
-          }`,
-        );
-        // As a last resort, if signature says gzip, attempt gzip again
-        if (looksLikeGzip) {
-          this.logger.debug('Attempting final GZIP fallback');
-          try {
-            const result = this.decompressGzipToString(fileBuffer);
-            this.logger.debug(
-              `GZIP fallback successful: ${result.length} characters`,
-            );
-            return result;
-          } catch (gzipErr: unknown) {
-            this.logger.debug(
-              `GZIP fallback failed: ${
-                gzipErr instanceof Error ? gzipErr.message : String(gzipErr)
-              }`,
-            );
-          }
-        }
-        throw new BadRequestException('Failed to read ZIP archive');
-      }
+      return this.toXmlString(await this.extractZip(fileBuffer, looksLikeGzip));
     }
 
-    // Unknown: last attempt using signatures
-    if (looksLikeGzip) {
-      try {
-        return this.decompressGzipToString(fileBuffer);
-      } catch (_e) {
-        throw new BadRequestException('Failed to decompress gzip file');
-      }
-    }
     if (looksLikeZip) {
       try {
-        const archive = await unzipper.Open.buffer(fileBuffer);
-        const files = archive.files.filter(
-          (f) =>
-            !f.path.endsWith('/') &&
-            !f.type?.toLowerCase().includes('directory'),
-        );
-        if (files.length === 0) {
-          throw new BadRequestException('ZIP archive is empty');
-        }
-        const xmlFile =
-          files.find((f) => f.path.toLowerCase().endsWith('.xml')) || files[0];
-        const xmlBuf = await xmlFile.buffer();
-        return xmlBuf.toString('utf8');
-      } catch (_e) {
+        return this.toXmlString(await this.extractWithUnzipper(fileBuffer));
+      } catch (err) {
+        this.rethrowIfTooLarge(err);
         throw new BadRequestException('Failed to read ZIP archive');
       }
     }
 
     throw new BadRequestException(`Unsupported file type: ${fileType}`);
+  }
+
+  private async extractZip(
+    fileBuffer: Buffer,
+    looksLikeGzip: boolean,
+  ): Promise<Buffer> {
+    try {
+      return await this.extractWithAdmZip(fileBuffer);
+    } catch (admZipError) {
+      this.rethrowIfTooLarge(admZipError);
+      const message = this.errorMessage(admZipError);
+      this.logger.warn(`AdmZip failed for file: ${message}`);
+      // Only fall back to unzipper when AdmZip could not read the archive format
+      if (!this.isZipFormatError(admZipError)) {
+        throw new BadRequestException(`ZIP processing failed: ${message}`);
+      }
+    }
+
+    try {
+      return await this.extractWithUnzipper(fileBuffer);
+    } catch (err) {
+      this.rethrowIfTooLarge(err);
+      this.logger.warn(`Unzipper failed: ${this.errorMessage(err)}`);
+      if (looksLikeGzip) {
+        try {
+          return await this.gunzipLimited(fileBuffer);
+        } catch (gzipErr) {
+          this.rethrowIfTooLarge(gzipErr);
+          this.logger.debug(
+            `GZIP fallback failed: ${this.errorMessage(gzipErr)}`,
+          );
+        }
+      }
+      throw new BadRequestException('Failed to read ZIP archive');
+    }
+  }
+
+  private async extractWithAdmZip(fileBuffer: Buffer): Promise<Buffer> {
+    const zip = new AdmZip(fileBuffer);
+    const entries: AdmZipEntry[] = zip
+      .getEntries()
+      .filter((e: AdmZipEntry) => !e.isDirectory);
+    this.assertZipEntryCount(entries.length);
+
+    const { item, gzipped } = this.pickReportEntry(entries, (e) => e.entryName);
+    this.logger.debug(`AdmZip extracting entry: ${item.entryName}`);
+    const data = await this.readAdmZipEntryLimited(item);
+    return gzipped ? this.gunzipLimited(data) : data;
+  }
+
+  private async extractWithUnzipper(fileBuffer: Buffer): Promise<Buffer> {
+    const archive = await unzipper.Open.buffer(fileBuffer);
+    const files: UnzipperFile[] = archive.files.filter(
+      (f) =>
+        !f.path.endsWith('/') && !f.type?.toLowerCase().includes('directory'),
+    );
+    this.assertZipEntryCount(files.length);
+
+    const { item, gzipped } = this.pickReportEntry(files, (f) => f.path);
+    this.logger.debug(`Unzipper extracting entry: ${item.path}`);
+    this.assertUncompressedSize(item.uncompressedSize);
+    const data = await this.readUnzipperFileLimited(item);
+    return gzipped ? this.gunzipLimited(data) : data;
+  }
+
+  /**
+   * Prefer an .xml entry, then a gzipped entry, then the first entry.
+   */
+  private pickReportEntry<T>(
+    entries: T[],
+    nameOf: (entry: T) => string,
+  ): { item: T; gzipped: boolean } {
+    if (entries.length === 0) {
+      throw new BadRequestException('ZIP archive is empty');
+    }
+    const lowerName = (entry: T) => nameOf(entry).toLowerCase();
+    const xmlEntry = entries.find((e) => lowerName(e).endsWith('.xml'));
+    if (xmlEntry) {
+      return { item: xmlEntry, gzipped: false };
+    }
+    const gzEntry = entries.find((e) => lowerName(e).endsWith('.gz'));
+    if (gzEntry) {
+      return { item: gzEntry, gzipped: true };
+    }
+    return { item: entries[0], gzipped: false };
+  }
+
+  /**
+   * Inflates an AdmZip entry from its raw compressed bytes with an output cap.
+   * The declared size in the header is only a fast pre-check, since it is
+   * attacker-controlled.
+   */
+  private async readAdmZipEntryLimited(entry: AdmZipEntry): Promise<Buffer> {
+    if (entry.header.encrypted) {
+      throw new BadRequestException('Encrypted ZIP entries are not supported');
+    }
+    this.assertUncompressedSize(entry.header.size);
+
+    const compressed: Buffer = entry.getCompressedData();
+    switch (entry.header.method) {
+      case ZIP_METHOD_STORED:
+        this.assertUncompressedSize(compressed.length);
+        return compressed;
+      case ZIP_METHOD_DEFLATED:
+        return this.runLimited(inflateRawAsync, compressed);
+      default:
+        throw new BadRequestException(
+          `Unsupported ZIP compression method: ${entry.header.method}`,
+        );
+    }
+  }
+
+  private async readUnzipperFileLimited(
+    file: Pick<UnzipperFile, 'stream'>,
+  ): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for await (const chunk of file.stream()) {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      total += buf.length;
+      this.assertUncompressedSize(total);
+      chunks.push(buf);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  private async decompressGzipOrFail(buffer: Buffer): Promise<Buffer> {
+    try {
+      return await this.gunzipLimited(buffer);
+    } catch (err) {
+      this.rethrowIfTooLarge(err);
+      throw new BadRequestException('Failed to decompress gzip file');
+    }
+  }
+
+  /**
+   * Decompress a GZIP (or zlib) buffer without exceeding the output limit.
+   */
+  private async gunzipLimited(buffer: Buffer): Promise<Buffer> {
+    try {
+      return await this.runLimited(gunzipAsync, buffer);
+    } catch (err) {
+      this.rethrowIfTooLarge(err);
+      return this.runLimited(inflateAsync, buffer);
+    }
+  }
+
+  private async runLimited(
+    decompress: (buf: Buffer, options: zlib.ZlibOptions) => Promise<Buffer>,
+    buffer: Buffer,
+  ): Promise<Buffer> {
+    try {
+      return await decompress(buffer, {
+        maxOutputLength: this.limits.maxUncompressedBytes,
+      });
+    } catch (err) {
+      if (
+        err instanceof RangeError ||
+        (err as NodeJS.ErrnoException)?.code === ZLIB_TOO_LARGE
+      ) {
+        throw this.tooLargeError();
+      }
+      throw err;
+    }
+  }
+
+  private toXmlString(buffer: Buffer): string {
+    this.assertUncompressedSize(buffer.length);
+    return buffer.toString('utf8');
+  }
+
+  private assertUncompressedSize(size: number | undefined): void {
+    if (typeof size === 'number' && size > this.limits.maxUncompressedBytes) {
+      throw this.tooLargeError();
+    }
+  }
+
+  private assertZipEntryCount(count: number): void {
+    if (count > this.limits.maxZipEntries) {
+      throw new ReportTooLargeError(
+        `ZIP archive has ${count} entries (limit ${this.limits.maxZipEntries})`,
+      );
+    }
+  }
+
+  private tooLargeError(): ReportTooLargeError {
+    return new ReportTooLargeError(
+      `Decompressed report exceeds ${this.limits.maxUncompressedBytes} bytes`,
+    );
+  }
+
+  private rethrowIfTooLarge(err: unknown): void {
+    if (err instanceof ReportTooLargeError) {
+      throw err;
+    }
+  }
+
+  private isZipFormatError(err: unknown): boolean {
+    if (!(err instanceof Error)) {
+      return false;
+    }
+    return ZIP_FORMAT_ERROR_MARKERS.some((marker) =>
+      err.message.includes(marker),
+    );
+  }
+
+  private errorMessage(err: unknown): string {
+    return err instanceof Error ? err.message : String(err);
   }
 
   /**
@@ -566,19 +636,6 @@ export class DmarcParserService {
       return false;
     }
     return buffer[0] === 0x1f && buffer[1] === 0x8b;
-  }
-
-  /**
-   * Decompress a GZIP buffer to a string
-   */
-  private decompressGzipToString(buffer: Buffer): string {
-    try {
-      const decompressed = zlib.gunzipSync(buffer);
-      return decompressed.toString('utf8');
-    } catch (_err) {
-      const inflated = zlib.inflateSync(buffer);
-      return inflated.toString('utf8');
-    }
   }
 
   /**
