@@ -125,6 +125,11 @@ export class DmarcParserService {
     );
 
     const recordsArray = this.coerceToArray<any>(recordsNode);
+    if (recordsArray.length > this.limits.maxRecords) {
+      throw new ReportTooLargeError(
+        `Report has ${recordsArray.length} records (limit ${this.limits.maxRecords})`,
+      );
+    }
 
     // Parse records into normalized entities
     const parsedRecords: Partial<DmarcRecord>[] = [];

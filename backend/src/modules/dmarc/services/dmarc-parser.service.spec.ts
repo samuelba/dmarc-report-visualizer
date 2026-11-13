@@ -792,6 +792,35 @@ describe('DmarcParserService', () => {
       ).rejects.toBeInstanceOf(ReportTooLargeError);
     });
 
+    it('should reject reports with more records than REPORT_MAX_RECORDS', async () => {
+      const svc = await limitedService({ REPORT_MAX_RECORDS: '2' });
+      const record =
+        '<record><row><source_ip>192.0.2.1</source_ip><count>1</count></row></record>';
+      const xml = `<feedback><report_metadata><report_id>r1</report_id></report_metadata>${record.repeat(3)}</feedback>`;
+
+      await expect(svc.parseXmlReport(xml)).rejects.toBeInstanceOf(
+        ReportTooLargeError,
+      );
+      expect(
+        mockForwardingDetectionService.detectForwarding,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should accept reports with exactly REPORT_MAX_RECORDS records', async () => {
+      const svc = await limitedService({ REPORT_MAX_RECORDS: '2' });
+      mockForwardingDetectionService.detectForwarding.mockResolvedValue({
+        isForwarded: false,
+        reason: null,
+      });
+      const record =
+        '<record><row><source_ip>192.0.2.1</source_ip><count>1</count></row></record>';
+      const xml = `<feedback><report_metadata><report_id>r1</report_id></report_metadata>${record.repeat(2)}</feedback>`;
+
+      const report = await svc.parseXmlReport(xml);
+
+      expect(report.records).toHaveLength(2);
+    });
+
     describe('unzipper fallback', () => {
       const admZipFormatError = (svc: DmarcParserService) =>
         jest

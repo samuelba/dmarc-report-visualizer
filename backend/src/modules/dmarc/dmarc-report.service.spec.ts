@@ -28,6 +28,7 @@ describe('DmarcReportService', () => {
     count: jest.fn(),
     createQueryBuilder: jest.fn(),
     query: jest.fn(),
+    manager: { transaction: jest.fn() },
   };
 
   const mockDmarcRecordRepository = {
@@ -125,10 +126,99 @@ describe('DmarcReportService', () => {
     }).compile();
 
     service = module.get<DmarcReportService>(DmarcReportService);
+
+    const transactionalManager = {
+      getRepository: (entity: unknown) =>
+        entity === DmarcReport
+          ? mockDmarcReportRepository
+          : mockDmarcRecordRepository,
+    };
+    mockDmarcReportRepository.manager.transaction.mockImplementation(
+      (work: (manager: typeof transactionalManager) => Promise<unknown>) =>
+        work(transactionalManager),
+    );
   });
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  describe('transactional record inserts', () => {
+    const records = [
+      { sourceIp: '192.0.2.1', count: 1 },
+      { sourceIp: '192.0.2.2', count: 2 },
+    ] as any[];
+
+    beforeEach(() => {
+      mockDmarcReportRepository.create.mockImplementation((data) => data);
+      mockDmarcReportRepository.save.mockResolvedValue({ id: 'rep-1' });
+      mockDmarcRecordRepository.create.mockImplementation((data) => data);
+      mockDmarcRecordRepository.save.mockImplementation((entities) =>
+        Promise.resolve(
+          entities.map((e: any, i: number) => ({ ...e, id: `rec-${i}` })),
+        ),
+      );
+    });
+
+    it('should save all records of a new report in one chunked save inside a transaction', async () => {
+      await service.create({ reportId: 'r1', records });
+
+      expect(
+        mockDmarcReportRepository.manager.transaction,
+      ).toHaveBeenCalledTimes(1);
+      expect(mockDmarcRecordRepository.save).toHaveBeenCalledTimes(1);
+      expect(mockDmarcRecordRepository.save).toHaveBeenCalledWith(
+        [
+          { sourceIp: '192.0.2.1', count: 1, reportId: 'rep-1' },
+          { sourceIp: '192.0.2.2', count: 2, reportId: 'rep-1' },
+        ],
+        { chunk: 500 },
+      );
+      expect(
+        mockDmarcParserService.queueIpLookupsForRecords,
+      ).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 'rec-0' }),
+        expect.objectContaining({ id: 'rec-1' }),
+      ]);
+    });
+
+    it('should not queue IP lookups when the transaction fails', async () => {
+      mockDmarcRecordRepository.save.mockRejectedValue(
+        new Error('insert failed'),
+      );
+
+      await expect(service.create({ reportId: 'r1', records })).rejects.toThrow(
+        'insert failed',
+      );
+      expect(
+        mockDmarcParserService.queueIpLookupsForRecords,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should replace records of an existing report inside one transaction', async () => {
+      mockDmarcReportRepository.findOne
+        .mockResolvedValueOnce({ id: 'rep-1' })
+        .mockResolvedValueOnce({ id: 'rep-1' });
+
+      await service.createOrUpdateByReportId({
+        reportId: 'r1',
+        orgName: 'org',
+        email: 'a@b.c',
+        records,
+      });
+
+      expect(
+        mockDmarcReportRepository.manager.transaction,
+      ).toHaveBeenCalledTimes(1);
+      expect(mockDmarcRecordRepository.delete).toHaveBeenCalledWith({
+        reportId: 'rep-1',
+      });
+      expect(mockDmarcRecordRepository.save).toHaveBeenCalledTimes(1);
+      expect(mockDmarcRecordRepository.save).toHaveBeenCalledWith(
+        expect.any(Array),
+        { chunk: 500 },
+      );
+    });
   });
 
   describe('CRUD Operations', () => {

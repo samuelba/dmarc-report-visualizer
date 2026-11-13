@@ -6,6 +6,7 @@ import {
   FindOptionsWhere,
   ILike,
   IsNull,
+  EntityManager,
   Or,
   Repository,
 } from 'typeorm';
@@ -31,6 +32,8 @@ const REPORT_RELATIONS = {
     policyOverrideReasons: true,
   },
 };
+
+const RECORD_INSERT_CHUNK_SIZE = 500;
 
 @Injectable()
 export class DmarcReportService {
@@ -152,33 +155,49 @@ export class DmarcReportService {
   }
 
   async create(dmarcReport: Partial<DmarcReport>): Promise<DmarcReport> {
-    // Extract records before creating the report
     const { records, ...reportData } = dmarcReport;
 
-    // Create and save the report first
-    const newReport = this.dmarcReportRepository.create(reportData);
-    const savedReport = await this.dmarcReportRepository.save(newReport);
+    const { savedReport, savedRecords } =
+      await this.dmarcReportRepository.manager.transaction(async (manager) => {
+        const reportRepository = manager.getRepository(DmarcReport);
+        const report = await reportRepository.save(
+          reportRepository.create(reportData),
+        );
+        return {
+          savedReport: report,
+          savedRecords: await this.insertRecords(manager, report.id, records),
+        };
+      });
 
-    // Create and save the records with proper relationships
-    const savedRecords: DmarcRecord[] = [];
-    if (records && records.length > 0) {
-      for (const recordData of records) {
-        const record = this.dmarcRecordRepository.create({
-          ...recordData,
-          reportId: savedReport.id,
-        });
-        const savedRecord = await this.dmarcRecordRepository.save(record);
-        savedRecords.push(savedRecord);
-      }
-    }
-
-    // Queue IP lookups if using async mode
-    if (savedRecords.length > 0) {
-      this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
-    }
+    this.queueIpLookups(savedRecords);
 
     // Return the saved report directly (we intentionally do not load relations to avoid OOM)
     return savedReport;
+  }
+
+  /**
+   * Inserts the records (and their cascaded DKIM/SPF/reason rows) in chunks
+   * of multi-row INSERTs instead of one round trip per record.
+   */
+  private async insertRecords(
+    manager: EntityManager,
+    reportId: string,
+    records: Partial<DmarcRecord>[] | undefined,
+  ): Promise<DmarcRecord[]> {
+    if (!records || records.length === 0) {
+      return [];
+    }
+    const recordRepository = manager.getRepository(DmarcRecord);
+    const entities = records.map((recordData) =>
+      recordRepository.create({ ...recordData, reportId }),
+    );
+    return recordRepository.save(entities, { chunk: RECORD_INSERT_CHUNK_SIZE });
+  }
+
+  private queueIpLookups(savedRecords: DmarcRecord[]): void {
+    if (savedRecords.length > 0) {
+      this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
+    }
   }
 
   async createOrUpdateByReportId(
@@ -208,38 +227,26 @@ export class DmarcReportService {
     );
 
     if (existing) {
-      // Delete existing records to replace them
-      await this.dmarcRecordRepository.delete({ reportId: existing.id });
-
-      // Update the report fields
-      await this.dmarcReportRepository.update(existing.id, {
-        reportId: dmarcReport.reportId,
-        orgName: dmarcReport.orgName,
-        email: dmarcReport.email,
-        domain: dmarcReport.domain,
-        policy: dmarcReport.policy,
-        beginDate: dmarcReport.beginDate,
-        endDate: dmarcReport.endDate,
-        originalXml: (dmarcReport as any).originalXml,
-      });
-
-      // Create new records with proper relationships
-      const savedRecords: DmarcRecord[] = [];
-      if (dmarcReport.records && dmarcReport.records.length > 0) {
-        for (const recordData of dmarcReport.records) {
-          const record = this.dmarcRecordRepository.create({
-            ...recordData,
-            reportId: existing.id,
+      const savedRecords = await this.dmarcReportRepository.manager.transaction(
+        async (manager) => {
+          await manager
+            .getRepository(DmarcRecord)
+            .delete({ reportId: existing.id });
+          await manager.getRepository(DmarcReport).update(existing.id, {
+            reportId: dmarcReport.reportId,
+            orgName: dmarcReport.orgName,
+            email: dmarcReport.email,
+            domain: dmarcReport.domain,
+            policy: dmarcReport.policy,
+            beginDate: dmarcReport.beginDate,
+            endDate: dmarcReport.endDate,
+            originalXml: (dmarcReport as any).originalXml,
           });
-          const savedRecord = await this.dmarcRecordRepository.save(record);
-          savedRecords.push(savedRecord);
-        }
-      }
+          return this.insertRecords(manager, existing.id, dmarcReport.records);
+        },
+      );
 
-      // Queue IP lookups if using async mode
-      if (savedRecords.length > 0) {
-        this.dmarcParserService.queueIpLookupsForRecords(savedRecords);
-      }
+      this.queueIpLookups(savedRecords);
 
       const updatedReport = await this.dmarcReportRepository.findOne({
         where: { id: existing.id },
