@@ -5,8 +5,8 @@
 
 ### Bug Fixes
 
-* **auth:** separate JWT signing keys and reject wrong token types ([93f3f9e](https://github.com/samuelba/dmarc-report-visualizer/commit/93f3f9e62da760a68d97b0ceb4405f990e19fb2a))
-* **security:** decouple TOTP and SMTP encryption keys from JWT_SECRET ([565d8bb](https://github.com/samuelba/dmarc-report-visualizer/commit/565d8bb10e970e478b16d4416b4538be7c56c413))
+* **auth:** separate JWT signing keys and reject wrong token types (@samuelba) ([93f3f9e](https://github.com/samuelba/dmarc-report-visualizer/commit/93f3f9e62da760a68d97b0ceb4405f990e19fb2a))
+* **security:** decouple TOTP and SMTP encryption keys from JWT_SECRET (@samuelba) ([565d8bb](https://github.com/samuelba/dmarc-report-visualizer/commit/565d8bb10e970e478b16d4416b4538be7c56c413))
 
 ## [0.10.0](https://github.com/samuelba/dmarc-report-visualizer/compare/v0.9.0...v0.10.0) (2026-11-08)
 
