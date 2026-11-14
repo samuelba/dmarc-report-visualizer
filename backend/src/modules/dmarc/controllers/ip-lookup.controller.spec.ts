@@ -1,3 +1,5 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { AdminGuard } from '../../auth/guards/admin.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { IpLookupController } from './ip-lookup.controller';
 import { GeolocationService } from '../services/geolocation.service';
@@ -114,15 +116,38 @@ describe('IpLookupController', () => {
     expect(controller).toBeDefined();
   });
 
+  const noKeys = {
+    hasIplocateKey: false,
+    hasIpapicoKey: false,
+    hasIpwhoisKey: false,
+  };
+
   describe('getConfig', () => {
     it('should return current IP lookup configuration', () => {
       geolocationService.getConfig.mockReturnValue(mockConfig);
 
       const result = controller.getConfig();
 
-      expect(result).toEqual(mockConfig);
+      expect(result).toEqual({ ...mockConfig, ...noKeys });
 
       expect(geolocationService.getConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report which API keys are set without returning them', () => {
+      geolocationService.getConfig.mockReturnValue({
+        ...mockConfig,
+        apiKeys: { iplocate: 'secret-iplocate', ipwhois: 'secret-ipwhois' },
+      });
+
+      const result = controller.getConfig();
+
+      expect(result).not.toHaveProperty('apiKeys');
+      expect(JSON.stringify(result)).not.toContain('secret');
+      expect(result).toMatchObject({
+        hasIplocateKey: true,
+        hasIpapicoKey: false,
+        hasIpwhoisKey: true,
+      });
     });
   });
 
@@ -141,9 +166,10 @@ describe('IpLookupController', () => {
 
       const result = controller.updateConfig(configDto);
 
-      expect(geolocationService.setConfig).toHaveBeenCalledWith(configDto);
-
-      expect(geolocationService.getConfig).toHaveBeenCalledTimes(1);
+      expect(geolocationService.setConfig).toHaveBeenCalledWith({
+        ...configDto,
+        apiKeys: {},
+      });
 
       expect(result).toEqual({
         message: 'Configuration updated successfully',
@@ -167,10 +193,31 @@ describe('IpLookupController', () => {
         partialConfig as IpLookupConfigDto,
       );
 
-      expect(geolocationService.setConfig).toHaveBeenCalledWith(partialConfig);
+      expect(geolocationService.setConfig).toHaveBeenCalledWith({
+        ...partialConfig,
+        apiKeys: {},
+      });
 
       expect(result.message).toBe('Configuration updated successfully');
       expect(result.config).toBeDefined();
+    });
+
+    it('should keep stored API keys the request does not replace', () => {
+      geolocationService.getConfig.mockReturnValue({
+        ...mockConfig,
+        apiKeys: { iplocate: 'old-iplocate', ipwhois: 'old-ipwhois' },
+      });
+
+      const result = controller.updateConfig({
+        provider: IpLookupProviderType.IPLOCATE,
+        apiKeys: { ipwhois: 'new-ipwhois' },
+      });
+
+      expect(geolocationService.setConfig).toHaveBeenCalledWith({
+        provider: IpLookupProviderType.IPLOCATE,
+        apiKeys: { iplocate: 'old-iplocate', ipwhois: 'new-ipwhois' },
+      });
+      expect(result.config).not.toHaveProperty('apiKeys');
     });
   });
 
@@ -254,7 +301,7 @@ describe('IpLookupController', () => {
 
       expect(result).toEqual({
         providers: mockProviderStats,
-        config: mockConfig,
+        config: { ...mockConfig, ...noKeys },
       });
 
       expect(geolocationService.getProviderStats).toHaveBeenCalledTimes(1);
@@ -381,4 +428,29 @@ describe('IpLookupController', () => {
       expect(ipLookupQueueService.getQueueStats).toHaveBeenCalledTimes(1);
     });
   });
+});
+
+describe('IpLookupController authorization', () => {
+  const guardsOf = (method: keyof IpLookupController) =>
+    Reflect.getMetadata(
+      GUARDS_METADATA,
+      IpLookupController.prototype[method],
+    ) ?? [];
+
+  it.each([
+    'updateConfig',
+    'testLookup',
+    'processPending',
+    'clearQueue',
+    'setMode',
+  ] as const)('requires AdminGuard on %s', (method) => {
+    expect(guardsOf(method)).toContain(AdminGuard);
+  });
+
+  it.each(['getConfig', 'getProviders', 'getStats', 'getQueueStatus'] as const)(
+    'leaves %s open to all users',
+    (method) => {
+      expect(guardsOf(method)).not.toContain(AdminGuard);
+    },
+  );
 });

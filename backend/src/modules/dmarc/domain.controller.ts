@@ -8,6 +8,7 @@ import {
   Put,
   Query,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { DomainService } from './domain.service';
@@ -18,6 +19,7 @@ import {
   DomainStatisticsDto,
 } from './dto/domain.dto';
 import { Domain } from './entities/domain.entity';
+import { AdminGuard } from '../auth/guards/admin.guard';
 
 @ApiTags('Domains')
 @Controller('domains')
@@ -25,6 +27,7 @@ export class DomainController {
   constructor(private readonly domainService: DomainService) {}
 
   @Post()
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a new managed domain' })
   @ApiResponse({ status: 201, description: 'Domain created successfully' })
   @ApiResponse({ status: 409, description: 'Domain already exists' })
@@ -64,6 +67,7 @@ export class DomainController {
   }
 
   @Put(':id')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Update a managed domain' })
   @ApiResponse({ status: 200, description: 'Domain updated successfully' })
   @ApiResponse({ status: 404, description: 'Domain not found' })
@@ -75,6 +79,7 @@ export class DomainController {
   }
 
   @Delete(':id')
+  @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Delete a managed domain' })
   @ApiResponse({ status: 200, description: 'Domain deleted successfully' })
   @ApiResponse({ status: 404, description: 'Domain not found' })

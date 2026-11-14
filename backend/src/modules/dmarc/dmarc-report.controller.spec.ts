@@ -1,3 +1,5 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { DmarcReportController } from './dmarc-report.controller';
@@ -1331,4 +1333,26 @@ describe('DmarcReportController', () => {
       await upload(50).expect(413);
     });
   });
+});
+
+describe('DmarcReportController authorization', () => {
+  const guardsOf = (method: keyof DmarcReportController) =>
+    Reflect.getMetadata(
+      GUARDS_METADATA,
+      DmarcReportController.prototype[method],
+    ) ?? [];
+
+  it.each(['findAll', 'create', 'update', 'remove'] as const)(
+    'requires AdminGuard on %s',
+    (method) => {
+      expect(guardsOf(method)).toContain(AdminGuard);
+    },
+  );
+
+  it.each(['list', 'findOne', 'uploadDmarcReport'] as const)(
+    'leaves %s open to all users',
+    (method) => {
+      expect(guardsOf(method)).not.toContain(AdminGuard);
+    },
+  );
 });

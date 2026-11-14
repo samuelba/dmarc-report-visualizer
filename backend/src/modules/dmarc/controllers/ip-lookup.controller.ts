@@ -7,6 +7,7 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GeolocationService } from '../services/geolocation.service';
@@ -16,6 +17,14 @@ import {
 } from '../dto/ip-lookup-config.dto';
 import { IpLookupQueueService } from '../services/ip-lookup-queue.service';
 import { DmarcParserService } from '../services/dmarc-parser.service';
+import { IpLookupConfig } from '../config/ip-lookup.config';
+import { AdminGuard } from '../../auth/guards/admin.guard';
+
+export type PublicIpLookupConfig = Omit<IpLookupConfig, 'apiKeys'> & {
+  hasIplocateKey: boolean;
+  hasIpapicoKey: boolean;
+  hasIpwhoisKey: boolean;
+};
 
 @ApiTags('ip-lookup')
 @Controller('ip-lookup')
@@ -37,11 +46,12 @@ export class IpLookupController {
     description: 'Current configuration',
     type: IpLookupConfigDto,
   })
-  getConfig() {
-    return this.geolocationService.getConfig();
+  getConfig(): PublicIpLookupConfig {
+    return this.publicConfig();
   }
 
   @Put('config')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update IP lookup configuration',
@@ -57,10 +67,14 @@ export class IpLookupController {
     description: 'Invalid configuration',
   })
   updateConfig(@Body() configDto: IpLookupConfigDto) {
-    this.geolocationService.setConfig(configDto);
+    const { apiKeys: currentKeys } = this.geolocationService.getConfig();
+    this.geolocationService.setConfig({
+      ...configDto,
+      apiKeys: { ...currentKeys, ...configDto.apiKeys },
+    });
     return {
       message: 'Configuration updated successfully',
-      config: this.geolocationService.getConfig(),
+      config: this.publicConfig(),
     };
   }
 
@@ -79,6 +93,7 @@ export class IpLookupController {
   }
 
   @Post('test')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Test IP lookup',
@@ -114,7 +129,7 @@ export class IpLookupController {
   getStats() {
     return {
       providers: this.geolocationService.getProviderStats(),
-      config: this.geolocationService.getConfig(),
+      config: this.publicConfig(),
     };
   }
 
@@ -133,6 +148,7 @@ export class IpLookupController {
   }
 
   @Post('queue/process-pending')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Process pending IP lookups',
@@ -152,6 +168,7 @@ export class IpLookupController {
   }
 
   @Delete('queue')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Clear IP lookup queue',
@@ -169,6 +186,7 @@ export class IpLookupController {
   }
 
   @Put('mode')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Set IP lookup mode',
@@ -203,6 +221,16 @@ export class IpLookupController {
       queue: this.ipLookupQueueService.getQueueStats(),
       // Note: Add a method to get status counts from database
       message: 'Use SQL queries to get detailed status breakdown',
+    };
+  }
+
+  private publicConfig(): PublicIpLookupConfig {
+    const { apiKeys, ...config } = this.geolocationService.getConfig();
+    return {
+      ...config,
+      hasIplocateKey: Boolean(apiKeys?.iplocate),
+      hasIpapicoKey: Boolean(apiKeys?.ipapico),
+      hasIpwhoisKey: Boolean(apiKeys?.ipwhois),
     };
   }
 }
