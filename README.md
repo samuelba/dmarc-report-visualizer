@@ -16,7 +16,7 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 
 ## Quick Start
 
-1) Copy the `.env.sample` file to `.env` and adjust as needed. Set `JWT_SECRET` to a new random value before the first start:
+1) Copy the `.env.sample` file to `.env` and adjust as needed. `docker compose` refuses to start until `POSTGRES_PASSWORD`, `DATABASE_PASSWORD` (the same value) and `JWT_SECRET` are set. Generate each with:
 
     ```bash
     openssl rand -base64 48
@@ -36,9 +36,9 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
     docker compose up -d
     ```
 
-    - Backend runs at `http://localhost:3000` or what is set in `.env`
-    - Frontend runs at `http://localhost:80` or what is set in `.env`
-    - Postgres runs at `localhost:5432` or what is set in `.env`
+    - Frontend runs at `http://localhost:80` or what is set in `FRONTEND_PORT`, and proxies `/api` to the backend
+    - The backend and Postgres are only reachable inside the Docker network. To reach them from the host, see `docker-compose.override.yml.example`
+    - If another reverse proxy sits in front of the frontend, set `TRUST_PROXY=2` (see [AUTHENTICATION_DEPLOYMENT.md](docs/AUTHENTICATION_DEPLOYMENT.md#5-rate-limiting))
 
 4) **Initial Setup**: On first launch, navigate to the frontend URL. You'll be automatically redirected to the setup page where you can create your initial administrator account.
 

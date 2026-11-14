@@ -2,11 +2,9 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: dmarc-postgres
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-dmarc}
     volumes:
       - dmarc_postgres_data:/var/lib/postgresql/data
@@ -19,7 +17,7 @@ services:
   #   image: redis:7-alpine
   #   container_name: dmarc-redis
   #   ports:
-  #     - "${REDIS_PORT:-6379}:6379"
+  #     - "127.0.0.1:${REDIS_PORT:-6379}:6379"
   #   environment:
   #     REDIS_PASSWORD: ${REDIS_PASSWORD}
   #   volumes:
@@ -40,12 +38,14 @@ services:
       # Application Configuration
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${PORT:-3000}
+      # Number of reverse proxies in front of the backend (see .env.sample)
+      TRUST_PROXY: ${TRUST_PROXY:-1}
 
       # Database Configuration
       DATABASE_HOST: ${DATABASE_HOST:-postgres}
       DATABASE_PORT: ${DATABASE_PORT:-5432}
       DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?set DATABASE_PASSWORD in .env (same value as POSTGRES_PASSWORD)}
       DATABASE_NAME: ${DATABASE_NAME:-dmarc}
       DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
       DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
@@ -131,7 +131,7 @@ services:
       IP_LOOKUP_CACHE_DAYS: ${IP_LOOKUP_CACHE_DAYS:-14}
 
       # JWT Configuration
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -base64 48)}
       JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-30d}
       # Optional: decouples 2FA secrets from JWT_SECRET (see AUTHENTICATION_DEPLOYMENT.md)

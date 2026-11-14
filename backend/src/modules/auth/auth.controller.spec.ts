@@ -355,7 +355,7 @@ describe('AuthController', () => {
       );
     });
 
-    it('should extract IP from x-forwarded-for header when request.ip is not available', async () => {
+    it('should not trust a raw x-forwarded-for header', async () => {
       const request = {
         cookies: {
           refreshToken: 'old-refresh-token',
@@ -363,7 +363,7 @@ describe('AuthController', () => {
         },
         ip: undefined,
         headers: { 'x-forwarded-for': '10.0.0.1, 192.168.1.1' },
-        socket: {},
+        socket: { remoteAddress: '172.16.0.1' },
       } as unknown as Request;
 
       mockAuthService.refreshTokens.mockResolvedValue({
@@ -377,7 +377,7 @@ describe('AuthController', () => {
       expect(authService.refreshTokens).toHaveBeenCalledWith(
         'old-refresh-token',
         'old-access-token',
-        '10.0.0.1',
+        '172.16.0.1',
       );
     });
 

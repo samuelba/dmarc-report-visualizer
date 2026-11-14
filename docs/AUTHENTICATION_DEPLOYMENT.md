@@ -109,6 +109,14 @@ Login attempts are limited per IP address and per account:
 
 2FA verification, 2FA setup and recovery codes have their own fixed limits.
 
+The per-IP limit only works if the backend sees each client's real IP. `TRUST_PROXY` sets how many reverse proxies sit in front of the backend; the client IP is read from `X-Forwarded-For`, skipping that many hops.
+
+- `1` (default): only the bundled nginx
+- `2`: another proxy in front of it (Traefik, Caddy, Cloudflare Tunnel, ...)
+- `false`: clients connect to the backend directly
+
+If the value is too low, every client appears to share one IP and one attacker can lock everyone out of login. If it is too high, clients can choose their own IP and bypass the limit. `TRUST_PROXY=true` is rejected at startup for that reason.
+
 The counters are kept in memory in the backend process. They reset when the backend restarts and are not shared between instances, so run a single backend instance. Redis, when enabled, is used for SAML and the email queue, not for these limits.
 
 ### 6. Password hashing
@@ -128,8 +136,8 @@ The access token lifetime is the longest a session stays usable after logout or 
 
 ### 8. Database
 
-- [ ] Set a strong `POSTGRES_PASSWORD` instead of the `.env.sample` value
-- [ ] Do not expose the Postgres port (`POSTGRES_PORT`, published by `docker-compose.yml`) to the internet; restrict it with a firewall or remove the `ports` entry if nothing outside Docker needs it
+- [ ] Set a strong `POSTGRES_PASSWORD` (`openssl rand -base64 32`) and the same value in `DATABASE_PASSWORD`. `docker compose` refuses to start without them
+- [ ] Keep Postgres off the host network. `docker-compose.yml` does not publish its port; if you need host access, bind it to `127.0.0.1` as in `docker-compose.override.yml.example`. Docker-published ports bypass host firewalls such as `ufw`
 
 The backend connects with `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD` and `DATABASE_NAME`.
 
