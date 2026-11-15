@@ -1,0 +1,76 @@
+<h2 mat-dialog-title>{{ created() ? 'Copy your new token' : 'Create API token' }}</h2>
+
+<mat-dialog-content>
+  @if (created(); as result) {
+    <div class="created">
+      <app-message type="warning">
+        This is the only time the token is shown. Copy it now and keep it as safe as a password.
+      </app-message>
+
+      <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+        <mat-label>Token</mat-label>
+        <input matInput readonly [value]="result.token" data-testid="created-token" />
+        <button mat-icon-button matSuffix type="button" (click)="copy(result.token, 'Token')" aria-label="Copy token">
+          <mat-icon>content_copy</mat-icon>
+        </button>
+      </mat-form-field>
+
+      <p>Add it to Claude Code:</p>
+      <pre class="command" data-testid="claude-command">{{ claudeCommand(result.token) }}</pre>
+      <button mat-stroked-button type="button" (click)="copy(claudeCommand(result.token), 'Command')">
+        <mat-icon>content_copy</mat-icon>
+        Copy command
+      </button>
+
+      <p class="hint">
+        Other MCP clients: connect to <code>{{ endpoint }}</code> (Streamable HTTP) and send the header
+        <code>Authorization: Bearer &lt;token&gt;</code>.
+      </p>
+    </div>
+  } @else {
+    <form id="create-api-token-form" class="token-form" [formGroup]="form" (ngSubmit)="submit()">
+      <p class="hint">
+        The token lets an AI assistant read the same DMARC data you can see. It cannot change anything.
+      </p>
+
+      <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" maxlength="100" placeholder="e.g. Claude on my laptop" />
+        @if (form.controls.name.hasError('required')) {
+          <mat-error>Name is required</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+        <mat-label>Expires after</mat-label>
+        <mat-select formControlName="expiresInDays">
+          @for (days of expiryOptions; track days) {
+            <mat-option [value]="days">{{ days }} days</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-checkbox formControlName="allowRawXml">Allow reading raw report XML</mat-checkbox>
+      @if (form.controls.allowRawXml.value) {
+        <app-message type="warning">
+          Raw XML is written by whoever sent the report. Only allow it if you need it.
+        </app-message>
+      }
+
+      @if (error()) {
+        <app-message type="error">{{ error() }}</app-message>
+      }
+    </form>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (created()) {
+    <button mat-flat-button color="primary" type="button" (click)="close()">Done</button>
+  } @else {
+    <button mat-button type="button" (click)="close()">Cancel</button>
+    <button mat-flat-button color="primary" type="submit" form="create-api-token-form" [disabled]="saving()">
+      Create
+    </button>
+  }
+</mat-dialog-actions>

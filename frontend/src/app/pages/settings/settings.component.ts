@@ -25,6 +25,8 @@ import { timer, takeWhile } from 'rxjs';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../components/confirm-dialog/confirm-dialog.component';
 import { MessageComponent } from '../../components/message/message.component';
 import { ReportSendersComponent } from './report-senders/report-senders.component';
+import { ApiTokensAdminComponent } from './api-tokens-admin/api-tokens-admin.component';
+import { ApiTokenService } from '../../services/api-token.service';
 
 @Component({
   selector: 'app-settings',
@@ -51,12 +53,14 @@ import { ReportSendersComponent } from './report-senders/report-senders.componen
     SamlSettingsComponent,
     SmtpSettingsComponent,
     MessageComponent,
+    ApiTokensAdminComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.scss'],
 })
 export class SettingsComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly apiTokens = inject(ApiTokenService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
@@ -77,7 +81,18 @@ export class SettingsComponent implements OnInit {
   selectedTabIndex = signal(0);
   private readonly REPROCESSING_TAB_INDEX = 1;
   // Must match the <mat-tab> order in the template
-  private readonly TAB_SLUGS = ['senders', 'reprocessing', 'utilities', 'report-senders', 'sso', 'smtp'] as const;
+  private readonly TAB_SLUGS = [
+    'senders',
+    'reprocessing',
+    'utilities',
+    'report-senders',
+    'sso',
+    'smtp',
+    'api-tokens',
+  ] as const;
+
+  // The API Tokens tab exists only when the server has MCP enabled
+  mcpEnabled = signal(false);
 
   // Date range for reprocessing
   dateFrom = signal<Date | null>(null);
@@ -92,6 +107,7 @@ export class SettingsComponent implements OnInit {
     this.loadThirdPartySenders();
     this.loadCurrentJob();
     this.loadReprocessingHistory();
+    this.apiTokens.isEnabled().subscribe((enabled) => this.mcpEnabled.set(enabled));
   }
 
   // Tab change handler

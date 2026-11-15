@@ -1,0 +1,51 @@
+@use '../../../styles/variables' as vars;
+
+// Same spacing as the profile page's own dividers, whose styles do not
+// reach into this component.
+mat-divider {
+  margin: vars.$spacing-xl 0;
+}
+
+.api-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hint,
+.empty {
+  margin: 0;
+  color: var(--custom-metric-label-color);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+
+  th {
+    background-color: var(--custom-table-header-background);
+  }
+
+  th,
+  td {
+    white-space: nowrap;
+  }
+}
+
+.status {
+  text-transform: capitalize;
+}
+
+.status-expired,
+.status-revoked {
+  color: var(--custom-metric-label-color);
+}

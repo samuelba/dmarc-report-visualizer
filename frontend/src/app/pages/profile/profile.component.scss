@@ -7,7 +7,7 @@
 
 .profile-card {
   width: 100%;
-  max-width: 37.5rem; // 600px
+  max-width: 70rem; // 900px, room for the API tokens table
   padding: vars.$spacing-lg;
 }
 
@@ -89,6 +89,11 @@ mat-divider {
     font-size: vars.$font-size-lg;
     font-weight: 500;
     margin-bottom: vars.$spacing-base;
+  }
+
+  // Keep the password fields at a readable width in the wider card
+  form {
+    max-width: 37.5rem; // 600px
   }
 }
 

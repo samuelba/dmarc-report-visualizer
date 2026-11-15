@@ -1,0 +1,27 @@
+.api-tokens-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hint,
+.empty,
+.ip {
+  color: var(--custom-metric-label-color);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+
+  th {
+    background-color: var(--custom-table-header-background);
+  }
+}
+
+.status {
+  text-transform: capitalize;
+}

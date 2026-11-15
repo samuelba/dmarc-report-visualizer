@@ -1,0 +1,77 @@
+@if (available()) {
+  <mat-divider></mat-divider>
+
+  <section class="api-tokens" data-testid="api-tokens-section">
+    <h3>API Tokens (MCP)</h3>
+    <p class="hint">
+      Let AI assistants such as Claude query your DMARC data through the read-only MCP server at
+      <code>{{ endpoint }}</code
+      >. A token can read the same data as your account and cannot change anything.
+    </p>
+
+    <div class="actions">
+      <button mat-flat-button color="primary" type="button" (click)="create()">
+        <mat-icon>add</mat-icon>
+        Create token
+      </button>
+      @if (hasActive()) {
+        <button mat-button color="warn" type="button" (click)="revokeAll()">Revoke all</button>
+      }
+    </div>
+
+    @if (loading()) {
+      <mat-spinner diameter="32"></mat-spinner>
+    } @else if (loadError()) {
+      <p class="empty">Could not load your API tokens.</p>
+    } @else if (tokens().length === 0) {
+      <p class="empty">You have no API tokens.</p>
+    } @else {
+      <div class="table-wrapper">
+        <table mat-table [dataSource]="tokens()" class="mat-elevation-z1">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let t">{{ t.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="prefix">
+            <th mat-header-cell *matHeaderCellDef>Token</th>
+            <td mat-cell *matCellDef="let t">
+              <code>{{ t.prefix }}…</code>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="access">
+            <th mat-header-cell *matHeaderCellDef>Access</th>
+            <td mat-cell *matCellDef="let t">
+              {{ t.scopes.includes('mcp:raw_xml') ? 'Read + raw XML' : 'Read' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="lastUsed">
+            <th mat-header-cell *matHeaderCellDef>Last used</th>
+            <td mat-cell *matCellDef="let t">
+              {{ t.lastUsedAt ? (t.lastUsedAt | date: 'medium') : 'Never' }}
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="expires">
+            <th mat-header-cell *matHeaderCellDef>Expires</th>
+            <td mat-cell *matCellDef="let t">{{ t.expiresAt | date: 'mediumDate' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let t">
+              <span class="status" [class]="'status status-' + status(t)">{{ status(t) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let t">
+              @if (status(t) === 'active') {
+                <button mat-button color="warn" type="button" (click)="revoke(t)">Revoke</button>
+              }
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="columns"></tr>
+          <tr mat-row *matRowDef="let row; columns: columns" data-testid="api-token-row"></tr>
+        </table>
+      </div>
+    }
+  </section>
+}
