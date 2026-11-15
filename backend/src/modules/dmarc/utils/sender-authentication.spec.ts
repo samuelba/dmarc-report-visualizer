@@ -102,6 +102,7 @@ const relayed = async (
     first: 'sealer.example',
     later: 'sealer.example',
   },
+  laterResults?: string,
 ): Promise<string> => {
   const keyFor = (d: string) =>
     d === 'sealer.example' ? keys.sealer : keys.other;
@@ -121,7 +122,8 @@ const relayed = async (
     msg,
     sealers.later,
     keyFor(sealers.later),
-    `mx.sealer.example; ${arrivalResults.split(';').slice(1).join(';')}; arc=pass (i=1)`,
+    laterResults ??
+      `mx.sealer.example; ${arrivalResults.split(';').slice(1).join(';')}; arc=pass (i=1)`,
   );
   return msg;
 };
@@ -280,6 +282,27 @@ describe('sender authentication', () => {
             authDomain === 'dmarc.reporter.example',
         }).authStatus,
       ).toBe('unaligned');
+    });
+  });
+
+  it('names the identity recorded closest to the reporter when the relay is not excluded', async () => {
+    // The newest hop records the relay itself, as Google does on final delivery.
+    const raw = await relayed(
+      'noreply@dmarc.reporter.example',
+      'mx.sealer.example; dkim=pass header.i=@reporter.example; dmarc=pass header.from=dmarc.reporter.example',
+      { first: 'sealer.example', later: 'sealer.example' },
+      'mx.sealer.example; dkim=pass header.i=@relay.example; dmarc=pass header.from=relay.example; arc=pass (i=1)',
+    );
+
+    const verdict = verdictFor(
+      await authOf(raw),
+      'dmarchelp@reporterinc.example',
+      { excludedOrgDomains: new Set() },
+    );
+
+    expect(verdict).toMatchObject({
+      authStatus: 'unaligned',
+      authDomain: 'dmarc.reporter.example',
     });
   });
 

@@ -767,6 +767,7 @@ describe('GmailDownloaderService', () => {
         mockDmarcReportService.parseXmlReport.mockResolvedValue({
           reportId: 'r1',
           email: 'noreply-dmarc-support@google.com',
+          domain: 'example.com',
         });
         mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
           outcome: 'created',
@@ -791,7 +792,7 @@ describe('GmailDownloaderService', () => {
         );
         expect(mockSenderAuth.assess).toHaveBeenCalledWith(
           evidence,
-          'noreply-dmarc-support@google.com',
+          { email: 'noreply-dmarc-support@google.com', domain: 'example.com' },
           { source: 'gmail', sourceMessageId: '<abc@google.com>' },
         );
         expect(

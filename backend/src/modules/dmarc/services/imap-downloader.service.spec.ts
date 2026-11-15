@@ -647,6 +647,7 @@ describe('ImapDownloaderService', () => {
         mockDmarcReportService.parseXmlReport.mockResolvedValue({
           reportId: 'r1',
           email: 'noreply@google.com',
+          domain: 'example.com',
         });
         mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
           outcome: 'created',
@@ -667,7 +668,7 @@ describe('ImapDownloaderService', () => {
         expect(mockSenderAuth.assess).toHaveBeenCalledTimes(2);
         expect(mockSenderAuth.assess).toHaveBeenCalledWith(
           evidence,
-          'noreply@google.com',
+          { email: 'noreply@google.com', domain: 'example.com' },
           { source: 'imap', sourceMessageId: '<m1@example.com>' },
         );
       });

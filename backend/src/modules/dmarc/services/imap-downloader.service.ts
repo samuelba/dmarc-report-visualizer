@@ -488,7 +488,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       (parsedReport as any).originalXml = minifyXml(xmlContent);
       const provenance = await this.senderAuth.assess(
         evidence.auth,
-        parsedReport.email,
+        { email: parsedReport.email, domain: parsedReport.domain },
         { source: 'imap', sourceMessageId: evidence.sourceMessageId },
       );
       const { report: savedReport } =

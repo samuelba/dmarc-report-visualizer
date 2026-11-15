@@ -8,7 +8,8 @@ For reports fetched by the IMAP or Gmail downloader, the backend verifies the em
 
 1. **DKIM.** A valid DKIM signature proves that its `d=` domain sent the message, for example `d=google.com`.
 2. **ARC.** Mailing lists and forwarders (Google Groups, for example) often rewrite `From:`, which breaks the reporter's DKIM signature. Before changing the message, such a relay records what it verified in a signed `ARC-Authentication-Results` header. The backend checks every ARC seal cryptographically, then believes the recorded results only from sealers listed in `REPORT_TRUSTED_ARC_SEALERS`. Walking from the newest set to the oldest, it stops at the first sealer that is not trusted. From those records it accepts `dkim=pass` domains, and `dmarc=pass` From domains, which also covers reporters that only pass SPF.
-3. **Relay domains never count.** Your relay signs every message it passes on with its own domain. Identities from managed domains (Settings → Domains) and from `REPORT_RELAY_DOMAINS` are therefore ignored. Otherwise a forged report claiming `<email>dmarc@your-domain</email>` would be "verified" by your own relay's signature.
+3. **Relay domains never count.** Your relay signs every message it passes on with its own domain. Identities from managed domains (Settings → Domains), from `REPORT_RELAY_DOMAINS` and from the domain the report is about are therefore ignored. Otherwise a forged report claiming `<email>dmarc@your-domain</email>` would be "verified" by your own relay's signature. Set `REPORT_RELAY_DOMAINS` to your relay's domain so this holds from the first report, before any domains are managed; the backend logs a warning while neither is set.
+4. **Closest to the sender wins.** When several identities qualify, the one recorded at the oldest trusted ARC hop is used, so a relay that is not excluded is still not named as the reporter.
 
 SPF is not used. The SMTP client IP is lost once the message is in a mailbox.
 

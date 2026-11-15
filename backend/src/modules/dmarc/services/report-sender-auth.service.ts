@@ -55,6 +55,13 @@ export function isPermanentIngestError(err: unknown): boolean {
   );
 }
 
+/** What the report XML says about itself. */
+export interface ReportClaims {
+  email?: string;
+  /** policy_published/domain: the domain the report is about. */
+  domain?: string;
+}
+
 interface ProvenanceBase {
   source: DeliverySource;
   sourceMessageId?: string;
@@ -69,6 +76,7 @@ const LEGACY_MODE_SETTINGS = [
 export class ReportSenderAuthService implements OnModuleInit {
   private readonly logger = new Logger(ReportSenderAuthService.name);
   private readonly config: SenderAuthConfig;
+  private warnedNoRelayDomains = false;
 
   constructor(
     private readonly configService: ConfigService,
@@ -139,14 +147,15 @@ export class ReportSenderAuthService implements OnModuleInit {
    */
   async assess(
     auth: MessageAuth | null,
-    reportEmail: string | undefined,
+    report: ReportClaims,
     base: ProvenanceBase,
   ): Promise<ReportProvenance> {
     if (!auth) {
       return { ...base, authStatus: 'unverified' };
     }
+    const reportEmail = report.email;
     const verdict = evaluateSender(auth, reportEmail, {
-      excludedOrgDomains: await this.excludedOrgDomains(),
+      excludedOrgDomains: await this.excludedOrgDomains(report.domain),
       isTrustedPair: await this.trustedReporters.trustedPairs(),
     });
 
@@ -171,14 +180,33 @@ export class ReportSenderAuthService implements OnModuleInit {
     };
   }
 
-  private async excludedOrgDomains(): Promise<Set<string>> {
+  /**
+   * Domains that relay reports to us. Besides the configured ones, the
+   * report's own domain is ours and never its reporter; it is taken only
+   * from this report, so a forged report cannot exclude anyone else.
+   */
+  private async excludedOrgDomains(
+    reportDomain: string | undefined,
+  ): Promise<Set<string>> {
     const managed = await this.domainRepository.find({
       select: { domain: true },
     });
+    if (
+      managed.length === 0 &&
+      this.config.relayDomains.size === 0 &&
+      !this.warnedNoRelayDomains
+    ) {
+      this.warnedNoRelayDomains = true;
+      this.logger.warn(
+        'No managed domains and no REPORT_RELAY_DOMAINS: a mailing list or forwarder that relays reports ' +
+          "could be taken for the reporter. Add your domains or set REPORT_RELAY_DOMAINS to the relay's domain",
+      );
+    }
     const excluded = new Set<string>();
     for (const domain of [
       ...managed.map((d) => d.domain),
       ...this.config.relayDomains,
+      ...(reportDomain ? [reportDomain] : []),
     ]) {
       const org = orgDomain(domain);
       if (org) {

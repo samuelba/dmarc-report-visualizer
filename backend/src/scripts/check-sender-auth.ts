@@ -83,8 +83,16 @@ async function check(file: string, args: Args): Promise<void> {
       continue;
     }
     const email = /<email>\s*([^<\s]+)\s*<\/email>/i.exec(xml)?.[1];
+    const reportDomain =
+      /<policy_published>[\s\S]*?<domain>\s*([^<\s]+)\s*<\/domain>/i.exec(
+        xml,
+      )?.[1];
+    const reportOrg = orgDomain(reportDomain);
     const verdict = evaluateSender(auth, email, {
-      excludedOrgDomains: args.relays,
+      excludedOrgDomains: new Set([
+        ...args.relays,
+        ...(reportOrg ? [reportOrg] : []),
+      ]),
     });
     const via = verdict.authMethod ? ` via ${verdict.authMethod}` : '';
     const sender = verdict.authDomain ? ` (${verdict.authDomain})` : '';

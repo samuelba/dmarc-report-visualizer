@@ -447,7 +447,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
             (parsed as any).originalXml = minifyXml(xmlContent);
             const provenance = await this.senderAuth.assess(
               evidence.auth,
-              parsed.email,
+              { email: parsed.email, domain: parsed.domain },
               { source: 'gmail', sourceMessageId: evidence.sourceMessageId },
             );
             const { report: saved } =

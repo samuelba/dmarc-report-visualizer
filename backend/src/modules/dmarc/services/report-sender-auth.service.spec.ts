@@ -14,14 +14,12 @@ import {
 const notFound = () =>
   Promise.reject(Object.assign(new Error('nx'), { code: 'ENOTFOUND' }));
 
-const build = (env: Record<string, string> = {}) => {
+const build = (
+  env: Record<string, string> = {},
+  managed = ['registration.anymal.com', 'anybotics.com'],
+) => {
   const domains = {
-    find: jest
-      .fn()
-      .mockResolvedValue([
-        { domain: 'registration.anymal.com' },
-        { domain: 'anybotics.com' },
-      ]),
+    find: jest.fn().mockResolvedValue(managed.map((domain) => ({ domain }))),
   } as unknown as Repository<Domain>;
   const config = {
     get: (key: string) => env[key],
@@ -106,7 +104,7 @@ describe('ReportSenderAuthService', () => {
 
       const provenance = await service.assess(
         auth([{ domain: 'google.com', source: 'dkim', method: 'arc' }]),
-        'noreply-dmarc-support@google.com',
+        { email: 'noreply-dmarc-support@google.com' },
         BASE,
       );
 
@@ -131,7 +129,7 @@ describe('ReportSenderAuthService', () => {
           { domain: 'mail.anymal.com', source: 'dkim', method: 'arc' },
           { domain: 'relay.example', source: 'dkim', method: 'arc' },
         ]),
-        'dmarc@anybotics.com',
+        { email: 'dmarc@anybotics.com' },
         BASE,
       );
 
@@ -144,7 +142,7 @@ describe('ReportSenderAuthService', () => {
       await expect(
         service.assess(
           auth([{ domain: 'dmarc.yahoo.com', source: 'dmarc', method: 'arc' }]),
-          'dmarchelp@yahooinc.com',
+          { email: 'dmarchelp@yahooinc.com' },
           BASE,
         ),
       ).resolves.toMatchObject({
@@ -154,11 +152,46 @@ describe('ReportSenderAuthService', () => {
       });
     });
 
+    it("never accepts the report's own domain as its sender, even before it is managed", async () => {
+      const { service } = build({}, []);
+
+      const provenance = await service.assess(
+        auth([
+          {
+            domain: 'anybotics.com',
+            source: 'dkim',
+            method: 'arc',
+            instance: 3,
+          },
+        ]),
+        { email: 'dmarc@anybotics.com', domain: 'shift.anybotics.com' },
+        BASE,
+      );
+
+      expect(provenance.authStatus).toBe('unverified');
+    });
+
+    it('warns once when no relay domain is known yet', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const { service } = build({}, []);
+      const evidence = auth([
+        { domain: 'google.com', source: 'dkim', method: 'arc' },
+      ]);
+
+      await service.assess(evidence, { email: 'a@google.com' }, BASE);
+      await service.assess(evidence, { email: 'a@google.com' }, BASE);
+
+      const relayWarnings = warn.mock.calls.filter(([m]) =>
+        String(m).includes('REPORT_RELAY_DOMAINS'),
+      );
+      expect(relayWarnings).toHaveLength(1);
+    });
+
     it('is unverified without evidence when sender auth is off', async () => {
       const { service } = build({ REPORT_SENDER_AUTH: 'off' });
 
       await expect(
-        service.assess(null, 'noreply@google.com', BASE),
+        service.assess(null, { email: 'noreply@google.com' }, BASE),
       ).resolves.toEqual({ ...BASE, authStatus: 'unverified' });
     });
 
@@ -166,7 +199,7 @@ describe('ReportSenderAuthService', () => {
       const { service } = build();
 
       await expect(
-        service.assess(auth([]), 'noreply@google.com', BASE),
+        service.assess(auth([]), { email: 'noreply@google.com' }, BASE),
       ).resolves.toMatchObject({ authStatus: 'unverified' });
     });
 
@@ -175,7 +208,7 @@ describe('ReportSenderAuthService', () => {
         const { service } = build({ REPORT_SENDER_AUTH: 'enforce' });
 
         await expect(
-          service.assess(auth([]), 'noreply@google.com', BASE),
+          service.assess(auth([]), { email: 'noreply@google.com' }, BASE),
         ).rejects.toBeInstanceOf(UnverifiedSenderError);
       });
 
@@ -183,7 +216,7 @@ describe('ReportSenderAuthService', () => {
         const { service } = build({ REPORT_SENDER_AUTH: 'enforce' });
 
         await expect(
-          service.assess(auth([], true), 'noreply@google.com', BASE),
+          service.assess(auth([], true), { email: 'noreply@google.com' }, BASE),
         ).rejects.toBeInstanceOf(SenderAuthUnavailableError);
       });
 
@@ -193,7 +226,7 @@ describe('ReportSenderAuthService', () => {
         await expect(
           service.assess(
             auth([{ domain: 'dmarc.aol.com', source: 'dmarc', method: 'arc' }]),
-            'dmarchelp@yahooinc.com',
+            { email: 'dmarchelp@yahooinc.com' },
             BASE,
           ),
         ).resolves.toMatchObject({

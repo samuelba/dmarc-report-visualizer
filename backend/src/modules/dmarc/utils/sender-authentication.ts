@@ -222,11 +222,17 @@ export async function authenticateMessage(
   return { ...summarizeAuthentication(result, trustedSealers), tempError };
 }
 
-/** DMARC-backed From identities first, then direct DKIM before ARC. */
-function preference(identity: AuthIdentity): number {
-  return (
-    (identity.source === 'dmarc' ? 0 : 2) + (identity.method === 'dkim' ? 0 : 1)
-  );
+/**
+ * Closest to the original sender first: ARC records from the oldest hop
+ * (newer hops describe the relays in between, such as our own mailing list),
+ * then the message's own signatures, which after a relay are often the
+ * relay's. Within a hop the DMARC-backed From wins over a bare DKIM domain.
+ */
+function compareIdentities(a: AuthIdentity, b: AuthIdentity): number {
+  const hop = (id: AuthIdentity) =>
+    id.method === 'arc' ? (id.instance ?? Number.MAX_SAFE_INTEGER) : Infinity;
+  const source = (id: AuthIdentity) => (id.source === 'dmarc' ? 0 : 1);
+  return hop(a) - hop(b) || source(a) - source(b);
 }
 
 export function evaluateSender(
@@ -245,7 +251,7 @@ export function evaluateSender(
       usable.push(identity);
     }
   }
-  const ranked = [...usable].sort((a, b) => preference(a) - preference(b));
+  const ranked = [...usable].sort(compareIdentities);
 
   const matched =
     (claimedDomain &&
