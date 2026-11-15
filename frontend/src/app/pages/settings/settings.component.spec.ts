@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { vi } from 'vitest';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { SettingsComponent } from './settings.component';
 import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/api.service';
 import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
@@ -16,6 +17,8 @@ describe('SettingsComponent', () => {
   let apiService: SpyObj<ApiService>;
   let dialog: SpyObj<MatDialog>;
   let snackBar: SpyObj<MatSnackBar>;
+  let router: Router;
+  let routeStub: { snapshot: { queryParamMap: ReturnType<typeof convertToParamMap> } };
 
   const mockSender: ThirdPartySender = {
     id: 's1',
@@ -43,6 +46,7 @@ describe('SettingsComponent', () => {
   };
 
   beforeEach(async () => {
+    routeStub = { snapshot: { queryParamMap: convertToParamMap({}) } };
     const apiSpy = createSpyObj('ApiService', [
       'getThirdPartySenders',
       'createThirdPartySender',
@@ -65,10 +69,18 @@ describe('SettingsComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [SettingsComponent, BrowserAnimationsModule],
-      providers: [{ provide: ApiService, useValue: apiSpy }, provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        { provide: ApiService, useValue: apiSpy },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: routeStub },
+      ],
     }).compileComponents();
 
     apiService = TestBed.inject(ApiService) as SpyObj<ApiService>;
+    router = TestBed.inject(Router);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
     fixture = TestBed.createComponent(SettingsComponent);
     component = fixture.componentInstance;
@@ -196,7 +208,12 @@ describe('SettingsComponent', () => {
 
       TestBed.configureTestingModule({
         imports: [SettingsComponent, BrowserAnimationsModule],
-        providers: [{ provide: ApiService, useValue: apiSpy }, provideHttpClient(), provideHttpClientTesting()],
+        providers: [
+          { provide: ApiService, useValue: apiSpy },
+          provideHttpClient(),
+          provideHttpClientTesting(),
+          provideRouter([]),
+        ],
       });
 
       const fix = TestBed.createComponent(SettingsComponent);
@@ -223,6 +240,26 @@ describe('SettingsComponent', () => {
     it('should track selected tab index', () => {
       component.onTabChange(2);
       expect(component.selectedTabIndex()).toBe(2);
+    });
+
+    it('should write the selected tab slug to the URL', () => {
+      component.onTabChange(5);
+      expect(router.navigate).toHaveBeenCalledWith(
+        [],
+        expect.objectContaining({ queryParams: { tab: 'smtp' }, replaceUrl: true })
+      );
+    });
+
+    it('should select the tab named in the URL on init', () => {
+      routeStub.snapshot.queryParamMap = convertToParamMap({ tab: 'sso' });
+      component.ngOnInit();
+      expect(component.selectedTabIndex()).toBe(4);
+    });
+
+    it('should fall back to the first tab for an unknown slug', () => {
+      routeStub.snapshot.queryParamMap = convertToParamMap({ tab: 'bogus' });
+      component.ngOnInit();
+      expect(component.selectedTabIndex()).toBe(0);
     });
   });
 

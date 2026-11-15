@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCardModule } from '@angular/material/card';
 import { MatTableModule } from '@angular/material/table';
@@ -58,6 +59,8 @@ export class SettingsComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   // Third-Party Senders
   thirdPartySenders = signal<ThirdPartySender[]>([]);
@@ -73,9 +76,8 @@ export class SettingsComponent implements OnInit {
   // Tab tracking
   selectedTabIndex = signal(0);
   private readonly REPROCESSING_TAB_INDEX = 1;
-  private readonly UTILITIES_TAB_INDEX = 2;
-  private readonly SAML_TAB_INDEX = 3;
-  private readonly SMTP_TAB_INDEX = 4;
+  // Must match the <mat-tab> order in the template
+  private readonly TAB_SLUGS = ['senders', 'reprocessing', 'utilities', 'report-senders', 'sso', 'smtp'] as const;
 
   // Date range for reprocessing
   dateFrom = signal<Date | null>(null);
@@ -86,6 +88,7 @@ export class SettingsComponent implements OnInit {
   isDeletingReports = signal(false);
 
   ngOnInit() {
+    this.selectedTabIndex.set(this.tabIndexFromUrl());
     this.loadThirdPartySenders();
     this.loadCurrentJob();
     this.loadReprocessingHistory();
@@ -94,6 +97,12 @@ export class SettingsComponent implements OnInit {
   // Tab change handler
   onTabChange(index: number) {
     this.selectedTabIndex.set(index);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: this.TAB_SLUGS[index] },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
 
     // If switching to reprocessing tab and there's a running job, start polling
     if (index === this.REPROCESSING_TAB_INDEX && this.isReprocessing()) {
@@ -102,6 +111,12 @@ export class SettingsComponent implements OnInit {
         this.pollJobStatus(job.id);
       }
     }
+  }
+
+  private tabIndexFromUrl(): number {
+    const slug = this.route.snapshot.queryParamMap.get('tab');
+    const index = this.TAB_SLUGS.findIndex((s) => s === slug);
+    return index === -1 ? 0 : index;
   }
 
   // Third-Party Senders Methods
