@@ -31,3 +31,43 @@ table {
     background-color: var(--explore-table-row-active);
   }
 }
+
+.empty-state {
+  padding: vars.$spacing-base;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.skeleton {
+  --skeleton-base: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+  --skeleton-highlight: color-mix(in srgb, var(--mat-sys-on-surface) 18%, transparent);
+
+  display: block;
+  height: 0.875rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-highlight) 50%, var(--skeleton-base) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-pill {
+  width: 5.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: var(--skeleton-base);
+  }
+}

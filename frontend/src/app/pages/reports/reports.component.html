@@ -1,4 +1,4 @@
-<div class="reports-container" data-testid="reports-container">
+<div class="reports-container" data-testid="reports-container" [attr.aria-busy]="loading()">
   <div class="reports-content">
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Filter by domain</mat-label>
@@ -8,48 +8,85 @@
       </mat-select>
     </mat-form-field>
 
-    <table mat-table [dataSource]="reports()" class="mat-elevation-z1">
+    <table mat-table [dataSource]="tableRows()" class="mat-elevation-z1">
       <ng-container matColumnDef="domain">
         <th mat-header-cell *matHeaderCellDef>Domain</th>
-        <td mat-cell *matCellDef="let r">{{ r.domain }}</td>
+        <td mat-cell *matCellDef="let r">
+          @if (loading()) {
+            <span class="skeleton" data-testid="reports-skeleton" style="width: 70%"></span>
+          } @else {
+            {{ r.domain }}
+          }
+        </td>
       </ng-container>
       <ng-container matColumnDef="orgName">
         <th mat-header-cell *matHeaderCellDef>Reporting Org</th>
-        <td mat-cell *matCellDef="let r">{{ r.orgName || 'N/A' }}</td>
+        <td mat-cell *matCellDef="let r">
+          @if (loading()) {
+            <span class="skeleton" style="width: 60%"></span>
+          } @else {
+            {{ r.orgName || 'N/A' }}
+          }
+        </td>
       </ng-container>
       <ng-container matColumnDef="sender">
         <th mat-header-cell *matHeaderCellDef>Sender</th>
         <td mat-cell *matCellDef="let r">
-          <app-sender-badge [report]="r" (details)="openSenderDetails(r)"></app-sender-badge>
+          @if (loading()) {
+            <span class="skeleton skeleton-pill"></span>
+          } @else {
+            <app-sender-badge [report]="r" (details)="openSenderDetails(r)"></app-sender-badge>
+          }
         </td>
       </ng-container>
       <ng-container matColumnDef="reportId">
         <th mat-header-cell *matHeaderCellDef>Report ID</th>
-        <td mat-cell *matCellDef="let r">{{ r.reportId }}</td>
+        <td mat-cell *matCellDef="let r">
+          @if (loading()) {
+            <span class="skeleton" style="width: 85%"></span>
+          } @else {
+            {{ r.reportId }}
+          }
+        </td>
       </ng-container>
       <ng-container matColumnDef="beginDate">
         <th mat-header-cell *matHeaderCellDef>Begin</th>
-        <td mat-cell *matCellDef="let r">{{ r.beginDate | date: 'short' }}</td>
+        <td mat-cell *matCellDef="let r">
+          @if (loading()) {
+            <span class="skeleton" style="width: 75%"></span>
+          } @else {
+            {{ r.beginDate | date: 'short' }}
+          }
+        </td>
       </ng-container>
       <ng-container matColumnDef="endDate">
         <th mat-header-cell *matHeaderCellDef>End</th>
-        <td mat-cell *matCellDef="let r">{{ r.endDate | date: 'short' }}</td>
+        <td mat-cell *matCellDef="let r">
+          @if (loading()) {
+            <span class="skeleton" style="width: 75%"></span>
+          } @else {
+            {{ r.endDate | date: 'short' }}
+          }
+        </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr
         mat-row
         *matRowDef="let row; columns: displayedColumns"
-        class="clickable-row"
-        (click)="openReportDetails(row)"
+        [class.clickable-row]="!loading()"
+        (click)="!loading() && openReportDetails(row)"
       ></tr>
+      <tr class="mat-mdc-row" *matNoDataRow>
+        <td class="mat-mdc-cell empty-state" [attr.colspan]="displayedColumns.length">No reports found</td>
+      </tr>
     </table>
 
     <mat-paginator
       [length]="total()"
       [pageSize]="pageSize()"
       [pageIndex]="page() - 1"
-      [pageSizeOptions]="[10, 25, 50, 100]"
+      [pageSizeOptions]="pageSizeOptions"
       showFirstLastButtons
       (page)="onPage($event)"
     ></mat-paginator>
