@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ApiService, DmarcReport, PagedResult } from '../../services/api.service';
@@ -8,11 +8,15 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { FormsModule } from '@angular/forms';
+import { finalize } from 'rxjs/operators';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
 import { SenderBadgeComponent } from '../../components/sender-badge/sender-badge.component';
 import { ReportDeliveriesDialogComponent } from '../../components/report-deliveries-dialog/report-deliveries-dialog.component';
+
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_SKELETON_ROWS = 10;
 
 @Component({
   standalone: true,
@@ -41,7 +45,12 @@ export class ReportsComponent implements OnInit {
   readonly reports = signal<DmarcReport[]>([]);
   readonly total = signal(0);
   readonly page = signal(1);
-  readonly pageSize = signal(20);
+  readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  readonly pageSizeOptions = [10, DEFAULT_PAGE_SIZE, 50, 100];
+  readonly loading = signal(false);
+  readonly tableRows = computed<readonly unknown[]>(() =>
+    this.loading() ? Array.from({ length: Math.min(this.pageSize(), MAX_SKELETON_ROWS) }, (_, i) => i) : this.reports()
+  );
   readonly domains = signal<string[]>([]);
   domainFilter = '';
   displayedColumns = ['domain', 'orgName', 'sender', 'reportId', 'beginDate', 'endDate'];
@@ -112,16 +121,11 @@ export class ReportsComponent implements OnInit {
   }
 
   private updateUrl() {
-    const queryParams: any = {};
-    if (this.domainFilter) {
-      queryParams.domain = this.domainFilter;
-    }
-    if (this.page() > 1) {
-      queryParams.page = this.page();
-    }
-    if (this.pageSize() !== 20) {
-      queryParams.pageSize = this.pageSize();
-    }
+    const queryParams = {
+      domain: this.domainFilter || null,
+      page: this.page() > 1 ? this.page() : null,
+      pageSize: this.pageSize() !== DEFAULT_PAGE_SIZE ? this.pageSize() : null,
+    };
 
     this.router.navigate([], {
       relativeTo: this.route,
@@ -151,11 +155,18 @@ export class ReportsComponent implements OnInit {
   }
 
   private fetch() {
+    this.loading.set(true);
     this.api
       .listReports({ domain: this.domainFilter, page: this.page(), pageSize: this.pageSize() })
-      .subscribe((res: PagedResult<DmarcReport>) => {
-        this.reports.set(res.data);
-        this.total.set(res.total);
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: (res: PagedResult<DmarcReport>) => {
+          this.reports.set(res.data);
+          this.total.set(res.total);
+        },
+        error: () => {
+          this.snackBar.open('Failed to load reports', 'Close', { duration: 5000 });
+        },
       });
   }
 

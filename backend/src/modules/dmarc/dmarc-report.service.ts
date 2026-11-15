@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
   Equal,
+  FindOptionsSelect,
   FindOptionsWhere,
   ILike,
   IsNull,
@@ -39,6 +40,23 @@ const REPORT_RELATIONS = {
     spfResults: true,
     policyOverrideReasons: true,
   },
+};
+
+const REPORT_LIST_SELECT: FindOptionsSelect<DmarcReport> = {
+  id: true,
+  reportId: true,
+  orgName: true,
+  email: true,
+  domain: true,
+  policy: true,
+  contentHash: true,
+  authStatus: true,
+  authDomain: true,
+  claimedDomain: true,
+  beginDate: true,
+  endDate: true,
+  createdAt: true,
+  updatedAt: true,
 };
 
 const RECORD_INSERT_CHUNK_SIZE = 500;
@@ -125,7 +143,7 @@ export class DmarcReportService {
       order: { [sort]: order.toUpperCase() as 'ASC' | 'DESC' },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      relations: REPORT_RELATIONS,
+      select: REPORT_LIST_SELECT,
     });
 
     return { data, total, page, pageSize };

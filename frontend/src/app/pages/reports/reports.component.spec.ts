@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideRouter, ActivatedRoute } from '@angular/router';
-import { of } from 'rxjs';
+import { provideRouter, ActivatedRoute, Router } from '@angular/router';
+import { of, Subject, throwError } from 'rxjs';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -103,6 +103,75 @@ describe('ReportsComponent', () => {
     component.onFilterChange();
     expect(component.page()).toBe(1);
     expect(apiService.listReports).toHaveBeenCalled();
+  });
+
+  describe('URL sync', () => {
+    let navigate: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    });
+
+    const lastQueryParams = () => navigate.mock.calls.at(-1)![1]!.queryParams;
+
+    it('should drop page from the URL when returning to page 1', () => {
+      component.onPage({ pageIndex: 1, pageSize: 100, length: 500 });
+      expect(lastQueryParams()).toEqual(expect.objectContaining({ page: 2, pageSize: 100 }));
+
+      component.onPage({ pageIndex: 0, pageSize: 100, length: 500 });
+      expect(lastQueryParams()).toEqual(expect.objectContaining({ page: null, pageSize: 100 }));
+    });
+
+    it('should drop pageSize from the URL when back to the default', () => {
+      component.onPage({ pageIndex: 0, pageSize: 20, length: 500 });
+      expect(lastQueryParams()).toEqual(expect.objectContaining({ pageSize: null }));
+    });
+
+    it('should drop domain from the URL when the filter is cleared', () => {
+      component.domainFilter = '';
+      component.onFilterChange();
+      expect(lastQueryParams()).toEqual(expect.objectContaining({ domain: null, page: null }));
+    });
+
+    it('should offer the default page size in the paginator', () => {
+      expect(component.pageSizeOptions).toContain(component.pageSize());
+    });
+  });
+
+  describe('loading state', () => {
+    const skeleton = () => (fixture.nativeElement as HTMLElement).querySelector('[data-testid="reports-skeleton"]');
+
+    it('should show a skeleton while reports are loading', () => {
+      const pending = new Subject<PagedResult<DmarcReport>>();
+      apiService.listReports.mockReturnValue(pending);
+
+      component.onPage({ pageIndex: 1, pageSize: 20, length: 100 });
+      fixture.detectChanges();
+
+      expect(component.loading()).toBe(true);
+      expect(skeleton()).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('tr.clickable-row')).toBeNull();
+
+      pending.next(mockReports);
+      pending.complete();
+      fixture.detectChanges();
+
+      expect(component.loading()).toBe(false);
+      expect(skeleton()).toBeNull();
+      expect(fixture.nativeElement.querySelector('tr.clickable-row')).not.toBeNull();
+    });
+
+    it('should stop loading and notify when the request fails', () => {
+      const snackBar = fixture.debugElement.injector.get(MatSnackBar);
+      apiService.listReports.mockReturnValue(throwError(() => new Error('boom')));
+
+      component.onPage({ pageIndex: 1, pageSize: 20, length: 100 });
+      fixture.detectChanges();
+
+      expect(component.loading()).toBe(false);
+      expect(skeleton()).toBeNull();
+      expect(snackBar.open).toHaveBeenCalledWith('Failed to load reports', 'Close', expect.anything());
+    });
   });
 
   it('should open XML viewer dialog for report', () => {
