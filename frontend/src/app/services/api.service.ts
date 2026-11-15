@@ -139,6 +139,8 @@ export interface DomainStatistics {
   updatedAt?: string;
 }
 
+export type ReportAuthStatus = 'aligned' | 'unaligned' | 'manual' | 'unverified' | 'unchecked' | 'legacy';
+
 export interface DmarcReport {
   id: string;
   reportId?: string;
@@ -151,6 +153,46 @@ export interface DmarcReport {
   endDate?: string;
   createdAt: string;
   updatedAt: string;
+  /** Sender-authentication verdict; absent on responses from older backends. */
+  authStatus?: ReportAuthStatus;
+  /** Exact authenticated sender domain, e.g. `dmarc.yahoo.com`. */
+  authDomain?: string | null;
+  /** Organizational domain of the report's `<email>`. */
+  claimedDomain?: string | null;
+}
+
+export interface ReportDelivery {
+  id: string;
+  reportId: string;
+  source: 'imap' | 'gmail' | 'upload' | 'directory' | 'file';
+  sourceMessageId: string | null;
+  receivedAt: string;
+  contentHash: string | null;
+  authStatus: ReportAuthStatus;
+  authMethod: 'dkim' | 'arc' | null;
+  authDomain: string | null;
+  claimedDomain: string | null;
+  authDetails: Record<string, unknown> | null;
+  outcome: 'created' | 'replaced' | 'duplicate' | 'conflict';
+}
+
+export interface UnalignedSender {
+  claimedDomain: string;
+  authDomain: string;
+  orgNames: string[];
+  reportCount: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export interface TrustedReporter {
+  id: string;
+  claimedDomain: string;
+  authDomain: string;
+  note: string | null;
+  createdBy: string | null;
+  createdByEmail: string | null;
+  createdAt: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -211,6 +253,33 @@ export class ApiService {
     return this.http.get<Array<{ source: string; count: number }>>(`${this.apiBase}/dmarc-reports/stats/top-sources`, {
       params: hp,
     });
+  }
+
+  listUnalignedSenders() {
+    return this.http.get<UnalignedSender[]>(`${this.apiBase}/settings/trusted-reporters/unaligned`);
+  }
+
+  listTrustedReporters() {
+    return this.http.get<TrustedReporter[]>(`${this.apiBase}/settings/trusted-reporters`);
+  }
+
+  trustReporter(body: { claimedDomain: string; authDomain: string; note?: string }) {
+    return this.http.post<{ trusted: TrustedReporter; upgradedReports: number }>(
+      `${this.apiBase}/settings/trusted-reporters`,
+      body
+    );
+  }
+
+  revokeTrustedReporter(id: string) {
+    return this.http.delete<{ downgradedReports: number }>(
+      `${this.apiBase}/settings/trusted-reporters/${encodeURIComponent(id)}`
+    );
+  }
+
+  getReportDeliveries(reportId: string) {
+    return this.http.get<ReportDelivery[]>(
+      `${this.apiBase}/dmarc-reports/report/${encodeURIComponent(reportId)}/deliveries`
+    );
   }
 
   upload(file: File) {

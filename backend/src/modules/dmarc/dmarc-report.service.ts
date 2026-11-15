@@ -6,16 +6,24 @@ import {
   FindOptionsWhere,
   ILike,
   IsNull,
+  Not,
   EntityManager,
   Or,
   Repository,
 } from 'typeorm';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
+import { DmarcReportDelivery } from './entities/dmarc-report-delivery.entity';
 import { DkimResult } from './entities/dkim-result.entity';
 import { SpfResult } from './entities/spf-result.entity';
 import { PolicyOverrideReason } from './entities/policy-override-reason.entity';
 import { DmarcParserService } from './services/dmarc-parser.service';
+import { hashReportXml } from './utils/report-content-hash';
+import {
+  decideCollision,
+  DeliveryOutcome,
+  ReportProvenance,
+} from './utils/report-provenance';
 import { DmarcAnalyticsService } from './services/dmarc-analytics.service';
 import { DmarcGeoAnalyticsService } from './services/dmarc-geo-analytics.service';
 import {
@@ -35,6 +43,21 @@ const REPORT_RELATIONS = {
 
 const RECORD_INSERT_CHUNK_SIZE = 500;
 
+const MAX_DELIVERIES_LISTED = 50;
+
+/** Bounds how much attacker-supplied XML is kept per report for review. */
+const MAX_REJECTED_COPIES_PER_REPORT = 10;
+
+export interface IngestResult {
+  outcome: DeliveryOutcome | 'empty';
+  report: DmarcReport | null;
+}
+
+type ReportVerdict = Pick<
+  DmarcReport,
+  'contentHash' | 'authStatus' | 'authDomain' | 'claimedDomain'
+>;
+
 @Injectable()
 export class DmarcReportService {
   private readonly logger = new Logger(DmarcReportService.name);
@@ -44,6 +67,8 @@ export class DmarcReportService {
     private dmarcReportRepository: Repository<DmarcReport>,
     @InjectRepository(DmarcRecord)
     private dmarcRecordRepository: Repository<DmarcRecord>,
+    @InjectRepository(DmarcReportDelivery)
+    private deliveryRepository: Repository<DmarcReportDelivery>,
     @InjectRepository(DkimResult)
     private dkimResultRepository: Repository<DkimResult>,
     @InjectRepository(SpfResult)
@@ -113,6 +138,29 @@ export class DmarcReportService {
     });
   }
 
+  /** Newest first; the rejected XML is left out, it is sender-controlled. */
+  async findDeliveries(reportId: string): Promise<DmarcReportDelivery[]> {
+    return this.deliveryRepository.find({
+      where: { reportId },
+      order: { receivedAt: 'DESC' },
+      take: MAX_DELIVERIES_LISTED,
+      select: {
+        id: true,
+        reportId: true,
+        source: true,
+        sourceMessageId: true,
+        receivedAt: true,
+        contentHash: true,
+        authStatus: true,
+        authMethod: true,
+        authDomain: true,
+        claimedDomain: true,
+        authDetails: true,
+        outcome: true,
+      },
+    });
+  }
+
   async findByReportId(
     reportId: string,
     loadRelations: boolean = true,
@@ -155,24 +203,30 @@ export class DmarcReportService {
   }
 
   async create(dmarcReport: Partial<DmarcReport>): Promise<DmarcReport> {
-    const { records, ...reportData } = dmarcReport;
-
     const { savedReport, savedRecords } =
-      await this.dmarcReportRepository.manager.transaction(async (manager) => {
-        const reportRepository = manager.getRepository(DmarcReport);
-        const report = await reportRepository.save(
-          reportRepository.create(reportData),
-        );
-        return {
-          savedReport: report,
-          savedRecords: await this.insertRecords(manager, report.id, records),
-        };
-      });
+      await this.dmarcReportRepository.manager.transaction((manager) =>
+        this.insertReport(manager, { authStatus: 'manual', ...dmarcReport }),
+      );
 
     this.queueIpLookups(savedRecords);
 
     // Return the saved report directly (we intentionally do not load relations to avoid OOM)
     return savedReport;
+  }
+
+  private async insertReport(
+    manager: EntityManager,
+    dmarcReport: Partial<DmarcReport>,
+  ): Promise<{ savedReport: DmarcReport; savedRecords: DmarcRecord[] }> {
+    const { records, ...reportData } = dmarcReport;
+    const reportRepository = manager.getRepository(DmarcReport);
+    const savedReport = await reportRepository.save(
+      reportRepository.create(reportData),
+    );
+    return {
+      savedReport,
+      savedRecords: await this.insertRecords(manager, savedReport.id, records),
+    };
   }
 
   /**
@@ -200,71 +254,184 @@ export class DmarcReportService {
     }
   }
 
+  /**
+   * Stores an incoming report. On a (reportId, orgName, email) collision the
+   * stored data is only replaced by an aligned copy (see decideCollision); every copy
+   * is recorded as a delivery.
+   */
   async createOrUpdateByReportId(
     dmarcReport: Partial<DmarcReport>,
-  ): Promise<DmarcReport | null> {
+    provenance: ReportProvenance,
+  ): Promise<IngestResult> {
     // Skip reports with no meaningful records (e.g. empty placeholder reports
     // from senders like o2.pl that had zero traffic to report).
     if (!dmarcReport.records || dmarcReport.records.length === 0) {
       this.logger.log(
         `Skipping empty report (reportId=${dmarcReport.reportId || 'n/a'}, org=${dmarcReport.orgName || 'n/a'}): no meaningful records`,
       );
-      return null;
+      return { outcome: 'empty', report: null };
     }
 
-    if (!dmarcReport.reportId) {
-      return this.create(dmarcReport);
+    const verdict: ReportVerdict = {
+      contentHash: hashReportXml(dmarcReport.originalXml),
+      authStatus: provenance.authStatus,
+      authDomain: provenance.authDomain ?? null,
+      claimedDomain: provenance.claimedDomain ?? null,
+    };
+
+    // loadRelations = false avoids eager fetching thousands of records (OOM).
+    const existing = dmarcReport.reportId
+      ? await this.findByCompositeKey(
+          dmarcReport.reportId,
+          dmarcReport.orgName,
+          dmarcReport.email,
+          false,
+        )
+      : null;
+
+    if (!existing) {
+      return this.ingestNew(dmarcReport, verdict, provenance);
     }
 
-    // Check if report already exists using composite key (reportId + orgName + email)
-    // This prevents different organizations from overwriting each other's reports.
-    // Pass loadRelations = false to avoid eager fetching thousands of records, which causes OOM.
-    const existing = await this.findByCompositeKey(
-      dmarcReport.reportId,
-      dmarcReport.orgName,
-      dmarcReport.email,
-      false,
+    const outcome = decideCollision(existing, verdict);
+    if (outcome === 'replaced') {
+      return this.ingestReplacement(existing, dmarcReport, verdict, provenance);
+    }
+
+    await this.dmarcReportRepository.manager.transaction((manager) =>
+      this.recordDelivery(manager, existing.id, provenance, verdict, outcome, {
+        rejectedXml: outcome === 'conflict' ? dmarcReport.originalXml : null,
+      }),
+    );
+    if (outcome === 'conflict') {
+      this.logger.warn(
+        `Kept stored report ${existing.id} (reportId=${existing.reportId}, status=${existing.authStatus}); ` +
+          `rejected a different copy from ${provenance.source} (status=${provenance.authStatus}, ` +
+          `sender=${provenance.authDomain ?? 'n/a'}, messageId=${provenance.sourceMessageId ?? 'n/a'})`,
+      );
+    }
+    return { outcome, report: existing };
+  }
+
+  private async ingestNew(
+    dmarcReport: Partial<DmarcReport>,
+    verdict: ReportVerdict,
+    provenance: ReportProvenance,
+  ): Promise<IngestResult> {
+    const { savedReport, savedRecords } =
+      await this.dmarcReportRepository.manager.transaction(async (manager) => {
+        const saved = await this.insertReport(manager, {
+          ...dmarcReport,
+          ...verdict,
+        });
+        await this.recordDelivery(
+          manager,
+          saved.savedReport.id,
+          provenance,
+          verdict,
+          'created',
+        );
+        return saved;
+      });
+
+    this.queueIpLookups(savedRecords);
+    return { outcome: 'created', report: savedReport };
+  }
+
+  private async ingestReplacement(
+    existing: DmarcReport,
+    dmarcReport: Partial<DmarcReport>,
+    verdict: ReportVerdict,
+    provenance: ReportProvenance,
+  ): Promise<IngestResult> {
+    const savedRecords = await this.dmarcReportRepository.manager.transaction(
+      async (manager) => {
+        await manager
+          .getRepository(DmarcRecord)
+          .delete({ reportId: existing.id });
+        await manager.getRepository(DmarcReport).update(existing.id, {
+          reportId: dmarcReport.reportId,
+          orgName: dmarcReport.orgName,
+          email: dmarcReport.email,
+          domain: dmarcReport.domain,
+          policy: dmarcReport.policy,
+          beginDate: dmarcReport.beginDate,
+          endDate: dmarcReport.endDate,
+          originalXml: dmarcReport.originalXml,
+          ...verdict,
+        });
+        await this.recordDelivery(
+          manager,
+          existing.id,
+          provenance,
+          verdict,
+          'replaced',
+        );
+        return this.insertRecords(manager, existing.id, dmarcReport.records);
+      },
     );
 
-    if (existing) {
-      const savedRecords = await this.dmarcReportRepository.manager.transaction(
-        async (manager) => {
-          await manager
-            .getRepository(DmarcRecord)
-            .delete({ reportId: existing.id });
-          await manager.getRepository(DmarcReport).update(existing.id, {
-            reportId: dmarcReport.reportId,
-            orgName: dmarcReport.orgName,
-            email: dmarcReport.email,
-            domain: dmarcReport.domain,
-            policy: dmarcReport.policy,
-            beginDate: dmarcReport.beginDate,
-            endDate: dmarcReport.endDate,
-            originalXml: (dmarcReport as any).originalXml,
-          });
-          return this.insertRecords(manager, existing.id, dmarcReport.records);
-        },
-      );
+    this.logger.warn(
+      `Replaced report ${existing.id} (reportId=${existing.reportId}, status=${existing.authStatus}) ` +
+        `with an aligned copy from ${provenance.source} (status=${provenance.authStatus}, ` +
+        `sender=${provenance.authDomain ?? 'n/a'}, messageId=${provenance.sourceMessageId ?? 'n/a'})`,
+    );
+    this.queueIpLookups(savedRecords);
 
-      this.queueIpLookups(savedRecords);
-
-      const updatedReport = await this.dmarcReportRepository.findOne({
-        where: { id: existing.id },
-      });
-      if (!updatedReport) {
-        throw new BadRequestException('Failed to find updated DMARC report');
-      }
-      return updatedReport;
-    } else {
-      return this.create(dmarcReport);
+    const updatedReport = await this.dmarcReportRepository.findOne({
+      where: { id: existing.id },
+    });
+    if (!updatedReport) {
+      throw new BadRequestException('Failed to find updated DMARC report');
     }
+    return { outcome: 'replaced', report: updatedReport };
+  }
+
+  private async recordDelivery(
+    manager: EntityManager,
+    reportId: string,
+    provenance: ReportProvenance,
+    verdict: ReportVerdict,
+    outcome: DeliveryOutcome,
+    options: { rejectedXml?: string | null } = {},
+  ): Promise<void> {
+    const repository = manager.getRepository(DmarcReportDelivery);
+    let rejectedXml = options.rejectedXml ?? null;
+    if (rejectedXml) {
+      const kept = await repository.count({
+        where: { reportId, outcome: 'conflict', rejectedXml: Not(IsNull()) },
+      });
+      if (kept >= MAX_REJECTED_COPIES_PER_REPORT) {
+        rejectedXml = null;
+      }
+    }
+    await repository.save(
+      repository.create({
+        reportId,
+        source: provenance.source,
+        sourceMessageId: provenance.sourceMessageId ?? null,
+        contentHash: verdict.contentHash,
+        authStatus: provenance.authStatus,
+        authMethod: provenance.authMethod ?? null,
+        authDomain: verdict.authDomain,
+        claimedDomain: verdict.claimedDomain,
+        authDetails: provenance.authDetails ?? null,
+        outcome,
+        rejectedXml,
+      }),
+    );
   }
 
   async update(
     id: string,
     dmarcReport: Partial<DmarcReport>,
   ): Promise<DmarcReport | null> {
-    await this.dmarcReportRepository.update(id, dmarcReport);
+    const {
+      records: _records,
+      deliveries: _deliveries,
+      ...columns
+    } = dmarcReport;
+    await this.dmarcReportRepository.update(id, columns);
     return this.dmarcReportRepository.findOne({ where: { id } });
   }
 

@@ -10,13 +10,14 @@ import { OAuth2Client } from 'google-auth-library';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { DmarcReportService } from './dmarc-report.service';
+import {
+  isPermanentIngestError,
+  MessageEvidence,
+  ReportSenderAuthService,
+} from './services/report-sender-auth.service';
 import { minifyXml } from './utils/xml-minifier.util';
 import { archiveFailedAttachment } from './utils/failure-archive';
-import {
-  getReportLimits,
-  ReportLimits,
-  ReportTooLargeError,
-} from './config/report-limits.config';
+import { getReportLimits, ReportLimits } from './config/report-limits.config';
 
 type GmailAuthConfig = {
   clientEmail: string;
@@ -46,6 +47,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly config: ConfigService,
     private readonly dmarcReportService: DmarcReportService,
+    private readonly senderAuth: ReportSenderAuthService,
   ) {
     this.limits = getReportLimits(config);
   }
@@ -392,6 +394,11 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       const attachments = parts.filter(
         (p) => (p.filename || '').length > 0 && p.body && p.body.attachmentId,
       );
+      const evidence = await this.messageEvidence(
+        messageId,
+        payload,
+        attachments.length > 0 && this.getProcessInline(),
+      );
       let count = 0;
       for (const part of attachments) {
         const attachmentId = part.body!.attachmentId!;
@@ -438,8 +445,16 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
             const parsed =
               await this.dmarcReportService.parseXmlReport(xmlContent);
             (parsed as any).originalXml = minifyXml(xmlContent);
-            const saved =
-              await this.dmarcReportService.createOrUpdateByReportId(parsed);
+            const provenance = await this.senderAuth.assess(
+              evidence.auth,
+              { email: parsed.email, domain: parsed.domain },
+              { source: 'gmail', sourceMessageId: evidence.sourceMessageId },
+            );
+            const { report: saved } =
+              await this.dmarcReportService.createOrUpdateByReportId(
+                parsed,
+                provenance,
+              );
             count += 1;
             if (saved) {
               this.logger.log(
@@ -473,7 +488,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
               filename,
               buffer,
               attachmentId,
-              err instanceof ReportTooLargeError,
+              isPermanentIngestError(err),
             );
           }
         } else {
@@ -594,7 +609,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     if (permanent || count >= threshold) {
       this.logger.warn(
         permanent
-          ? `Message ${messageId} exceeds the report size limits, marking as permanently failed`
+          ? `Message ${messageId} cannot be ingested (size limit or rejected sender), marking as permanently failed`
           : `Message ${messageId} reached failure threshold (${threshold}), marking as permanently failed`,
       );
       // Add failed label to avoid infinite retries
@@ -673,6 +688,36 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     const pad = normalized.length % 4;
     const padded = pad ? normalized + '='.repeat(4 - pad) : normalized;
     return Buffer.from(padded, 'base64');
+  }
+
+  /** Fetches the raw message only when it has reports to verify. */
+  private async messageEvidence(
+    messageId: string,
+    payload: gmail_v1.Schema$MessagePart,
+    verify: boolean,
+  ): Promise<MessageEvidence> {
+    const sourceMessageId = this.headerValue(payload, 'Message-ID');
+    if (!verify || !this.gmailClient) {
+      return { auth: null, sourceMessageId };
+    }
+    const rawRes = await this.gmailClient.users.messages.get({
+      userId: 'me',
+      id: messageId,
+      format: 'raw',
+    });
+    const raw = this.decodeBase64Url(rawRes.data.raw || '');
+    return { auth: await this.senderAuth.verifyMessage(raw), sourceMessageId };
+  }
+
+  private headerValue(
+    payload: gmail_v1.Schema$MessagePart,
+    name: string,
+  ): string | undefined {
+    const wanted = name.toLowerCase();
+    return (
+      payload.headers?.find((h) => h.name?.toLowerCase() === wanted)?.value ??
+      undefined
+    );
   }
 
   private async markMessageProcessed(messageId: string): Promise<void> {

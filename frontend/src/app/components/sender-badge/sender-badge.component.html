@@ -1,0 +1,74 @@
+@switch (report.authStatus) {
+  @case ('aligned') {
+    <button
+      type="button"
+      class="sender-badge aligned"
+      data-testid="sender-badge-aligned"
+      [matTooltip]="tooltip"
+      [attr.aria-label]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>verified</mat-icon>
+    </button>
+  }
+  @case ('unaligned') {
+    <button
+      type="button"
+      class="sender-badge unaligned"
+      data-testid="sender-badge-unaligned"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>info</mat-icon>
+      Sent by {{ report.authDomain }}
+    </button>
+  }
+  @case ('unverified') {
+    <button
+      type="button"
+      class="sender-badge unverified"
+      data-testid="sender-badge-unverified"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>warning</mat-icon>
+      Unverified sender
+    </button>
+  }
+  @case ('manual') {
+    <button
+      type="button"
+      class="sender-badge manual"
+      data-testid="sender-badge-manual"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>upload_file</mat-icon>
+      Manual upload
+    </button>
+  }
+  @case ('unchecked') {
+    <button
+      type="button"
+      class="sender-badge unchecked"
+      data-testid="sender-badge-unchecked"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>remove_moderator</mat-icon>
+      Not checked
+    </button>
+  }
+  @case ('legacy') {
+    <button
+      type="button"
+      class="sender-badge legacy"
+      data-testid="sender-badge-legacy"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>history</mat-icon>
+      Legacy
+    </button>
+  }
+}

@@ -17,6 +17,12 @@
         <th mat-header-cell *matHeaderCellDef>Reporting Org</th>
         <td mat-cell *matCellDef="let r">{{ r.orgName || 'N/A' }}</td>
       </ng-container>
+      <ng-container matColumnDef="sender">
+        <th mat-header-cell *matHeaderCellDef>Sender</th>
+        <td mat-cell *matCellDef="let r">
+          <app-sender-badge [report]="r" (details)="openSenderDetails(r)"></app-sender-badge>
+        </td>
+      </ng-container>
       <ng-container matColumnDef="reportId">
         <th mat-header-cell *matHeaderCellDef>Report ID</th>
         <td mat-cell *matCellDef="let r">{{ r.reportId }}</td>

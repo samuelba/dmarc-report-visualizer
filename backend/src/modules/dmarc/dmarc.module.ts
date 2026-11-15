@@ -11,6 +11,7 @@ import { IpLookupController } from './controllers/ip-lookup.controller';
 import { DmarcReportService } from './dmarc-report.service';
 import { DomainService } from './domain.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
+import { DmarcReportDelivery } from './entities/dmarc-report-delivery.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
 import { DkimResult } from './entities/dkim-result.entity';
 import { SpfResult } from './entities/spf-result.entity';
@@ -23,6 +24,10 @@ import { EmailMessageTracking } from './entities/email-message-tracking.entity';
 import { FileWatcherService } from './file-watcher.service';
 import { GmailDownloaderService } from './gmail-downloader.service';
 import { ImapDownloaderService } from './services/imap-downloader.service';
+import { ReportSenderAuthService } from './services/report-sender-auth.service';
+import { TrustedReporterService } from './services/trusted-reporter.service';
+import { TrustedReporterController } from './controllers/trusted-reporter.controller';
+import { TrustedReporterDomain } from './entities/trusted-reporter-domain.entity';
 import { EmailMessageTrackingService } from './services/email-message-tracking.service';
 import { GeolocationService } from './services/geolocation.service';
 import { ForwardingDetectionService } from './services/forwarding-detection.service';
@@ -49,6 +54,8 @@ import { AuthModule } from '../auth/auth.module';
       ReprocessingJob,
       Domain,
       EmailMessageTracking,
+      DmarcReportDelivery,
+      TrustedReporterDomain,
     ]),
     AuthModule,
     MulterModule.registerAsync({
@@ -59,6 +66,7 @@ import { AuthModule } from '../auth/auth.module';
   controllers: [
     DmarcReportController,
     ThirdPartySenderController,
+    TrustedReporterController,
     ReprocessingController,
     DomainController,
     IpLookupController,
@@ -69,6 +77,8 @@ import { AuthModule } from '../auth/auth.module';
     FileWatcherService,
     GmailDownloaderService,
     ImapDownloaderService,
+    ReportSenderAuthService,
+    TrustedReporterService,
     EmailMessageTrackingService,
     GeolocationService,
     ForwardingDetectionService,

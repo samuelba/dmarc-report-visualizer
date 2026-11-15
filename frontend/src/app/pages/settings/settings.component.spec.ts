@@ -54,7 +54,11 @@ describe('SettingsComponent', () => {
       'getReprocessingJobs',
       'getReprocessingJob',
       'deleteOldReports',
+      'listUnalignedSenders',
+      'listTrustedReporters',
     ]);
+    apiSpy.listUnalignedSenders.mockReturnValue(of([]));
+    apiSpy.listTrustedReporters.mockReturnValue(of([]));
     apiSpy.getThirdPartySenders.mockReturnValue(of([mockSender]));
     apiSpy.getCurrentReprocessingJob.mockReturnValue(of(null));
     apiSpy.getReprocessingJobs.mockReturnValue(of([mockJob]));
@@ -180,7 +184,11 @@ describe('SettingsComponent', () => {
         'getCurrentReprocessingJob',
         'getReprocessingJobs',
         'getReprocessingJob',
+        'listUnalignedSenders',
+        'listTrustedReporters',
       ]);
+      apiSpy.listUnalignedSenders.mockReturnValue(of([]));
+      apiSpy.listTrustedReporters.mockReturnValue(of([]));
       apiSpy.getThirdPartySenders.mockReturnValue(of([]));
       apiSpy.getCurrentReprocessingJob.mockReturnValue(of({ ...mockJob, status: 'running' } as ReprocessingJob));
       apiSpy.getReprocessingJobs.mockReturnValue(of([]));

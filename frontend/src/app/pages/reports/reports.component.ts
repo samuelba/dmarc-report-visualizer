@@ -11,6 +11,8 @@ import { FormsModule } from '@angular/forms';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml-viewer-dialog.component';
+import { SenderBadgeComponent } from '../../components/sender-badge/sender-badge.component';
+import { ReportDeliveriesDialogComponent } from '../../components/report-deliveries-dialog/report-deliveries-dialog.component';
 
 @Component({
   standalone: true,
@@ -24,6 +26,7 @@ import { XmlViewerDialogComponent } from '../../components/xml-viewer-dialog/xml
     MatButtonModule,
     FormsModule,
     MatDialogModule,
+    SenderBadgeComponent,
   ],
   templateUrl: './reports.component.html',
   styleUrls: ['./reports.component.scss'],
@@ -41,7 +44,7 @@ export class ReportsComponent implements OnInit {
   readonly pageSize = signal(20);
   readonly domains = signal<string[]>([]);
   domainFilter = '';
-  displayedColumns = ['domain', 'orgName', 'reportId', 'beginDate', 'endDate'];
+  displayedColumns = ['domain', 'orgName', 'sender', 'reportId', 'beginDate', 'endDate'];
 
   ngOnInit(): void {
     this.loadFiltersFromUrl();
@@ -154,6 +157,18 @@ export class ReportsComponent implements OnInit {
         this.reports.set(res.data);
         this.total.set(res.total);
       });
+  }
+
+  openSenderDetails(report: DmarcReport) {
+    this.dialog.open(ReportDeliveriesDialogComponent, {
+      data: {
+        reportId: report.id,
+        title: `${report.domain || 'Unknown Domain'} · ${report.orgName || 'Unknown reporter'}`,
+        authStatus: report.authStatus,
+      },
+      width: '720px',
+      maxWidth: '95vw',
+    });
   }
 
   openReportDetails(report: DmarcReport) {

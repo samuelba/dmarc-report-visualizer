@@ -1,0 +1,44 @@
+<h2 mat-dialog-title>Deliveries · {{ data.title }}</h2>
+<mat-dialog-content>
+  <p class="hint">
+    Every copy of this report the server received. Only a copy proven to come from the reporting organization (aligned)
+    replaces a stored report that is not; the others are kept here as duplicates or conflicts.
+  </p>
+
+  @if (loading()) {
+    <mat-spinner diameter="32"></mat-spinner>
+  } @else if (failed()) {
+    <p class="error">Could not load the delivery history.</p>
+  } @else if (deliveries().length === 0) {
+    <p>No deliveries recorded. {{ noDeliveriesReason }}</p>
+  } @else {
+    @for (delivery of deliveries(); track delivery.id) {
+      <section class="delivery" data-testid="delivery-row">
+        <div class="summary">
+          <span class="received">{{ delivery.receivedAt | date: 'medium' }}</span>
+          <span>{{ sourceLabel(delivery) }}</span>
+          <span class="status" [class]="delivery.authStatus">{{ delivery.authStatus }}</span>
+          @if (delivery.authMethod) {
+            <span>via {{ delivery.authMethod | uppercase }}</span>
+          }
+          @if (delivery.authDomain) {
+            <span>{{ delivery.authDomain }}</span>
+          }
+          <span class="outcome">{{ delivery.outcome }}</span>
+        </div>
+        @if (delivery.sourceMessageId) {
+          <div class="message-id">{{ delivery.sourceMessageId }}</div>
+        }
+        @if (delivery.authDetails) {
+          <details>
+            <summary>Evidence</summary>
+            <pre data-testid="delivery-details">{{ details(delivery) }}</pre>
+          </details>
+        }
+      </section>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

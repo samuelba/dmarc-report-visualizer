@@ -16,6 +16,11 @@ import {
   ProcessingStatus,
 } from '../entities/email-message-tracking.entity';
 import { minifyXml } from '../utils/xml-minifier.util';
+import {
+  isPermanentIngestError,
+  MessageEvidence,
+  ReportSenderAuthService,
+} from './report-sender-auth.service';
 import { archiveFailedAttachment } from '../utils/failure-archive';
 import {
   getReportLimits,
@@ -74,6 +79,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly dmarcReportService: DmarcReportService,
     private readonly trackingService: EmailMessageTrackingService,
+    private readonly senderAuth: ReportSenderAuthService,
   ) {
     this.limits = getReportLimits(config);
   }
@@ -350,12 +356,16 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      const auth = this.getProcessInline()
+        ? await this.senderAuth.verifyMessage(fetchResult.source)
+        : null;
       await this.processReportAttachments(
         uid,
         trackingKey,
         reportAttachments,
         downloadDir,
         accountIdentifier,
+        { auth, sourceMessageId: parsed.messageId },
       );
     } catch (err) {
       const errMsg = this.formatError(err);
@@ -365,7 +375,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
         trackingKey,
         accountIdentifier,
         errMsg,
-        err instanceof ReportTooLargeError,
+        isPermanentIngestError(err),
       );
     }
   }
@@ -394,10 +404,11 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     attachments: Attachment[],
     downloadDir: string,
     accountIdentifier: string,
+    evidence: MessageEvidence,
   ): Promise<void> {
     let attachmentsProcessed = 0;
     const errors: string[] = [];
-    let allFailuresTooLarge = true;
+    let allFailuresPermanent = true;
     let firstReportId: string | undefined;
 
     for (const attachment of attachments) {
@@ -406,6 +417,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
           attachment,
           downloadDir,
           trackingKey,
+          evidence,
         );
         attachmentsProcessed++;
         this.logger.log(
@@ -416,7 +428,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       } catch (err) {
         const errMsg = this.formatError(err);
         errors.push(errMsg);
-        allFailuresTooLarge &&= err instanceof ReportTooLargeError;
+        allFailuresPermanent &&= isPermanentIngestError(err);
         this.logger.warn(
           `Failed to process attachment ${attachment.filename || 'unknown'}: ${errMsg}`,
         );
@@ -439,7 +451,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       trackingKey,
       accountIdentifier,
       errors.join('; '),
-      allFailuresTooLarge,
+      allFailuresPermanent,
     );
   }
 
@@ -447,6 +459,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     attachment: Attachment,
     downloadDir: string,
     trackingKey: string,
+    evidence: MessageEvidence,
   ): Promise<AttachmentResult> {
     const filename = this.getAttachmentFilename(attachment);
     const buffer = attachment.content;
@@ -473,8 +486,16 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       const parsedReport =
         await this.dmarcReportService.parseXmlReport(xmlContent);
       (parsedReport as any).originalXml = minifyXml(xmlContent);
-      const savedReport =
-        await this.dmarcReportService.createOrUpdateByReportId(parsedReport);
+      const provenance = await this.senderAuth.assess(
+        evidence.auth,
+        { email: parsedReport.email, domain: parsedReport.domain },
+        { source: 'imap', sourceMessageId: evidence.sourceMessageId },
+      );
+      const { report: savedReport } =
+        await this.dmarcReportService.createOrUpdateByReportId(
+          parsedReport,
+          provenance,
+        );
 
       if (this.shouldSaveOriginal()) {
         const savePath = path.join(
@@ -595,7 +616,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.warn(
       permanent
-        ? `Message UID ${uid} exceeds the report size limits, marking as permanently failed`
+        ? `Message UID ${uid} cannot be ingested (${errorMessage}), marking as permanently failed`
         : `Message UID ${uid} failed ${count} times (threshold: ${threshold}), marking as permanently failed`,
     );
 
