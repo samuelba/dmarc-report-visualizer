@@ -12,6 +12,7 @@ import authConfig from './config/auth.config';
 import { isRedisConfigured } from './config/redis.config';
 import { isMcpEnabled } from './config/mcp.config';
 import { ApiTokenModule } from './modules/auth/api-token.module';
+import { McpModule } from './modules/mcp/mcp.module';
 
 /**
  * With MCP_ENABLED unset or false, API tokens and the MCP server are not
@@ -20,7 +21,7 @@ import { ApiTokenModule } from './modules/auth/api-token.module';
 export function getOptionalMcpModules(
   enabled: boolean = isMcpEnabled(),
 ): Type[] {
-  return enabled ? [ApiTokenModule] : [];
+  return enabled ? [ApiTokenModule, McpModule] : [];
 }
 
 function getOptionalBullRoot(): DynamicModule[] {

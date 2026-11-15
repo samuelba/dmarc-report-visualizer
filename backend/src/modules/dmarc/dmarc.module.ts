@@ -91,6 +91,11 @@ import { AuthModule } from '../auth/auth.module';
     IpLookupInitService,
     IpLookupQueueService,
   ],
-  exports: [DmarcReportService, GeolocationService, DmarcParserService],
+  exports: [
+    DmarcReportService,
+    GeolocationService,
+    DmarcParserService,
+    DomainService,
+  ],
 })
 export class DmarcModule {}
