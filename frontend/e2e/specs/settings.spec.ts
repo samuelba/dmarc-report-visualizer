@@ -39,6 +39,23 @@ test.describe('Settings Page', () => {
     await expect(page.locator('button:has-text("Start Reprocessing")')).toBeVisible();
   });
 
+  test('opens the tab named in the URL', async ({ page }) => {
+    await page.goto('/settings?tab=sso');
+
+    await expect(page.locator('div[role="tab"]:has-text("SAML/SSO")')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  test('selected tab survives a page reload', async ({ page }) => {
+    await page.goto('/settings');
+
+    await page.locator('div[role="tab"]:has-text("SAML/SSO")').click();
+    await expect(page).toHaveURL(/[?&]tab=sso/);
+
+    await page.reload();
+
+    await expect(page.locator('div[role="tab"]:has-text("SAML/SSO")')).toHaveAttribute('aria-selected', 'true');
+  });
+
   test('utilities tab is accessible', async ({ page }) => {
     await page.goto('/settings');
 
