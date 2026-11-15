@@ -28,6 +28,7 @@ describe('DmarcReportController', () => {
     remove: jest.fn(),
     deleteOldReports: jest.fn(),
     createOrUpdateByReportId: jest.fn(),
+    findDeliveries: jest.fn(),
     parseXmlReport: jest.fn(),
     unzipReport: jest.fn(),
     summaryStats: jest.fn(),
@@ -809,6 +810,18 @@ describe('DmarcReportController', () => {
 
         expect(result).toEqual(mockData);
       });
+    });
+  });
+
+  describe('getReportDeliveries', () => {
+    it('returns the delivery history of a report', async () => {
+      const rows = [{ id: 'd1' }];
+      mockDmarcReportService.findDeliveries.mockResolvedValue(rows);
+
+      await expect(controller.getReportDeliveries('rep-1')).resolves.toBe(rows);
+      expect(mockDmarcReportService.findDeliveries).toHaveBeenCalledWith(
+        'rep-1',
+      );
     });
   });
 

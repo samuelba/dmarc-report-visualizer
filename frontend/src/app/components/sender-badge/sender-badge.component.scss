@@ -1,0 +1,28 @@
+.sender-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &.aligned {
+    padding: 2px 4px;
+    background: transparent;
+    color: var(--custom-success-color);
+  }
+
+  &.unaligned {
+    background: var(--custom-warning-bg-color);
+    color: var(--custom-warning-color);
+  }
+
+  &.unverified {
+    background: var(--custom-error-bg-color);
+    color: var(--custom-error-color);
+  }
+}

@@ -17,6 +17,7 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
+import { DmarcReportDelivery } from './entities/dmarc-report-delivery.entity';
 import { QueryReportsDto } from './dto/query-reports.dto';
 import { minifyXml } from './utils/xml-minifier.util';
 import {
@@ -284,6 +285,13 @@ export class DmarcReportController {
   @Get('test-endpoint')
   testEndpoint(): Promise<{ message: string }> {
     return Promise.resolve({ message: 'Test endpoint working!' });
+  }
+
+  @Get('report/:id/deliveries')
+  getReportDeliveries(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<DmarcReportDelivery[]> {
+    return this.dmarcReportService.findDeliveries(id);
   }
 
   @Get('report/:id/xml')

@@ -56,6 +56,7 @@ describe('DmarcReportService', () => {
     create: jest.fn(),
     save: jest.fn(),
     count: jest.fn(),
+    find: jest.fn(),
   };
 
   const mockGenericRepository = {
@@ -127,6 +128,10 @@ describe('DmarcReportService', () => {
         {
           provide: getRepositoryToken(DmarcRecord),
           useValue: mockDmarcRecordRepository,
+        },
+        {
+          provide: getRepositoryToken(DmarcReportDelivery),
+          useValue: mockDeliveryRepository,
         },
         {
           provide: getRepositoryToken(DkimResult),
@@ -414,6 +419,24 @@ describe('DmarcReportService', () => {
           rejectedXml: null,
         }),
       );
+    });
+  });
+
+  describe('findDeliveries', () => {
+    it('lists the newest deliveries of a report without the rejected XML', async () => {
+      const rows = [{ id: 'd1', outcome: 'created' }];
+      mockDeliveryRepository.find.mockResolvedValue(rows);
+
+      await expect(service.findDeliveries('rep-1')).resolves.toBe(rows);
+
+      const query = mockDeliveryRepository.find.mock.calls[0][0];
+      expect(query).toMatchObject({
+        where: { reportId: 'rep-1' },
+        order: { receivedAt: 'DESC' },
+        take: 50,
+      });
+      expect(query.select).not.toHaveProperty('rejectedXml');
+      expect(query.select).toMatchObject({ authDetails: true, outcome: true });
     });
   });
 

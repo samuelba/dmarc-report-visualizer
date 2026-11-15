@@ -139,6 +139,8 @@ export interface DomainStatistics {
   updatedAt?: string;
 }
 
+export type ReportAuthStatus = 'aligned' | 'unaligned' | 'manual' | 'unverified' | 'legacy';
+
 export interface DmarcReport {
   id: string;
   reportId?: string;
@@ -151,6 +153,27 @@ export interface DmarcReport {
   endDate?: string;
   createdAt: string;
   updatedAt: string;
+  /** Sender-authentication verdict; absent on responses from older backends. */
+  authStatus?: ReportAuthStatus;
+  /** Exact authenticated sender domain, e.g. `dmarc.yahoo.com`. */
+  authDomain?: string | null;
+  /** Organizational domain of the report's `<email>`. */
+  claimedDomain?: string | null;
+}
+
+export interface ReportDelivery {
+  id: string;
+  reportId: string;
+  source: 'imap' | 'gmail' | 'upload' | 'directory' | 'file';
+  sourceMessageId: string | null;
+  receivedAt: string;
+  contentHash: string | null;
+  authStatus: ReportAuthStatus;
+  authMethod: 'dkim' | 'arc' | null;
+  authDomain: string | null;
+  claimedDomain: string | null;
+  authDetails: Record<string, unknown> | null;
+  outcome: 'created' | 'replaced' | 'duplicate' | 'conflict';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -211,6 +234,12 @@ export class ApiService {
     return this.http.get<Array<{ source: string; count: number }>>(`${this.apiBase}/dmarc-reports/stats/top-sources`, {
       params: hp,
     });
+  }
+
+  getReportDeliveries(reportId: string) {
+    return this.http.get<ReportDelivery[]>(
+      `${this.apiBase}/dmarc-reports/report/${encodeURIComponent(reportId)}/deliveries`
+    );
   }
 
   upload(file: File) {

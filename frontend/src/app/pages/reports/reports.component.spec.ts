@@ -8,6 +8,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { vi } from 'vitest';
 import { ReportsComponent } from './reports.component';
+import { ReportDeliveriesDialogComponent } from '../../components/report-deliveries-dialog/report-deliveries-dialog.component';
 import { ApiService, PagedResult, DmarcReport } from '../../services/api.service';
 import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 
@@ -112,6 +113,28 @@ describe('ReportsComponent', () => {
 
     expect(apiService.getReportXml).toHaveBeenCalledWith('r1');
     expect(dialog.open).toHaveBeenCalled();
+  });
+
+  it('should show a sender column with the report verdict', () => {
+    component.reports.set([{ ...mockReports.data[0], authStatus: 'unverified' }]);
+    fixture.detectChanges();
+
+    expect(component.displayedColumns).toContain('sender');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[data-testid="sender-badge-unverified"]')).not.toBeNull();
+  });
+
+  it('should open the delivery history for a report', () => {
+    const report = { ...mockReports.data[0], orgName: 'google.com' };
+
+    component.openSenderDetails(report);
+
+    expect(dialog.open).toHaveBeenCalledWith(
+      ReportDeliveriesDialogComponent,
+      expect.objectContaining({
+        data: { reportId: 'r1', title: 'example.com · google.com' },
+      })
+    );
   });
 
   it('should load filters from URL query params', async () => {

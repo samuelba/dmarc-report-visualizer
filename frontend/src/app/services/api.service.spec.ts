@@ -164,6 +164,15 @@ describe('ApiService', () => {
     });
   });
 
+  describe('getReportDeliveries', () => {
+    it('should request the delivery history of a report', () => {
+      service.getReportDeliveries('id-1').subscribe();
+      const req = httpMock.expectOne(`${apiBase}/dmarc-reports/report/id-1/deliveries`);
+      expect(req.request.method).toBe('GET');
+      req.flush([]);
+    });
+  });
+
   describe('getRecordXml', () => {
     it('should request record XML as text', () => {
       service.getRecordXml('rec-1').subscribe();

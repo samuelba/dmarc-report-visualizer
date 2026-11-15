@@ -1,0 +1,38 @@
+@switch (report.authStatus) {
+  @case ('aligned') {
+    <button
+      type="button"
+      class="sender-badge aligned"
+      data-testid="sender-badge-aligned"
+      [matTooltip]="tooltip"
+      [attr.aria-label]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>verified</mat-icon>
+    </button>
+  }
+  @case ('unaligned') {
+    <button
+      type="button"
+      class="sender-badge unaligned"
+      data-testid="sender-badge-unaligned"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>info</mat-icon>
+      Sent by {{ report.authDomain }}
+    </button>
+  }
+  @case ('unverified') {
+    <button
+      type="button"
+      class="sender-badge unverified"
+      data-testid="sender-badge-unverified"
+      [matTooltip]="tooltip"
+      (click)="onClick($event)"
+    >
+      <mat-icon inline>warning</mat-icon>
+      Unverified sender
+    </button>
+  }
+}

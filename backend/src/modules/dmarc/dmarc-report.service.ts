@@ -43,6 +43,8 @@ const REPORT_RELATIONS = {
 
 const RECORD_INSERT_CHUNK_SIZE = 500;
 
+const MAX_DELIVERIES_LISTED = 50;
+
 /** Bounds how much attacker-supplied XML is kept per report for review. */
 const MAX_REJECTED_COPIES_PER_REPORT = 10;
 
@@ -65,6 +67,8 @@ export class DmarcReportService {
     private dmarcReportRepository: Repository<DmarcReport>,
     @InjectRepository(DmarcRecord)
     private dmarcRecordRepository: Repository<DmarcRecord>,
+    @InjectRepository(DmarcReportDelivery)
+    private deliveryRepository: Repository<DmarcReportDelivery>,
     @InjectRepository(DkimResult)
     private dkimResultRepository: Repository<DkimResult>,
     @InjectRepository(SpfResult)
@@ -131,6 +135,29 @@ export class DmarcReportService {
     return this.dmarcReportRepository.findOne({
       where: { id },
       relations: REPORT_RELATIONS,
+    });
+  }
+
+  /** Newest first; the rejected XML is left out, it is sender-controlled. */
+  async findDeliveries(reportId: string): Promise<DmarcReportDelivery[]> {
+    return this.deliveryRepository.find({
+      where: { reportId },
+      order: { receivedAt: 'DESC' },
+      take: MAX_DELIVERIES_LISTED,
+      select: {
+        id: true,
+        reportId: true,
+        source: true,
+        sourceMessageId: true,
+        receivedAt: true,
+        contentHash: true,
+        authStatus: true,
+        authMethod: true,
+        authDomain: true,
+        claimedDomain: true,
+        authDetails: true,
+        outcome: true,
+      },
     });
   }
 

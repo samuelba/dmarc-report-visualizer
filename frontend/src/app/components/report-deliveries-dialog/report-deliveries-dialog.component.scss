@@ -1,0 +1,55 @@
+.hint {
+  color: var(--custom-metric-label-color);
+}
+
+.error {
+  color: var(--custom-error-color);
+}
+
+.delivery {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--custom-table-header-background);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+
+.status {
+  font-weight: 500;
+
+  &.aligned {
+    color: var(--custom-success-color);
+  }
+
+  &.unaligned {
+    color: var(--custom-warning-color);
+  }
+
+  &.unverified {
+    color: var(--custom-error-color);
+  }
+}
+
+.outcome {
+  margin-left: auto;
+  text-transform: capitalize;
+}
+
+.message-id {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--custom-metric-label-color);
+  overflow-wrap: anywhere;
+}
+
+pre {
+  max-height: 300px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--custom-code-pattern-bg-color);
+  font-size: 0.75rem;
+}
