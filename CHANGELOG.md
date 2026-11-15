@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.11.0](https://github.com/samuelba/dmarc-report-visualizer/compare/v0.10.1...v0.11.0) (2026-11-15)
+
+
+### Features
+
+* **reports:** badge every sender status and add unchecked (@samuelba) ([553be72](https://github.com/samuelba/dmarc-report-visualizer/commit/553be72b96b3686209af243f2c70f3e52d4de75c))
+* **reports:** let admins trust unaligned report senders (@samuelba) ([25ab2cc](https://github.com/samuelba/dmarc-report-visualizer/commit/25ab2cc0616d7afb5ba829fea2b2181c151ffa56))
+* **reports:** show sender verification status (@samuelba) ([d0b14a5](https://github.com/samuelba/dmarc-report-visualizer/commit/d0b14a5aa7198413e3ea76a03d8ef19b09e2f481))
+* **reports:** show skeleton rows while loading and fix pagination URL (@samuelba) ([91c4db8](https://github.com/samuelba/dmarc-report-visualizer/commit/91c4db8b92cc7eaf5445479d4286a76224d31363))
+* **security:** verify report senders with DKIM and ARC (@samuelba) ([f6f5cc5](https://github.com/samuelba/dmarc-report-visualizer/commit/f6f5cc5145c644b069b34f1084763a2d92079213))
+* **settings:** persist selected tab in URL (@samuelba) ([66137d9](https://github.com/samuelba/dmarc-report-visualizer/commit/66137d9d7d2466d85c8a4d1b3d6a5be1ced1d36e))
+
+
+### Bug Fixes
+
+* **frontend:** revalidate index.html so new releases load (@samuelba) ([c6cf015](https://github.com/samuelba/dmarc-report-visualizer/commit/c6cf01540a0ff73aa50dd6d4db96ab20a3881243))
+* **security:** bound report decompression size (@samuelba) ([29e0139](https://github.com/samuelba/dmarc-report-visualizer/commit/29e0139effb3a6aa34f9d226b731ecf577e8765f))
+* **security:** enforce size limits on report ingestion paths (@samuelba) ([ba2375e](https://github.com/samuelba/dmarc-report-visualizer/commit/ba2375e2e2b2fce275f7833aca247a5481badc03))
+* **security:** keep the first copy on report dedup collisions (@samuelba) ([1f5b7e4](https://github.com/samuelba/dmarc-report-visualizer/commit/1f5b7e43c2e8628dda514bb14a9bf5ff87bf8911))
+* **security:** never name the relay as a report's sender (@samuelba) ([fcd1d5b](https://github.com/samuelba/dmarc-report-visualizer/commit/fcd1d5b82ad2e75b84b786dc4b6c346eba2c5412))
+* **security:** only aligned copies replace stored reports (@samuelba) ([119506c](https://github.com/samuelba/dmarc-report-visualizer/commit/119506c1fde883cca10aa88e0df6a2afcd765d20))
+* **security:** require admin for DMARC writes and hide IP lookup keys (@samuelba) ([d2fd23e](https://github.com/samuelba/dmarc-report-visualizer/commit/d2fd23e85d590a638ca7b7a3a851a60029ee19ed))
+* **security:** require admin for report upload (@samuelba) ([2490973](https://github.com/samuelba/dmarc-report-visualizer/commit/24909731318cc6c2fc13d855b7f4c132e6a87587))
+* **security:** trust one proxy hop and stop exposing postgres (@samuelba) ([2a2331b](https://github.com/samuelba/dmarc-report-visualizer/commit/2a2331bdeeea38bdf24107dd3fc443f38041d08c))
+
+
+### Performance Improvements
+
+* **reports:** cap records per report and insert in batches (@samuelba) ([f319b3a](https://github.com/samuelba/dmarc-report-visualizer/commit/f319b3abfc232a6e3041da8beedb705ca3f3f608))
+* **reports:** skip records and raw XML in report list query (@samuelba) ([473e6d9](https://github.com/samuelba/dmarc-report-visualizer/commit/473e6d9de16c8d501b3a7b60f0a869fa135117d7))
+
 ## [0.10.1](https://github.com/samuelba/dmarc-report-visualizer/compare/v0.10.0...v0.10.1) (2026-11-13)
 
 
