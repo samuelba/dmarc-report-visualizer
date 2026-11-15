@@ -63,8 +63,12 @@ export function registerRecordTools(
       inputSchema: {
         ...rangeShape,
         disposition: listOf(z.enum(['none', 'quarantine', 'reject'])),
-        dkim: listOf(resultEnum).describe('DMARC-aligned DKIM result'),
-        spf: listOf(resultEnum).describe('DMARC-aligned SPF result'),
+        dkim: listOf(resultEnum).describe(
+          'DMARC-aligned DKIM result. "fail" = a signature was present but failed; "missing" = no DKIM signature. Use both to find every DKIM failure.',
+        ),
+        spf: listOf(resultEnum).describe(
+          'DMARC-aligned SPF result. "fail" = an SPF result was reported and failed; "missing" = no SPF result. Use both to find every SPF failure.',
+        ),
         sourceIp: listOf(ipSchema),
         headerFrom: listOf(domainSchema),
         envelopeFrom: listOf(domainSchema),

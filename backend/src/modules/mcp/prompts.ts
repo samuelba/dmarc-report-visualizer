@@ -20,7 +20,7 @@ export function weeklyReviewText(
     `1. Call get_summary${scope} for the last 7 days, and again for the 7 days before, to compare.`,
     `2. Call get_timeseries${scope} with metric "pass_rate" and interval "day".`,
     `3. Call get_new_ips${scope} for the last 7 days.`,
-    `4. Call search_records${scope} with dkim ["fail"] and spf ["fail"] (pageSize 20) to find failing sources.`,
+    `4. Call search_records${scope} with dkim ["fail", "missing"] and spf ["fail", "missing"] (pageSize 20) to find sources that fail DMARC.`,
     '5. Summarise: volume and pass rate compared with the previous week, new or failing sources grouped by reporter and ISP, forwarded mail (isForwarded true, which often explains failures), and concrete actions.',
     UNTRUSTED_REMINDER,
   ].join('\n');
@@ -31,7 +31,7 @@ export function policyReadinessText(domain: string): string {
     `Assess whether ${domain} is ready for a stricter DMARC policy (p=quarantine, then p=reject), using the last 30 days.`,
     `1. Call get_summary and get_auth_breakdown with domain "${domain}".`,
     `2. Call get_top_sources with domain "${domain}", once with by "ip" and once with by "header_from".`,
-    `3. Call search_records with domain "${domain}", dkim ["fail", "missing"] and spf ["fail"] (pageSize 50), and check isForwarded.`,
+    `3. Call search_records with domain "${domain}", dkim ["fail", "missing"] and spf ["fail", "missing"] (pageSize 50) to find mail that fails DMARC, and check isForwarded.`,
     `4. Call list_reports with domain "${domain}" to read the published policy (report.policy).`,
     'Legitimate sources are services the domain owner uses. Forwarded mail and mailing lists usually fail SPF but may keep a valid DKIM signature.',
     'Answer with: the current policy and pct, the aligned pass rate, each legitimate source that still fails and how to fix it (SPF include or DKIM signing), whether the domain is ready, and a staged rollout plan (pct steps).',
