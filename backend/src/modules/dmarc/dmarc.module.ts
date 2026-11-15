@@ -24,6 +24,7 @@ import { EmailMessageTracking } from './entities/email-message-tracking.entity';
 import { FileWatcherService } from './file-watcher.service';
 import { GmailDownloaderService } from './gmail-downloader.service';
 import { ImapDownloaderService } from './services/imap-downloader.service';
+import { ReportSenderAuthService } from './services/report-sender-auth.service';
 import { EmailMessageTrackingService } from './services/email-message-tracking.service';
 import { GeolocationService } from './services/geolocation.service';
 import { ForwardingDetectionService } from './services/forwarding-detection.service';
@@ -71,6 +72,7 @@ import { AuthModule } from '../auth/auth.module';
     FileWatcherService,
     GmailDownloaderService,
     ImapDownloaderService,
+    ReportSenderAuthService,
     EmailMessageTrackingService,
     GeolocationService,
     ForwardingDetectionService,

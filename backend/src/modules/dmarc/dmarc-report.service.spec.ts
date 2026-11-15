@@ -335,7 +335,7 @@ describe('DmarcReportService', () => {
       );
     });
 
-    it.each([
+    it.each<[string, string, ReportProvenance]>([
       ['equal rank', 'aligned', ALIGNED],
       ['lower rank', 'aligned', { ...ALIGNED, authStatus: 'unverified' }],
       [

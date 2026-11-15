@@ -2,6 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { GmailDownloaderService } from './gmail-downloader.service';
 import { DmarcReportService } from './dmarc-report.service';
+import {
+  ReportSenderAuthService,
+  SenderAuthUnavailableError,
+  UnverifiedSenderError,
+} from './services/report-sender-auth.service';
 import { gmail_v1 } from 'googleapis';
 import {
   ReportLimits,
@@ -24,9 +29,19 @@ describe('GmailDownloaderService', () => {
     createOrUpdateByReportId: jest.fn(),
   };
 
+  const mockSenderAuth = {
+    verifyMessage: jest.fn(),
+    assess: jest.fn(),
+  };
+
   beforeEach(async () => {
     mockConfigValues.clear();
     jest.clearAllMocks();
+    mockSenderAuth.verifyMessage.mockResolvedValue(null);
+    mockSenderAuth.assess.mockImplementation(
+      (_auth: unknown, _email: unknown, base: object) =>
+        Promise.resolve({ ...base, authStatus: 'unverified' }),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -39,6 +54,7 @@ describe('GmailDownloaderService', () => {
           provide: DmarcReportService,
           useValue: mockDmarcReportService,
         },
+        { provide: ReportSenderAuthService, useValue: mockSenderAuth },
       ],
     }).compile();
 
@@ -724,31 +740,121 @@ describe('GmailDownloaderService', () => {
         .mockResolvedValue(undefined);
     });
 
-    it('should pass the Message-ID header as provenance when ingesting inline', async () => {
-      mockConfigValues.set('GMAIL_PROCESS_INLINE', 'true');
-      const msg = message(10, 6);
-      (msg.data.payload as any).headers = [
-        { name: 'Message-Id', value: '<abc@google.com>' },
-      ];
-      gmailClient.users.messages.get.mockResolvedValue(msg);
-      mockDmarcReportService.unzipReport.mockResolvedValue('<feedback/>');
-      mockDmarcReportService.parseXmlReport.mockResolvedValue({
-        reportId: 'r1',
-      });
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        outcome: 'created',
-        report: { id: 'saved' },
+    describe('sender verification', () => {
+      const evidence = { identities: [], tempError: false };
+      const rawMessage = 'From: a@google.com\r\n\r\nbody';
+
+      beforeEach(() => {
+        mockConfigValues.set('GMAIL_PROCESS_INLINE', 'true');
+        const msg = message(10, 6);
+        (msg.data.payload as any).headers = [
+          { name: 'Message-Id', value: '<abc@google.com>' },
+        ];
+        gmailClient.users.messages.get.mockImplementation(
+          (req: { format?: string }) =>
+            Promise.resolve(
+              req.format === 'raw'
+                ? {
+                    data: {
+                      raw: Buffer.from(rawMessage).toString('base64url'),
+                    },
+                  }
+                : msg,
+            ),
+        );
+        mockSenderAuth.verifyMessage.mockResolvedValue(evidence);
+        mockDmarcReportService.unzipReport.mockResolvedValue('<feedback/>');
+        mockDmarcReportService.parseXmlReport.mockResolvedValue({
+          reportId: 'r1',
+          email: 'noreply-dmarc-support@google.com',
+        });
+        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+          outcome: 'created',
+          report: { id: 'saved' },
+        });
       });
 
-      const count = await (service as any).handleMessage('m1', '/tmp/dl');
+      it('verifies the raw message and stores the assessed provenance', async () => {
+        const provenance = { source: 'gmail', authStatus: 'aligned' };
+        mockSenderAuth.assess.mockResolvedValue(provenance);
 
-      expect(count).toBe(1);
-      expect(
-        mockDmarcReportService.createOrUpdateByReportId,
-      ).toHaveBeenCalledWith(expect.anything(), {
-        source: 'gmail',
-        authStatus: 'unverified',
-        sourceMessageId: '<abc@google.com>',
+        const count = await (service as any).handleMessage('m1', '/tmp/dl');
+
+        expect(count).toBe(1);
+        expect(gmailClient.users.messages.get).toHaveBeenCalledWith({
+          userId: 'me',
+          id: 'm1',
+          format: 'raw',
+        });
+        expect(mockSenderAuth.verifyMessage).toHaveBeenCalledWith(
+          Buffer.from(rawMessage),
+        );
+        expect(mockSenderAuth.assess).toHaveBeenCalledWith(
+          evidence,
+          'noreply-dmarc-support@google.com',
+          { source: 'gmail', sourceMessageId: '<abc@google.com>' },
+        );
+        expect(
+          mockDmarcReportService.createOrUpdateByReportId,
+        ).toHaveBeenCalledWith(expect.anything(), provenance);
+      });
+
+      it('does not fetch the raw message in legacy file mode', async () => {
+        mockConfigValues.set('GMAIL_PROCESS_INLINE', 'false');
+        const fsPromises = require('fs/promises');
+        const writeFile = jest
+          .spyOn(fsPromises, 'writeFile')
+          .mockResolvedValue(undefined);
+        const mkdir = jest
+          .spyOn(fsPromises, 'mkdir')
+          .mockResolvedValue(undefined);
+
+        try {
+          await (service as any).handleMessage('m1', '/tmp/dl');
+        } finally {
+          writeFile.mockRestore();
+          mkdir.mockRestore();
+        }
+
+        expect(gmailClient.users.messages.get).not.toHaveBeenCalledWith(
+          expect.objectContaining({ format: 'raw' }),
+        );
+        expect(mockSenderAuth.verifyMessage).not.toHaveBeenCalled();
+      });
+
+      it('fails permanently when the sender is rejected', async () => {
+        mockSenderAuth.assess.mockRejectedValue(
+          new UnverifiedSenderError('no evidence'),
+        );
+
+        await (service as any).handleMessage('m1', '/tmp/dl');
+
+        expect(
+          mockDmarcReportService.createOrUpdateByReportId,
+        ).not.toHaveBeenCalled();
+        expect(handleFailure).toHaveBeenCalledWith(
+          'm1',
+          'report.xml.gz',
+          expect.any(Buffer),
+          'att1',
+          true,
+        );
+      });
+
+      it('retries when sender verification is temporarily unavailable', async () => {
+        mockSenderAuth.assess.mockRejectedValue(
+          new SenderAuthUnavailableError('dns'),
+        );
+
+        await (service as any).handleMessage('m1', '/tmp/dl');
+
+        expect(handleFailure).toHaveBeenCalledWith(
+          'm1',
+          'report.xml.gz',
+          expect.any(Buffer),
+          'att1',
+          false,
+        );
       });
     });
 
