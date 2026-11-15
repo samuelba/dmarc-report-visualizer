@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApiTokenModule } from '../auth/api-token.module';
 import { DmarcModule } from '../dmarc/dmarc.module';
 import { IpLocation } from '../dmarc/entities/ip-location.entity';
+import { DmarcReport } from '../dmarc/entities/dmarc-report.entity';
+import { DmarcRecord } from '../dmarc/entities/dmarc-record.entity';
 import { McpController } from './mcp.controller';
 import { McpServerFactory } from './mcp-server.factory';
 
@@ -11,7 +13,7 @@ import { McpServerFactory } from './mcp-server.factory';
   imports: [
     ApiTokenModule,
     DmarcModule,
-    TypeOrmModule.forFeature([IpLocation]),
+    TypeOrmModule.forFeature([IpLocation, DmarcReport, DmarcRecord]),
   ],
   controllers: [McpController],
   providers: [McpServerFactory],

@@ -139,7 +139,7 @@ describe('ApiTokenGuard', () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(service.authenticate).toHaveBeenCalledWith(VALID, '1.2.3.4');
-    expect(limiter.consumeRequest).toHaveBeenCalledWith('token-1');
+    expect(limiter.consumeRequest).toHaveBeenCalledWith('user-1');
     expect(request.user).toEqual(principal.user);
     expect(request.apiToken).toEqual({
       id: 'token-1',

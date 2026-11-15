@@ -31,6 +31,40 @@ export const RECORD_UNTRUSTED_FIELDS = [
   ...REPORT_UNTRUSTED_FIELDS.map((field) => `report.${field}`),
 ];
 
+/** Fields of <policy_published> (RFC 7489 and DMARCbis). */
+const POLICY_FIELDS = [
+  'domain',
+  'adkim',
+  'aspf',
+  'p',
+  'sp',
+  'np',
+  'pct',
+  'fo',
+  'testing',
+  'discovery_method',
+] as const;
+
+/**
+ * The stored policy is the sender's <policy_published> subtree as parsed, so
+ * its keys, nesting and size are sender-controlled. Keep scalar standard
+ * fields only.
+ */
+function presentPolicy(policy: unknown): Record<string, string> {
+  if (policy === null || typeof policy !== 'object') {
+    return {};
+  }
+  const source = policy as Record<string, unknown>;
+  const picked: Record<string, string> = {};
+  for (const field of POLICY_FIELDS) {
+    const value = source[field];
+    if (typeof value === 'string' || typeof value === 'number') {
+      picked[field] = String(value);
+    }
+  }
+  return picked;
+}
+
 export function presentReportSummary(report: DmarcReport) {
   return {
     id: report.id,
@@ -38,7 +72,7 @@ export function presentReportSummary(report: DmarcReport) {
     orgName: report.orgName,
     email: report.email,
     domain: report.domain,
-    policy: report.policy,
+    policy: presentPolicy(report.policy),
     beginDate: report.beginDate,
     endDate: report.endDate,
     authStatus: report.authStatus,

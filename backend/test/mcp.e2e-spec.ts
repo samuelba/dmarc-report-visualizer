@@ -109,6 +109,16 @@ describe('MCP server (e2e, MCP_ENABLED=true)', () => {
         .expect(401);
     });
 
+    it('rejects a body that is not one parsed JSON-RPC message', async () => {
+      const { token } = await createToken(adminCookies);
+
+      await mcpPost(app, token)
+        .set('Content-Type', 'text/plain')
+        .send(JSON.stringify(INITIALIZE))
+        .expect(400);
+      await mcpPost(app, token).send([INITIALIZE]).expect(400);
+    });
+
     it('rejects browser requests from unknown origins', async () => {
       const { token } = await createToken(adminCookies);
 
@@ -161,6 +171,7 @@ describe('MCP server (e2e, MCP_ENABLED=true)', () => {
       expect(body).toEqual({
         managedDomains: [],
         reportDomains: [],
+        totalReportDomains: 0,
         untrustedFields: ['reportDomains[]'],
       });
     });
@@ -221,6 +232,27 @@ describe('MCP server (e2e, MCP_ENABLED=true)', () => {
       });
       expect(body.untrustedFields).toContain('records[].reasonComment');
 
+      const reportCall = await mcpPost(app, token)
+        .send(
+          rpc('tools/call', {
+            name: 'get_report',
+            arguments: {
+              id: (body.records[0] as { reportId?: string }).reportId,
+            },
+          }),
+        )
+        .expect(200);
+      const reportText = (
+        reportCall.body as { result: { content: Array<{ text: string }> } }
+      ).result.content[0].text;
+      expect(reportText).not.toContain('raw-xml-marker');
+      expect(JSON.parse(reportText)).toMatchObject({
+        report: { orgName: 'google.com', policy: { p: 'none' } },
+        recordCount: 1,
+        recordsTruncated: false,
+        records: [{ sourceIp: '192.0.2.1' }],
+      });
+
       const rest = await request(app.getHttpServer())
         .get('/dmarc-reports/records/search')
         .set('Cookie', adminCookies)
@@ -251,6 +283,29 @@ describe('MCP server (e2e, MCP_ENABLED=true)', () => {
         .expect(200);
       expect(JSON.stringify(list.body)).not.toContain(token);
       expect(list.body[0]).not.toHaveProperty('tokenHash');
+    });
+
+    it.each(['cross-site', 'same-site'])(
+      'refuses to create a token for a %s browser request',
+      async (site) => {
+        await request(app.getHttpServer())
+          .post('/auth/api-tokens')
+          .set('Cookie', adminCookies)
+          .set('Sec-Fetch-Site', site)
+          .send({ name: 'stolen' })
+          .expect(403);
+      },
+    );
+
+    it('creates a token for a same-origin browser request, uncached', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/api-tokens')
+        .set('Cookie', adminCookies)
+        .set('Sec-Fetch-Site', 'same-origin')
+        .send({ name: 'browser' })
+        .expect(201);
+
+      expect(response.headers['cache-control']).toBe('no-store');
     });
 
     it('validates the request body', async () => {

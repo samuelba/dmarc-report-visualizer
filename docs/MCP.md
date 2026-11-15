@@ -34,7 +34,7 @@ Other MCP clients connect to `https://<your host>/api/mcp` (Streamable HTTP) and
 |---|---|---|
 | `MCP_ENABLED` | Turns the MCP server and API tokens on. Any value other than `true` leaves them out of the app entirely | `false` |
 | `MCP_ALLOWED_ORIGINS` | Extra browser origins allowed to call `/api/mcp`, comma-separated. `CORS_ORIGINS` are always allowed | empty |
-| `MCP_RATE_LIMIT_PER_MIN` | Requests per minute and token | `60` |
+| `MCP_RATE_LIMIT_PER_MIN` | Requests per minute and user, counted over all of the user's tokens | `60` |
 | `API_TOKEN_MAX_TTL_DAYS` | Longest token lifetime a user can choose | `365` |
 
 ### Turning it off
@@ -78,6 +78,8 @@ The server also offers two prompts: `weekly_review` (last 7 days: volume, pass r
 | Query data through MCP | Holders of a valid token, with the read access of the token's user |
 | Change anything through MCP | Nobody |
 
+Tokens can only be created, listed and revoked from the app's own pages: the token routes reject browser requests from any other origin (checked with the `Sec-Fetch-Site` header, or `Origin` against `CORS_ORIGINS` in older browsers), so another site, even one on a sibling subdomain, cannot create a token with your session.
+
 The token's user is loaded from the database on every request, so a deleted user's tokens stop working immediately (deleting a user also deletes their tokens). Changing a password or disabling 2FA does **not** revoke tokens; revoke them on the Profile page if needed. Tokens are not tied to the identity provider either: after an SSO user leaves, revoke their tokens or delete the user.
 
 ### Report content is untrusted
@@ -85,7 +87,8 @@ The token's user is loaded from the database on every request, so a deleted user
 Anyone can send a DMARC report to your reporting address, and fields such as the reporter name, comments and the raw XML are written by the sender. A malicious report could contain text aimed at the AI assistant ("ignore previous instructions…"). The server limits what such text can do:
 
 - All tools are read-only, so injected text cannot change anything in this app
-- Text from reports is stripped of control and invisible characters and cut to 256 characters
+- Text from reports is stripped of control and invisible characters (including bidi controls and the Unicode tag characters that can hide text from people but not from models) and cut to 256 characters
+- The published policy is reduced to its standard fields (`p`, `sp`, `pct`, …); anything else a sender put there is dropped
 - Each result lists the fields that come from report senders under `untrustedFields`, and the tool descriptions tell the assistant to treat them as data
 - Raw XML is only available to tokens that were explicitly allowed to read it
 
@@ -93,10 +96,11 @@ The remaining risk is in the client: if the same assistant can also send email, 
 
 ### Limits
 
-- `MCP_RATE_LIMIT_PER_MIN` requests per minute and token, and a 15-minute lock for an IP after 10 invalid tokens in 5 minutes. Like the login limits, the counters are kept in memory, so run a single backend instance
+- `MCP_RATE_LIMIT_PER_MIN` requests per minute and user (more tokens do not raise it), and a 15-minute lock for an IP after 10 invalid tokens in 5 minutes. Like the login limits, the counters are kept in memory, so run a single backend instance
 - Requests from browsers must come from an origin in `CORS_ORIGINS` or `MCP_ALLOWED_ORIGINS`
 - JSON-RPC batch requests are rejected, so one request cannot carry many tool calls
-- Results are capped at about 100 KB, raw XML at 64,000 characters
+- Results are capped at about 100 KB, raw XML at 64,000 characters, and `get_report` loads at most 200 records
+- `list_domains` returns at most 500 report domains, since anyone can send reports for any domain
 - At most 25 active tokens per user
 
 ### Audit log

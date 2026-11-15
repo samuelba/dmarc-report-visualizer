@@ -1,4 +1,4 @@
-import { isOriginAllowed, parseAllowedOrigins } from './origin';
+import { isOriginAllowed, parseAllowedOrigins } from './allowed-origins';
 
 describe('parseAllowedOrigins', () => {
   it('combines CORS_ORIGINS and MCP_ALLOWED_ORIGINS and ignores *', () => {

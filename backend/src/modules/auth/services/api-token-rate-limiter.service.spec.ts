@@ -2,6 +2,7 @@ import {
   AUTH_FAILURE_LIMIT,
   AUTH_LOCK_MS,
   ApiTokenRateLimiterService,
+  MAX_TRACKED_KEYS,
 } from './api-token-rate-limiter.service';
 
 describe('ApiTokenRateLimiterService', () => {
@@ -30,6 +31,21 @@ describe('ApiTokenRateLimiterService', () => {
         retryAfter: AUTH_LOCK_MS / 1000,
       });
       expect(limiter.checkAuthAllowed('5.6.7.8', T0).allowed).toBe(true);
+    });
+
+    it('stays bounded when failures come from very many addresses', () => {
+      const limiter = new ApiTokenRateLimiterService();
+      for (let i = 0; i < AUTH_FAILURE_LIMIT; i++) {
+        limiter.recordAuthFailure('first', T0);
+      }
+      expect(limiter.checkAuthAllowed('first', T0).allowed).toBe(false);
+
+      for (let i = 0; i < MAX_TRACKED_KEYS; i++) {
+        limiter.recordAuthFailure(`ip-${i}`, T0);
+      }
+
+      // The oldest entry was evicted instead of growing the map further.
+      expect(limiter.checkAuthAllowed('first', T0).allowed).toBe(true);
     });
 
     it('unlocks after the lock duration', () => {

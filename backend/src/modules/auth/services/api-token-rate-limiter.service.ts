@@ -5,7 +5,7 @@ export const AUTH_FAILURE_LIMIT = 10;
 export const AUTH_FAILURE_WINDOW_MS = 5 * 60 * 1000;
 export const AUTH_LOCK_MS = 15 * 60 * 1000;
 const REQUEST_WINDOW_MS = 60 * 1000;
-const MAX_TRACKED_KEYS = 10_000;
+export const MAX_TRACKED_KEYS = 10_000;
 
 interface Counter {
   count: number;
@@ -20,7 +20,7 @@ export interface RateLimitDecision {
 
 /**
  * In-memory limits for Bearer-token requests: locks an IP after repeated
- * invalid tokens and caps requests per token. Like the login limiter, the
+ * invalid tokens and caps requests per user. Like the login limiter, the
  * counters are per process, so run a single backend instance.
  */
 @Injectable()
@@ -57,10 +57,10 @@ export class ApiTokenRateLimiterService {
     }
   }
 
-  consumeRequest(tokenId: string, now: number = Date.now()): RateLimitDecision {
+  consumeRequest(userId: string, now: number = Date.now()): RateLimitDecision {
     const counter = this.currentCounter(
       this.requests,
-      tokenId,
+      userId,
       REQUEST_WINDOW_MS,
       now,
     );
@@ -90,6 +90,13 @@ export class ApiTokenRateLimiterService {
           counters.delete(k);
         }
       }
+    }
+    // Still full: drop the oldest entries (Map keeps insertion order).
+    for (const k of counters.keys()) {
+      if (counters.size < MAX_TRACKED_KEYS) {
+        break;
+      }
+      counters.delete(k);
     }
     const fresh: Counter = { count: 0, startedAt: now };
     counters.set(key, fresh);

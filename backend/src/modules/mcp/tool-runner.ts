@@ -5,6 +5,8 @@ import { ApiTokenScope } from '../auth/enums/api-token-scope.enum';
 import { DmarcReportService } from '../dmarc/dmarc-report.service';
 import { DomainService } from '../dmarc/domain.service';
 import { IpLocation } from '../dmarc/entities/ip-location.entity';
+import { DmarcReport } from '../dmarc/entities/dmarc-report.entity';
+import { DmarcRecord } from '../dmarc/entities/dmarc-record.entity';
 import { sanitizeDeep } from './untrusted';
 import { ToolInputError } from './tool-inputs';
 
@@ -29,6 +31,8 @@ export interface ToolDeps {
   reports: DmarcReportService;
   domains: DomainService;
   ipLocations: Repository<IpLocation>;
+  reportRepository: Repository<DmarcReport>;
+  recordRepository: Repository<DmarcRecord>;
 }
 
 export interface ToolPayload {

@@ -5,6 +5,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { DmarcReportService } from '../dmarc/dmarc-report.service';
 import { DomainService } from '../dmarc/domain.service';
 import { IpLocation } from '../dmarc/entities/ip-location.entity';
+import { DmarcReport } from '../dmarc/entities/dmarc-report.entity';
+import { DmarcRecord } from '../dmarc/entities/dmarc-record.entity';
 import { createToolRunner, McpRequestContext, ToolDeps } from './tool-runner';
 import { registerAnalyticsTools } from './tools/analytics.tools';
 import { registerRecordTools } from './tools/records.tools';
@@ -33,6 +35,10 @@ export class McpServerFactory {
     private readonly domains: DomainService,
     @InjectRepository(IpLocation)
     private readonly ipLocations: Repository<IpLocation>,
+    @InjectRepository(DmarcReport)
+    private readonly reportRepository: Repository<DmarcReport>,
+    @InjectRepository(DmarcRecord)
+    private readonly recordRepository: Repository<DmarcRecord>,
   ) {}
 
   create(ctx: McpRequestContext): McpServer {
@@ -44,6 +50,8 @@ export class McpServerFactory {
       reports: this.reports,
       domains: this.domains,
       ipLocations: this.ipLocations,
+      reportRepository: this.reportRepository,
+      recordRepository: this.recordRepository,
     };
     const run = createToolRunner(ctx, this.logger);
 

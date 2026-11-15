@@ -10,6 +10,8 @@ import { READ_ONLY_ANNOTATIONS, ToolDeps, ToolRunner } from '../tool-runner';
 import { UNTRUSTED_NOTE } from '../untrusted';
 
 const MAX_OVERVIEW_DOMAINS = 100;
+// Anyone can send reports for arbitrary domains, so this list is capped.
+const MAX_LISTED_REPORT_DOMAINS = 500;
 
 type RangeArgs = { domain?: string; from?: string; to?: string };
 
@@ -52,7 +54,8 @@ export function registerAnalyticsTools(
               domain: d.domain,
               notes: d.notes,
             })),
-            reportDomains: reported,
+            reportDomains: reported.slice(0, MAX_LISTED_REPORT_DOMAINS),
+            totalReportDomains: reported.length,
           },
           untrustedFields: ['reportDomains[]'],
         };

@@ -14,7 +14,10 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { ApiTokenAuth } from '../auth/decorators/api-token-auth.decorator';
 import { ApiTokenRequest } from '../auth/guards/api-token.guard';
 import { McpServerFactory } from './mcp-server.factory';
-import { isOriginAllowed, parseAllowedOrigins } from './origin';
+import {
+  isOriginAllowed,
+  parseAllowedOrigins,
+} from '../../common/http/allowed-origins';
 
 /**
  * Streamable HTTP MCP endpoint in stateless mode: every POST carries a
@@ -41,10 +44,18 @@ export class McpController {
       return;
     }
 
-    if (Array.isArray(request.body)) {
+    // Only a single JSON-RPC message that Express already parsed (and size
+    // limited). Batches would bypass the per-request rate limit, and without
+    // a parsed body the SDK would read the raw request stream itself.
+    if (!isJsonObject(request.body)) {
       response.status(HttpStatus.BAD_REQUEST).json({
         jsonrpc: '2.0',
-        error: { code: -32600, message: 'Batch requests are not supported' },
+        error: {
+          code: -32600,
+          message: Array.isArray(request.body)
+            ? 'Batch requests are not supported'
+            : 'Expected one JSON-RPC message with Content-Type: application/json',
+        },
         id: null,
       });
       return;
@@ -97,6 +108,10 @@ export class McpController {
   rejectDelete(@Res() response: Response): void {
     methodNotAllowed(response);
   }
+}
+
+function isJsonObject(body: unknown): body is Record<string, unknown> {
+  return typeof body === 'object' && body !== null && !Array.isArray(body);
 }
 
 function methodNotAllowed(response: Response): void {

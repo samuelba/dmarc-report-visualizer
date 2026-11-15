@@ -55,6 +55,10 @@ function makeDeps() {
         .mockResolvedValue([{ domain: 'example.com', notes: null }]),
     },
     ipLocations: { findOne: jest.fn().mockResolvedValue(null) },
+    reportRepository: { findOne: jest.fn().mockResolvedValue(report) },
+    recordRepository: {
+      findAndCount: jest.fn().mockResolvedValue([[injectedRecord], 1234]),
+    },
   };
 }
 
@@ -66,6 +70,8 @@ async function connect(
     deps.reports as unknown as DmarcReportService,
     deps.domains as unknown as DomainService,
     deps.ipLocations as never,
+    deps.reportRepository as never,
+    deps.recordRepository as never,
   );
   const server = factory.create({
     userId: 'user-1',
@@ -247,6 +253,46 @@ describe('McpServerFactory', () => {
         outcome: 'ok',
       }),
     );
+  });
+
+  it('loads only the requested number of records for a report', async () => {
+    const deps = makeDeps();
+    const client = await connect(deps);
+
+    const result = await callText(client, 'get_report', {
+      id: report.id,
+      maxRecords: 10,
+    });
+
+    expect(result.isError).toBe(false);
+    expect(result.text).not.toContain('raw-xml-marker');
+    expect(JSON.parse(result.text)).toMatchObject({
+      recordCount: 1234,
+      recordsTruncated: true,
+    });
+    const [query] = deps.recordRepository.findAndCount.mock.calls[0] as [
+      { where: unknown; take: number },
+    ];
+    expect(query).toMatchObject({ where: { reportId: report.id }, take: 10 });
+    const [reportQuery] = deps.reportRepository.findOne.mock.calls[0] as [
+      { select: Record<string, boolean> },
+    ];
+    expect(reportQuery.select).not.toHaveProperty('originalXml');
+  });
+
+  it('caps the list of report domains', async () => {
+    const deps = makeDeps();
+    const many = Array.from({ length: 2000 }, (_, i) => `d${i}.example`);
+    deps.reports.getReportDomains.mockResolvedValue(many);
+    const client = await connect(deps);
+
+    const body = JSON.parse((await callText(client, 'list_domains')).text) as {
+      reportDomains: string[];
+      totalReportDomains: number;
+    };
+
+    expect(body.reportDomains).toHaveLength(500);
+    expect(body.totalReportDomains).toBe(2000);
   });
 
   it('offers the review prompts', async () => {

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -13,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AdminGuard } from './guards/admin.guard';
+import { SameOriginGuard } from './guards/same-origin.guard';
 import { CreateApiTokenDto } from './dto/api-token.dto';
 import {
   AdminApiTokenView,
@@ -25,8 +27,11 @@ type AuthenticatedRequest = Request & { user: { id: string } };
 /**
  * Token management uses the normal session cookie (global JwtAuthGuard),
  * so an API token can never be used to create or list other tokens.
+ * SameOriginGuard keeps other sites, including same-site ones, from
+ * creating tokens with a signed-in user's session.
  */
 @Controller('auth/api-tokens')
+@UseGuards(SameOriginGuard)
 export class ApiTokenController {
   constructor(private readonly apiTokenService: ApiTokenService) {}
 
@@ -37,6 +42,7 @@ export class ApiTokenController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Header('Cache-Control', 'no-store')
   create(
     @Body() dto: CreateApiTokenDto,
     @Req() request: AuthenticatedRequest,

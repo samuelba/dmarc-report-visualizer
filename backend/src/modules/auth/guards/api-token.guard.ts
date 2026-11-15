@@ -58,7 +58,8 @@ export class ApiTokenGuard implements CanActivate {
       throw new UnauthorizedException('Invalid API token');
     }
 
-    const quota = this.rateLimiter.consumeRequest(result.principal.tokenId);
+    // Per user, so creating more tokens does not raise the limit.
+    const quota = this.rateLimiter.consumeRequest(result.principal.user.id);
     if (!quota.allowed) {
       throw tooManyRequests(response, quota.retryAfter);
     }

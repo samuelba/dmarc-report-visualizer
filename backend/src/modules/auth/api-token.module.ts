@@ -5,6 +5,7 @@ import { ApiTokenController } from './api-token.controller';
 import { ApiTokenService } from './services/api-token.service';
 import { ApiTokenRateLimiterService } from './services/api-token-rate-limiter.service';
 import { ApiTokenGuard } from './guards/api-token.guard';
+import { SameOriginGuard } from './guards/same-origin.guard';
 
 /**
  * API tokens for the MCP endpoint. Imported only when MCP_ENABLED=true, so
@@ -13,7 +14,12 @@ import { ApiTokenGuard } from './guards/api-token.guard';
 @Module({
   imports: [TypeOrmModule.forFeature([ApiToken])],
   controllers: [ApiTokenController],
-  providers: [ApiTokenService, ApiTokenRateLimiterService, ApiTokenGuard],
+  providers: [
+    ApiTokenService,
+    ApiTokenRateLimiterService,
+    ApiTokenGuard,
+    SameOriginGuard,
+  ],
   exports: [ApiTokenService, ApiTokenRateLimiterService, ApiTokenGuard],
 })
 export class ApiTokenModule {}

@@ -70,6 +70,28 @@ describe('McpController', () => {
     expect(factory.create).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['no parsed body (other content type)', undefined],
+    ['a string body', 'tools/list'],
+    ['a null body', null],
+  ])('rejects %s', async (_label, body) => {
+    const controller = new McpController(
+      factory as unknown as McpServerFactory,
+    );
+    const response = makeResponse();
+    const request = {
+      headers: {},
+      body,
+      user: { id: 'user-1' },
+      apiToken: { id: 'token-1', scopes: [] },
+    } as unknown as ApiTokenRequest;
+
+    await controller.handle(request, response as unknown as Response);
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(factory.create).not.toHaveBeenCalled();
+  });
+
   it.each(['rejectGet', 'rejectDelete'] as const)(
     '%s answers 405 because the server is stateless',
     (method) => {

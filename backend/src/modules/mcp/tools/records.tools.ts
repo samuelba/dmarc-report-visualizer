@@ -18,6 +18,17 @@ import {
 } from '../presenters';
 
 const MAX_FILTER_VALUES = 20;
+const REPORT_SUMMARY_SELECT = {
+  id: true,
+  reportId: true,
+  orgName: true,
+  email: true,
+  domain: true,
+  policy: true,
+  beginDate: true,
+  endDate: true,
+  authStatus: true,
+};
 const SORT_FIELDS = [
   'date',
   'ip',
@@ -188,23 +199,44 @@ export function registerRecordTools(
         UNTRUSTED_NOTE,
       inputSchema: {
         id: z.uuid().describe('Report id from list_reports or search_records'),
-        maxRecords: z.number().int().min(0).max(200).default(50),
+        maxRecords: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .default(50)
+          .describe('Records to return, largest message count first'),
       },
       annotations: READ_ONLY_ANNOTATIONS,
     },
     (args) =>
       run('get_report', args, async () => {
-        const report = await deps.reports.findOne(args.id);
+        const report = await deps.reportRepository.findOne({
+          where: { id: args.id },
+          select: REPORT_SUMMARY_SELECT,
+        });
         if (!report) {
           throw new ToolInputError('Report not found');
         }
-        const records = report.records ?? [];
+        // A report can hold tens of thousands of records: load one page only.
+        const [records, recordCount] = await deps.recordRepository.findAndCount(
+          {
+            where: { reportId: args.id },
+            relations: {
+              dkimResults: true,
+              spfResults: true,
+              policyOverrideReasons: true,
+            },
+            order: { count: 'DESC', id: 'ASC' },
+            take: args.maxRecords,
+          },
+        );
         return {
           data: {
             report: presentReportSummary(report),
-            recordCount: records.length,
-            recordsTruncated: records.length > args.maxRecords,
-            records: records.slice(0, args.maxRecords).map(presentRecord),
+            recordCount,
+            recordsTruncated: recordCount > records.length,
+            records: records.map(presentRecord),
           },
           untrustedFields: [
             ...prefixed('report.', REPORT_UNTRUSTED_FIELDS),
