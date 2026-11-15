@@ -11,6 +11,12 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { DmarcReportService } from './dmarc-report.service';
 import { minifyXml } from './utils/xml-minifier.util';
+import { archiveFailedAttachment } from './utils/failure-archive';
+import {
+  getReportLimits,
+  ReportLimits,
+  ReportTooLargeError,
+} from './config/report-limits.config';
 
 type GmailAuthConfig = {
   clientEmail: string;
@@ -35,10 +41,14 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
   private sourceLabelId: string | null = null;
   private readonly instanceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+  private readonly limits: ReportLimits;
+
   constructor(
     private readonly config: ConfigService,
     private readonly dmarcReportService: DmarcReportService,
-  ) {}
+  ) {
+    this.limits = getReportLimits(config);
+  }
 
   async onModuleInit(): Promise<void> {
     const enabled =
@@ -370,6 +380,14 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       if (!payload) {
         return 0;
       }
+      const sizeEstimate = msgRes.data.sizeEstimate ?? 0;
+      if (sizeEstimate > this.limits.maxMessageBytes) {
+        this.logger.warn(
+          `Message ${messageId} is ~${sizeEstimate} bytes (limit ${this.limits.maxMessageBytes}), skipping`,
+        );
+        await this.handleFailure(messageId, '', null, '', true);
+        return 0;
+      }
       const parts: gmail_v1.Schema$MessagePart[] = this.flattenParts(payload);
       const attachments = parts.filter(
         (p) => (p.filename || '').length > 0 && p.body && p.body.attachmentId,
@@ -378,6 +396,16 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
       for (const part of attachments) {
         const attachmentId = part.body!.attachmentId!;
         const filename = this.getSafeFilename(part.filename!);
+        if (!this.isAttachmentSizeAllowed(part.body!.size, filename)) {
+          await this.handleFailure(
+            messageId,
+            filename,
+            null,
+            attachmentId,
+            true,
+          );
+          continue;
+        }
         const attRes = await this.gmailClient.users.messages.attachments.get({
           userId: 'me',
           messageId,
@@ -388,6 +416,16 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
           continue;
         }
         const buffer = this.decodeBase64Url(data);
+        if (!this.isAttachmentSizeAllowed(buffer.length, filename)) {
+          await this.handleFailure(
+            messageId,
+            filename,
+            null,
+            attachmentId,
+            true,
+          );
+          continue;
+        }
 
         const processInline = this.getProcessInline();
         if (processInline) {
@@ -430,7 +468,13 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
             this.logger.warn(
               `Inline processing failed for ${filename}: ${err instanceof Error ? err.message : String(err)}`,
             );
-            await this.handleFailure(messageId, filename, buffer, attachmentId);
+            await this.handleFailure(
+              messageId,
+              filename,
+              buffer,
+              attachmentId,
+              err instanceof ReportTooLargeError,
+            );
           }
         } else {
           // Legacy path: just save into watch dir
@@ -505,33 +549,53 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     return Number.isFinite(n) && n > 0 ? n : 3;
   }
 
+  private isAttachmentSizeAllowed(
+    size: number | null | undefined,
+    filename: string,
+  ): boolean {
+    if (typeof size === 'number' && size > this.limits.maxFileBytes) {
+      this.logger.warn(
+        `Attachment ${filename} is ${size} bytes (limit ${this.limits.maxFileBytes}), skipping`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Counts a failed attempt for the message and archives the attachment.
+   * `permanent` failures (oversized input) skip the retry threshold, since
+   * retrying cannot succeed.
+   */
   private async handleFailure(
     messageId: string,
     filename: string,
-    buffer: Buffer,
+    buffer: Buffer | null,
     attachmentId: string,
+    permanent = false,
   ): Promise<void> {
     const key = messageId;
     const count = (this.failureCounts.get(key) || 0) + 1;
     this.failureCounts.set(key, count);
     const threshold = this.getFailureThreshold();
 
-    // Optionally archive failure copy
-    try {
-      const dir = this.getProcessedFailureDir();
-      await fs.mkdir(dir, { recursive: true }).catch(() => undefined);
-      const uniqueName = await this.uniquePath(
-        dir,
-        filename,
-        messageId,
-        attachmentId,
-      );
-      await fs.writeFile(uniqueName, buffer);
-    } catch {}
+    if (buffer) {
+      // Deterministic name: retries overwrite the same file instead of adding copies
+      const base = path.basename(filename, path.extname(filename));
+      await archiveFailedAttachment({
+        dir: this.getProcessedFailureDir(),
+        fileName: `${base}-${messageId}-${attachmentId}${path.extname(filename)}`,
+        buffer,
+        limits: this.limits,
+        logger: this.logger,
+      });
+    }
 
-    if (count >= threshold) {
+    if (permanent || count >= threshold) {
       this.logger.warn(
-        `Message ${messageId} reached failure threshold (${threshold}), marking as permanently failed`,
+        permanent
+          ? `Message ${messageId} exceeds the report size limits, marking as permanently failed`
+          : `Message ${messageId} reached failure threshold (${threshold}), marking as permanently failed`,
       );
       // Add failed label to avoid infinite retries
       const failedName = this.getFailedLabelName();

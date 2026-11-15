@@ -4,6 +4,14 @@ import { DmarcReportController } from './dmarc-report.controller';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { MulterModule } from '@nestjs/platform-express';
+import * as request from 'supertest';
+import {
+  createReportUploadOptions,
+  ReportTooLargeError,
+} from './config/report-limits.config';
 
 describe('DmarcReportController', () => {
   let controller: DmarcReportController;
@@ -1260,6 +1268,67 @@ describe('DmarcReportController', () => {
       const result = (controller as any).makeToDateInclusive(undefined);
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('upload size limits (HTTP)', () => {
+    let app: INestApplication;
+
+    beforeEach(async () => {
+      const config = {
+        get: (key: string) =>
+          key === 'REPORT_MAX_FILE_BYTES' ? '100' : undefined,
+      };
+      const module = await Test.createTestingModule({
+        imports: [
+          MulterModule.registerAsync({
+            useFactory: () =>
+              createReportUploadOptions(config as unknown as ConfigService),
+          }),
+        ],
+        controllers: [DmarcReportController],
+        providers: [
+          { provide: DmarcReportService, useValue: mockDmarcReportService },
+        ],
+      })
+        .overrideGuard(JwtAuthGuard)
+        .useValue({ canActivate: () => true })
+        .compile();
+      app = module.createNestApplication();
+      await app.init();
+    });
+
+    afterEach(async () => {
+      await app.close();
+    });
+
+    const upload = (size: number) =>
+      request(app.getHttpServer())
+        .post('/dmarc-reports/upload')
+        .attach('file', Buffer.alloc(size, 'a'), 'report.xml');
+
+    it('should reject uploads larger than REPORT_MAX_FILE_BYTES with 413', async () => {
+      await upload(200).expect(413);
+
+      expect(mockDmarcReportService.unzipReport).not.toHaveBeenCalled();
+    });
+
+    it('should accept uploads within the limit', async () => {
+      mockDmarcReportService.unzipReport.mockResolvedValue('<feedback/>');
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({});
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+
+      await upload(50).expect(201);
+
+      expect(mockDmarcReportService.unzipReport).toHaveBeenCalled();
+    });
+
+    it('should return 413 when the report decompresses too large', async () => {
+      mockDmarcReportService.unzipReport.mockRejectedValue(
+        new ReportTooLargeError('too big'),
+      );
+
+      await upload(50).expect(413);
     });
   });
 });

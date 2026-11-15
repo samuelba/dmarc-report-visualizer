@@ -16,6 +16,12 @@ import {
   ProcessingStatus,
 } from '../entities/email-message-tracking.entity';
 import { minifyXml } from '../utils/xml-minifier.util';
+import { archiveFailedAttachment } from '../utils/failure-archive';
+import {
+  getReportLimits,
+  ReportLimits,
+  ReportTooLargeError,
+} from '../config/report-limits.config';
 
 const IMAP_UID = { uid: true } as const;
 
@@ -62,12 +68,15 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
   /** Connection of the poll in progress; null between polls */
   private imapClient: ImapFlow | null = null;
   private readonly instanceId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  private readonly limits: ReportLimits;
 
   constructor(
     private readonly config: ConfigService,
     private readonly dmarcReportService: DmarcReportService,
     private readonly trackingService: EmailMessageTrackingService,
-  ) {}
+  ) {
+    this.limits = getReportLimits(config);
+  }
 
   onModuleInit(): void {
     const enabled =
@@ -307,6 +316,8 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
         throw new Error('IMAP client not initialized');
       }
 
+      await this.assertMessageSizeWithinLimit(uid);
+
       // `source` is fetched with BODY.PEEK[], so the \Seen flag is not changed
       const fetchResult = await this.imapClient.fetchOne(
         String(uid),
@@ -349,7 +360,31 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       const errMsg = this.formatError(err);
       this.logger.error(`Failed to handle message UID ${uid}: ${errMsg}`);
-      await this.handleFailure(uid, trackingKey, accountIdentifier, errMsg);
+      await this.handleFailure(
+        uid,
+        trackingKey,
+        accountIdentifier,
+        errMsg,
+        err instanceof ReportTooLargeError,
+      );
+    }
+  }
+
+  /**
+   * Reads only the RFC822.SIZE of the message, so oversized mail is rejected
+   * before its body is downloaded or parsed.
+   */
+  private async assertMessageSizeWithinLimit(uid: number): Promise<void> {
+    const meta = await this.imapClient!.fetchOne(
+      String(uid),
+      { size: true },
+      IMAP_UID,
+    );
+    const size = meta ? meta.size : undefined;
+    if (typeof size === 'number' && size > this.limits.maxMessageBytes) {
+      throw new ReportTooLargeError(
+        `Message UID ${uid} is ${size} bytes (limit ${this.limits.maxMessageBytes})`,
+      );
     }
   }
 
@@ -362,6 +397,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     let attachmentsProcessed = 0;
     const errors: string[] = [];
+    let allFailuresTooLarge = true;
     let firstReportId: string | undefined;
 
     for (const attachment of attachments) {
@@ -380,6 +416,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       } catch (err) {
         const errMsg = this.formatError(err);
         errors.push(errMsg);
+        allFailuresTooLarge &&= err instanceof ReportTooLargeError;
         this.logger.warn(
           `Failed to process attachment ${attachment.filename || 'unknown'}: ${errMsg}`,
         );
@@ -402,6 +439,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       trackingKey,
       accountIdentifier,
       errors.join('; '),
+      allFailuresTooLarge,
     );
   }
 
@@ -412,6 +450,11 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
   ): Promise<AttachmentResult> {
     const filename = this.getAttachmentFilename(attachment);
     const buffer = attachment.content;
+    if (buffer.length > this.limits.maxFileBytes) {
+      throw new ReportTooLargeError(
+        `Attachment ${filename} is ${buffer.length} bytes (limit ${this.limits.maxFileBytes})`,
+      );
+    }
 
     if (!this.getProcessInline()) {
       // Legacy mode: save to watch directory for file watcher to process
@@ -466,17 +509,13 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     buffer: Buffer,
   ): Promise<void> {
     const safeKey = trackingKey.replace(/[^A-Za-z0-9._-]/g, '_');
-    const failPath = path.join(
-      this.getProcessedFailureDir(),
-      `${safeKey}-${filename}`,
-    );
-    try {
-      await fs.writeFile(failPath, buffer);
-    } catch (writeErr) {
-      this.logger.error(
-        `Failed to write unparseable attachment to ${failPath}: ${this.formatError(writeErr)}`,
-      );
-    }
+    await archiveFailedAttachment({
+      dir: this.getProcessedFailureDir(),
+      fileName: `${safeKey}-${filename}`,
+      buffer,
+      limits: this.limits,
+      logger: this.logger,
+    });
   }
 
   /**
@@ -535,6 +574,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     trackingKey: string,
     accountIdentifier: string,
     errorMessage: string,
+    permanent = false,
   ): Promise<void> {
     const tracking = await this.trackingService.markFailed(
       trackingKey,
@@ -546,7 +586,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     const count = tracking.attemptCount;
     const threshold = this.getFailureThreshold();
 
-    if (count < threshold) {
+    if (!permanent && count < threshold) {
       this.logger.debug(
         `Message UID ${uid} failed attempt ${count}/${threshold}`,
       );
@@ -554,7 +594,9 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.warn(
-      `Message UID ${uid} failed ${count} times (threshold: ${threshold}), marking as permanently failed`,
+      permanent
+        ? `Message UID ${uid} exceeds the report size limits, marking as permanently failed`
+        : `Message UID ${uid} failed ${count} times (threshold: ${threshold}), marking as permanently failed`,
     );
 
     const failedFolder = (

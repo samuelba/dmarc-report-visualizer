@@ -23,6 +23,7 @@ import type { ImapDownloaderService } from '../../src/modules/dmarc/services/ima
 import {
   buildFixtureMails,
   buildGzipReportMail,
+  buildOversizedMails,
   FixtureMail,
   sendFixtureMails,
   smtpTargetFromEnv,
@@ -57,6 +58,7 @@ interface TrackingRow {
   messageId: string;
   status: string;
   attemptCount: number;
+  errorMessage: string | null;
 }
 
 async function waitForPort(
@@ -111,10 +113,13 @@ async function recreateDatabase(): Promise<void> {
 
 describe('IMAP downloader (e2e, GreenMail)', () => {
   const imap = imapTargetFromEnv();
-  const mails = buildFixtureMails(RUN_ID);
+  const mails = [...buildFixtureMails(RUN_ID), ...buildOversizedMails(RUN_ID)];
   const reports = mails.filter((m) => m.kind === 'report');
   const ignored = mails.filter((m) => m.kind === 'ignored');
   const broken = mails.filter((m) => m.kind === 'broken');
+  const oversized = mails.filter((m) => m.kind === 'oversized');
+  const oversizedByKey = (key: string): FixtureMail =>
+    oversized.find((m) => m.key === key) as FixtureMail;
 
   let app: INestApplication;
   let dataSource: DataSource;
@@ -134,7 +139,7 @@ describe('IMAP downloader (e2e, GreenMail)', () => {
 
   const tracking = async (): Promise<Map<string, TrackingRow>> => {
     const rows: TrackingRow[] = await dataSource.query(
-      `SELECT "messageId", status, "attemptCount" FROM email_message_tracking
+      `SELECT "messageId", status, "attemptCount", "errorMessage" FROM email_message_tracking
        WHERE source = 'imap' AND "accountIdentifier" = $1`,
       [imap.user],
     );
@@ -150,6 +155,9 @@ describe('IMAP downloader (e2e, GreenMail)', () => {
 
   const subjects = (snapshot: MailboxSnapshot, folder: string): string[] =>
     (snapshot.folders[folder] ?? []).map((m) => m.subject);
+
+  const archivedName = (mail: FixtureMail): string =>
+    `INBOX_${inboxUidValidity}_${uidByKey.get(mail.key)}-${mail.attachments[0].filename}`;
 
   const failureFiles = (): string[] =>
     fs.existsSync(FAILURE_DIR)
@@ -199,7 +207,13 @@ describe('IMAP downloader (e2e, GreenMail)', () => {
   });
 
   describe('first poll', () => {
-    beforeAll(() => poll());
+    let firstPollMs: number;
+
+    beforeAll(async () => {
+      const started = Date.now();
+      await poll();
+      firstPollMs = Date.now() - started;
+    });
 
     it('imports every report format (xml, gzip, zip, unnamed part, next to an image)', async () => {
       expect(await importedReportIds()).toEqual(
@@ -250,6 +264,57 @@ describe('IMAP downloader (e2e, GreenMail)', () => {
       );
     });
 
+    describe('oversized mail (decompression bombs and size limits)', () => {
+      it('finishes the poll quickly instead of expanding the bombs', () => {
+        expect(firstPollMs).toBeLessThan(15_000);
+      });
+
+      it('moves every oversized mail to the failed folder on the first attempt', async () => {
+        const snapshot = await snapshotMailbox(imap);
+        expect(subjects(snapshot, FAILED).sort()).toEqual(
+          oversized.map((m) => m.subject).sort(),
+        );
+      });
+
+      it('records each as permanently failed after a single attempt', async () => {
+        for (const mail of oversized) {
+          expect(await trackingFor(mail)).toEqual(
+            expect.objectContaining({ status: 'failed', attemptCount: 1 }),
+          );
+        }
+      });
+
+      it('names the limit that was exceeded', async () => {
+        const reason = async (key: string) =>
+          (await trackingFor(oversizedByKey(key)))?.errorMessage;
+
+        expect(await reason('gzip-bomb')).toMatch(
+          /Decompressed report exceeds 52428800 bytes/,
+        );
+        expect(await reason('zip-bomb')).toMatch(
+          /Decompressed report exceeds 52428800 bytes/,
+        );
+        expect(await reason('big-attachment')).toMatch(
+          /is \d+ bytes \(limit 262144\)/,
+        );
+        expect(await reason('big-message')).toMatch(
+          /Message UID \d+ is \d+ bytes \(limit 1048576\)/,
+        );
+      });
+
+      it('archives the bombs for inspection but not the oversized attachments', () => {
+        const files = failureFiles();
+        expect(files).toContain(archivedName(oversizedByKey('gzip-bomb')));
+        expect(files).toContain(archivedName(oversizedByKey('zip-bomb')));
+        expect(files).not.toContain(
+          archivedName(oversizedByKey('big-attachment')),
+        );
+        expect(files).not.toContain(
+          archivedName(oversizedByKey('big-message')),
+        );
+      });
+    });
+
     it('keeps the broken report in the INBOX for a retry', async () => {
       const snapshot = await snapshotMailbox(imap);
       expect(subjects(snapshot, 'INBOX')).toContain(broken[0].subject);
@@ -265,7 +330,9 @@ describe('IMAP downloader (e2e, GreenMail)', () => {
 
     it('moves the broken report to the failed folder', async () => {
       const snapshot = await snapshotMailbox(imap);
-      expect(subjects(snapshot, FAILED)).toEqual([broken[0].subject]);
+      expect(subjects(snapshot, FAILED).sort()).toEqual(
+        [...broken, ...oversized].map((m) => m.subject).sort(),
+      );
       expect(subjects(snapshot, 'INBOX').sort()).toEqual(
         ignored.map((m) => m.subject).sort(),
       );
@@ -278,9 +345,13 @@ describe('IMAP downloader (e2e, GreenMail)', () => {
     });
 
     it('keeps a single copy of the broken attachment', () => {
-      expect(failureFiles()).toEqual([
-        `INBOX_${inboxUidValidity}_${uidByKey.get(broken[0].key)}-broken.example!example.com!1!2.xml.gz`,
-      ]);
+      expect(failureFiles().sort()).toEqual(
+        [
+          archivedName(broken[0]),
+          archivedName(oversizedByKey('gzip-bomb')),
+          archivedName(oversizedByKey('zip-bomb')),
+        ].sort(),
+      );
     });
   });
 

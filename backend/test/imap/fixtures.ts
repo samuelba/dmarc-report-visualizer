@@ -4,6 +4,7 @@
  * All reports are synthetic (example.com, derived from test/reports) and get a
  * unique report_id per run, so seeding repeatedly always creates new reports.
  */
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -20,7 +21,7 @@ const BASE_REPORT = path.join(
 const BASE_REPORT_ID = 'example.com:1701129600';
 
 /** What the downloader is expected to do with a fixture */
-export type FixtureKind = 'report' | 'ignored' | 'broken';
+export type FixtureKind = 'report' | 'ignored' | 'broken' | 'oversized';
 
 export interface FixtureAttachment {
   filename?: string;
@@ -157,6 +158,56 @@ export function buildFixtureMails(runId: string): FixtureMail[] {
         },
       ],
     },
+  ];
+}
+
+const MIB = 1024 * 1024;
+
+function oversizedMail(
+  runId: string,
+  key: string,
+  description: string,
+  attachment: FixtureAttachment,
+): FixtureMail {
+  return {
+    key,
+    kind: 'oversized',
+    subject: `Report Domain: example.com Submitter: attacker.example Report-ID: ${reportIdFor(runId, key)} (${description})`,
+    text: 'Exceeds the report size limits. Must fail on the first attempt.',
+    attachments: [attachment],
+  };
+}
+
+/**
+ * Mails that exceed the report size limits (audit finding H1). Expects the
+ * limits from imap-test.env: REPORT_MAX_FILE_BYTES=256 KiB,
+ * REPORT_MAX_MESSAGE_BYTES=1 MiB, default 50 MiB decompressed.
+ */
+export function buildOversizedMails(runId: string): FixtureMail[] {
+  const bombXml = Buffer.alloc(64 * MIB);
+  const bombZip = new AdmZip();
+  bombZip.addFile('bomb.xml', bombXml);
+  return [
+    oversizedMail(runId, 'gzip-bomb', 'gzip bomb', {
+      filename: 'attacker.example!example.com!1!2.xml.gz',
+      content: zlib.gzipSync(bombXml),
+      contentType: 'application/gzip',
+    }),
+    oversizedMail(runId, 'zip-bomb', 'zip bomb', {
+      filename: 'attacker.example!example.com!3!4.zip',
+      content: bombZip.toBuffer() as Buffer,
+      contentType: 'application/zip',
+    }),
+    oversizedMail(runId, 'big-attachment', 'attachment over the file limit', {
+      filename: 'attacker.example!example.com!5!6.xml.gz',
+      content: crypto.randomBytes(400 * 1024),
+      contentType: 'application/gzip',
+    }),
+    oversizedMail(runId, 'big-message', 'message over the size limit', {
+      filename: 'attacker.example!example.com!7!8.xml.gz',
+      content: crypto.randomBytes(1.5 * MIB),
+      contentType: 'application/gzip',
+    }),
   ];
 }
 

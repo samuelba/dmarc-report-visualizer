@@ -1,13 +1,38 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Readable } from 'stream';
 import { DmarcParserService } from './dmarc-parser.service';
 import { GeolocationService } from './geolocation.service';
 import { ForwardingDetectionService } from './forwarding-detection.service';
 import { IpLookupQueueService } from './ip-lookup-queue.service';
+import { ReportTooLargeError } from '../config/report-limits.config';
 import * as zlib from 'zlib';
+const AdmZip = require('adm-zip');
 
 describe('DmarcParserService', () => {
   let service: DmarcParserService;
+  let configValues: Record<string, string | undefined>;
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => configValues[key]),
+  };
+
+  const buildService = async (): Promise<DmarcParserService> => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DmarcParserService,
+        { provide: GeolocationService, useValue: mockGeolocationService },
+        {
+          provide: ForwardingDetectionService,
+          useValue: mockForwardingDetectionService,
+        },
+        { provide: IpLookupQueueService, useValue: mockIpLookupQueueService },
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
+    }).compile();
+    return module.get<DmarcParserService>(DmarcParserService);
+  };
 
   const mockGeolocationService = {
     getLocationForIp: jest.fn(),
@@ -24,25 +49,8 @@ describe('DmarcParserService', () => {
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DmarcParserService,
-        {
-          provide: GeolocationService,
-          useValue: mockGeolocationService,
-        },
-        {
-          provide: ForwardingDetectionService,
-          useValue: mockForwardingDetectionService,
-        },
-        {
-          provide: IpLookupQueueService,
-          useValue: mockIpLookupQueueService,
-        },
-      ],
-    }).compile();
-
-    service = module.get<DmarcParserService>(DmarcParserService);
+    configValues = {};
+    service = await buildService();
 
     // Reset mocks before each test
     jest.clearAllMocks();
@@ -629,8 +637,313 @@ describe('DmarcParserService', () => {
       );
     });
 
-    // Note: Comprehensive ZIP testing would require actual ZIP file creation
-    // which is complex. The AdmZip library is tested indirectly through integration tests.
+    describe('ZIP archives', () => {
+      const xmlContent = '<?xml version="1.0"?><feedback>zipped</feedback>';
+
+      const buildZip = (
+        files: { name: string; data: Buffer; stored?: boolean }[],
+      ): Buffer => {
+        const zip = new AdmZip();
+        for (const file of files) {
+          zip.addFile(file.name, file.data);
+          if (file.stored) {
+            zip.getEntry(file.name).header.method = 0;
+          }
+        }
+        return zip.toBuffer();
+      };
+
+      it('should extract a deflated XML entry', async () => {
+        const zip = buildZip([
+          { name: 'report.xml', data: Buffer.from(xmlContent) },
+        ]);
+
+        await expect(service.unzipReport(zip, 'zip')).resolves.toBe(xmlContent);
+      });
+
+      it('should extract a stored XML entry', async () => {
+        const zip = buildZip([
+          { name: 'report.xml', data: Buffer.from(xmlContent), stored: true },
+        ]);
+
+        await expect(service.unzipReport(zip, 'zip')).resolves.toBe(xmlContent);
+      });
+
+      it('should extract a gzipped XML entry inside a ZIP', async () => {
+        const zip = buildZip([
+          {
+            name: 'report.xml.gz',
+            data: zlib.gzipSync(Buffer.from(xmlContent)),
+          },
+        ]);
+
+        await expect(service.unzipReport(zip, 'zip')).resolves.toBe(xmlContent);
+      });
+    });
+  });
+
+  describe('decompression limits', () => {
+    const limitedService = async (
+      overrides: Record<string, string>,
+    ): Promise<DmarcParserService> => {
+      configValues = overrides;
+      return buildService();
+    };
+
+    const overwriteUncompressedSize = (zip: Buffer, size: number): Buffer => {
+      const patched = Buffer.from(zip);
+      for (let i = 0; i < patched.length - 4; i++) {
+        const signature = patched.readUInt32LE(i);
+        if (signature === 0x04034b50) {
+          patched.writeUInt32LE(size, i + 22);
+        } else if (signature === 0x02014b50) {
+          patched.writeUInt32LE(size, i + 24);
+        }
+      }
+      return patched;
+    };
+
+    it('should reject input larger than REPORT_MAX_FILE_BYTES', async () => {
+      const svc = await limitedService({ REPORT_MAX_FILE_BYTES: '100' });
+
+      await expect(
+        svc.unzipReport(Buffer.alloc(200, 'a'), 'xml'),
+      ).rejects.toBeInstanceOf(ReportTooLargeError);
+    });
+
+    it('should reject plain XML larger than REPORT_MAX_UNCOMPRESSED_BYTES', async () => {
+      const svc = await limitedService({
+        REPORT_MAX_UNCOMPRESSED_BYTES: '100',
+      });
+
+      await expect(
+        svc.unzipReport(Buffer.alloc(200, 'a'), 'xml'),
+      ).rejects.toBeInstanceOf(ReportTooLargeError);
+    });
+
+    it('should reject a gzip bomb', async () => {
+      const svc = await limitedService({
+        REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+      });
+      const bomb = zlib.gzipSync(Buffer.alloc(64 * 1024));
+
+      await expect(svc.unzipReport(bomb, 'gz')).rejects.toBeInstanceOf(
+        ReportTooLargeError,
+      );
+    });
+
+    it('should reject a zlib (inflate fallback) bomb', async () => {
+      const svc = await limitedService({
+        REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+      });
+      const bomb = zlib.deflateSync(Buffer.alloc(64 * 1024));
+
+      await expect(svc.unzipReport(bomb, 'gz')).rejects.toBeInstanceOf(
+        ReportTooLargeError,
+      );
+    });
+
+    it('should reject a ZIP entry that inflates beyond the limit', async () => {
+      const svc = await limitedService({
+        REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+      });
+      const zip = new AdmZip();
+      zip.addFile('report.xml', Buffer.alloc(64 * 1024));
+
+      await expect(
+        svc.unzipReport(zip.toBuffer(), 'zip'),
+      ).rejects.toBeInstanceOf(ReportTooLargeError);
+    });
+
+    it('should reject a ZIP entry whose header understates its size', async () => {
+      const svc = await limitedService({
+        REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+      });
+      const zip = new AdmZip();
+      zip.addFile('report.xml', Buffer.alloc(64 * 1024));
+      const lying = overwriteUncompressedSize(zip.toBuffer(), 10);
+
+      await expect(svc.unzipReport(lying, 'zip')).rejects.toBeInstanceOf(
+        ReportTooLargeError,
+      );
+    });
+
+    it('should reject a ZIP with too many entries', async () => {
+      const svc = await limitedService({ REPORT_MAX_ZIP_ENTRIES: '2' });
+      const zip = new AdmZip();
+      for (let i = 0; i < 3; i++) {
+        zip.addFile(`report-${i}.xml`, Buffer.from('<feedback/>'));
+      }
+
+      await expect(
+        svc.unzipReport(zip.toBuffer(), 'zip'),
+      ).rejects.toBeInstanceOf(ReportTooLargeError);
+    });
+
+    it('should reject a gzip bomb nested inside a ZIP', async () => {
+      const svc = await limitedService({
+        REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+      });
+      const zip = new AdmZip();
+      zip.addFile('report.xml.gz', zlib.gzipSync(Buffer.alloc(64 * 1024)));
+
+      await expect(
+        svc.unzipReport(zip.toBuffer(), 'zip'),
+      ).rejects.toBeInstanceOf(ReportTooLargeError);
+    });
+
+    it('should reject reports with more records than REPORT_MAX_RECORDS', async () => {
+      const svc = await limitedService({ REPORT_MAX_RECORDS: '2' });
+      const record =
+        '<record><row><source_ip>192.0.2.1</source_ip><count>1</count></row></record>';
+      const xml = `<feedback><report_metadata><report_id>r1</report_id></report_metadata>${record.repeat(3)}</feedback>`;
+
+      await expect(svc.parseXmlReport(xml)).rejects.toBeInstanceOf(
+        ReportTooLargeError,
+      );
+      expect(
+        mockForwardingDetectionService.detectForwarding,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should accept reports with exactly REPORT_MAX_RECORDS records', async () => {
+      const svc = await limitedService({ REPORT_MAX_RECORDS: '2' });
+      mockForwardingDetectionService.detectForwarding.mockResolvedValue({
+        isForwarded: false,
+        reason: null,
+      });
+      const record =
+        '<record><row><source_ip>192.0.2.1</source_ip><count>1</count></row></record>';
+      const xml = `<feedback><report_metadata><report_id>r1</report_id></report_metadata>${record.repeat(2)}</feedback>`;
+
+      const report = await svc.parseXmlReport(xml);
+
+      expect(report.records).toHaveLength(2);
+    });
+
+    describe('unzipper fallback', () => {
+      const admZipFormatError = (svc: DmarcParserService) =>
+        jest
+          .spyOn(svc as any, 'extractWithAdmZip')
+          .mockRejectedValue(new Error('Invalid CEN header'));
+
+      it('should extract a report when AdmZip cannot read the archive', async () => {
+        const svc = await limitedService({});
+        admZipFormatError(svc);
+        const zip = new AdmZip();
+        zip.addFile('report.xml', Buffer.from('<feedback/>'));
+
+        await expect(svc.unzipReport(zip.toBuffer(), 'zip')).resolves.toBe(
+          '<feedback/>',
+        );
+      });
+
+      it('should enforce the output limit in the unzipper fallback', async () => {
+        const svc = await limitedService({
+          REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+        });
+        admZipFormatError(svc);
+        const zip = new AdmZip();
+        zip.addFile('report.xml', Buffer.alloc(64 * 1024));
+        const lying = overwriteUncompressedSize(zip.toBuffer(), 10);
+
+        await expect(svc.unzipReport(lying, 'zip')).rejects.toBeInstanceOf(
+          ReportTooLargeError,
+        );
+      });
+
+      it('should reject a corrupt ZIP that neither library can read', async () => {
+        const svc = await limitedService({});
+        const corrupt = Buffer.concat([
+          Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+          Buffer.alloc(64, 0xff),
+        ]);
+
+        await expect(svc.unzipReport(corrupt, 'zip')).rejects.toBeInstanceOf(
+          BadRequestException,
+        );
+      });
+
+      it('should read a ZIP by signature when the extension is unknown', async () => {
+        const svc = await limitedService({});
+        const zip = new AdmZip();
+        zip.addFile('report.xml', Buffer.from('<feedback/>'));
+
+        await expect(svc.unzipReport(zip.toBuffer(), 'bin')).resolves.toBe(
+          '<feedback/>',
+        );
+      });
+
+      it('should report non-format AdmZip errors without falling back', async () => {
+        const svc = await limitedService({});
+        jest
+          .spyOn(svc as any, 'extractWithAdmZip')
+          .mockRejectedValue(new Error('boom'));
+        const zip = new AdmZip();
+        zip.addFile('report.xml', Buffer.from('<feedback/>'));
+
+        await expect(svc.unzipReport(zip.toBuffer(), 'zip')).rejects.toThrow(
+          'ZIP processing failed: boom',
+        );
+      });
+    });
+
+    it('should reject ZIP entries with an unsupported compression method', async () => {
+      const svc = await limitedService({});
+      await expect(
+        (svc as any).readAdmZipEntryLimited({
+          entryName: 'report.xml',
+          header: { encrypted: false, size: 11, method: 12 },
+          getCompressedData: () => Buffer.from('x'),
+        }),
+      ).rejects.toThrow('Unsupported ZIP compression method: 12');
+    });
+
+    it('should reject encrypted ZIP entries', async () => {
+      const svc = await limitedService({});
+
+      await expect(
+        (svc as any).readAdmZipEntryLimited({
+          entryName: 'report.xml',
+          header: { encrypted: true, size: 11, method: 8 },
+          getCompressedData: () => Buffer.from('x'),
+        }),
+      ).rejects.toThrow('Encrypted ZIP entries are not supported');
+    });
+
+    describe('readUnzipperFileLimited', () => {
+      const fakeFile = (data: Buffer) => ({
+        path: 'report.xml',
+        stream: () =>
+          Readable.from([
+            data.subarray(0, data.length / 2),
+            data.subarray(data.length / 2),
+          ]),
+      });
+
+      it('should return the file contents within the limit', async () => {
+        const svc = await limitedService({
+          REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+        });
+        const data = Buffer.from('<feedback/>');
+
+        const result: Buffer = await (svc as any).readUnzipperFileLimited(
+          fakeFile(data),
+        );
+
+        expect(result.equals(data)).toBe(true);
+      });
+
+      it('should abort once the stream exceeds the limit', async () => {
+        const svc = await limitedService({
+          REPORT_MAX_UNCOMPRESSED_BYTES: '1024',
+        });
+
+        await expect(
+          (svc as any).readUnzipperFileLimited(fakeFile(Buffer.alloc(4096))),
+        ).rejects.toBeInstanceOf(ReportTooLargeError);
+      });
+    });
   });
 
   describe('helper methods', () => {
@@ -670,23 +983,23 @@ describe('DmarcParserService', () => {
       });
     });
 
-    describe('decompressGzipToString', () => {
-      it('should decompress gzipped content', () => {
+    describe('gunzipLimited', () => {
+      it('should decompress gzipped content', async () => {
         const originalText = 'Hello, DMARC World!';
         const gzipped = zlib.gzipSync(Buffer.from(originalText));
 
-        const result = (service as any).decompressGzipToString(gzipped);
+        const result: Buffer = await (service as any).gunzipLimited(gzipped);
 
-        expect(result).toBe(originalText);
+        expect(result.toString('utf8')).toBe(originalText);
       });
 
-      it('should handle inflate as fallback', () => {
+      it('should handle inflate as fallback', async () => {
         const originalText = 'Inflated content';
         const deflated = zlib.deflateSync(Buffer.from(originalText));
 
-        const result = (service as any).decompressGzipToString(deflated);
+        const result: Buffer = await (service as any).gunzipLimited(deflated);
 
-        expect(result).toBe(originalText);
+        expect(result.toString('utf8')).toBe(originalText);
       });
     });
 

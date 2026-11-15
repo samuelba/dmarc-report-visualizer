@@ -1,4 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import {
+  ReportLimits,
+  ReportTooLargeError,
+} from '../config/report-limits.config';
 import { ConfigService } from '@nestjs/config';
 import { ImapDownloaderService } from './imap-downloader.service';
 import { DmarcReportService } from '../dmarc-report.service';
@@ -43,6 +47,7 @@ jest.mock('mailparser', () => ({
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
   writeFile: jest.fn().mockResolvedValue(undefined),
+  readdir: jest.fn().mockResolvedValue([]),
 }));
 
 // Mock xml-minifier
@@ -122,6 +127,13 @@ describe('ImapDownloaderService', () => {
     // clearAllMocks keeps queued *Once values; drop them so tests stay isolated
     mockTrackingService.getTracking.mockReset();
   });
+
+  const overrideLimits = (overrides: Partial<ReportLimits>): void => {
+    (service as unknown as { limits: ReportLimits }).limits = {
+      ...service['limits'],
+      ...overrides,
+    };
+  };
 
   it('should be defined', () => {
     expect(service).toBeDefined();
@@ -536,6 +548,79 @@ describe('ImapDownloaderService', () => {
       expect(mockTrackingService.markSuccess).not.toHaveBeenCalled();
       expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
       expect(mockImapClient.messageMove).not.toHaveBeenCalled();
+    });
+
+    describe('size limits', () => {
+      const reportAttachment = {
+        filename: 'report.xml.gz',
+        contentType: 'application/gzip',
+        content: Buffer.from('gz'),
+      };
+
+      it('should reject an oversized message without downloading its body', async () => {
+        overrideLimits({ maxMessageBytes: 1000 });
+        mockImapClient.fetchOne.mockResolvedValue({ size: 5000 });
+
+        await service['handleMessage'](
+          1,
+          KEY,
+          '/tmp/download',
+          'user@example.com',
+        );
+
+        expect(mockImapClient.fetchOne).toHaveBeenCalledTimes(1);
+        expect(mockImapClient.fetchOne).toHaveBeenCalledWith(
+          '1',
+          { size: true },
+          { uid: true },
+        );
+        expect(simpleParser).not.toHaveBeenCalled();
+        expect(mockTrackingService.markFailed).toHaveBeenCalled();
+        expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith(
+          '1',
+          ['\\Seen'],
+          { uid: true },
+        );
+      });
+
+      it('should fail permanently on the first attempt when a report is too large', async () => {
+        mockImapClient.fetchOne.mockResolvedValue({ ...fetchResult, size: 10 });
+        simpleParser.mockResolvedValue({ attachments: [reportAttachment] });
+        mockDmarcReportService.unzipReport.mockRejectedValue(
+          new ReportTooLargeError('too big'),
+        );
+
+        await service['handleMessage'](
+          1,
+          KEY,
+          '/tmp/download',
+          'user@example.com',
+        );
+
+        expect(mockTrackingService.markFailed).toHaveBeenCalledTimes(1);
+        expect(mockImapClient.messageFlagsAdd).toHaveBeenCalledWith(
+          '1',
+          ['\\Seen'],
+          { uid: true },
+        );
+      });
+
+      it('should keep retrying other failures until the threshold', async () => {
+        mockImapClient.fetchOne.mockResolvedValue({ ...fetchResult, size: 10 });
+        simpleParser.mockResolvedValue({ attachments: [reportAttachment] });
+        mockDmarcReportService.unzipReport.mockRejectedValue(
+          new Error('transient'),
+        );
+
+        await service['handleMessage'](
+          1,
+          KEY,
+          '/tmp/download',
+          'user@example.com',
+        );
+
+        expect(mockImapClient.messageFlagsAdd).not.toHaveBeenCalled();
+      });
     });
 
     it('should ignore messages whose attachments are not reports', async () => {
@@ -1376,6 +1461,17 @@ describe('ImapDownloaderService', () => {
       mockConfigService.get.mockImplementation(
         (key: string) => defaultConfigValues[key],
       );
+    });
+
+    it('should reject attachments larger than REPORT_MAX_FILE_BYTES', async () => {
+      overrideLimits({ maxFileBytes: 4 });
+      const fs = require('fs/promises');
+
+      await expect(
+        service['processAttachment'](attachment, '/tmp/download', 'INBOX:7:1'),
+      ).rejects.toBeInstanceOf(ReportTooLargeError);
+      expect(mockDmarcReportService.unzipReport).not.toHaveBeenCalled();
+      expect(fs.writeFile).not.toHaveBeenCalled();
     });
 
     it('should process inline and return reportId', async () => {
