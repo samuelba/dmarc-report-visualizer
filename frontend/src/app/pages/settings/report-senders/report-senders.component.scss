@@ -1,0 +1,22 @@
+.report-senders {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hint,
+.empty {
+  color: var(--custom-metric-label-color);
+}
+
+table {
+  width: 100%;
+
+  th {
+    background-color: var(--custom-table-header-background);
+  }
+}
+
+h3:not(:first-child) {
+  margin-top: 24px;
+}

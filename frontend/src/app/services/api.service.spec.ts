@@ -164,6 +164,29 @@ describe('ApiService', () => {
     });
   });
 
+  describe('trusted reporters', () => {
+    it('should list unaligned senders and trusted pairs', () => {
+      service.listUnalignedSenders().subscribe();
+      httpMock.expectOne(`${apiBase}/settings/trusted-reporters/unaligned`).flush([]);
+      service.listTrustedReporters().subscribe();
+      httpMock.expectOne(`${apiBase}/settings/trusted-reporters`).flush([]);
+    });
+
+    it('should trust and revoke a pair', () => {
+      const body = { claimedDomain: 'yahooinc.com', authDomain: 'dmarc.yahoo.com' };
+      service.trustReporter(body).subscribe();
+      const post = httpMock.expectOne(`${apiBase}/settings/trusted-reporters`);
+      expect(post.request.method).toBe('POST');
+      expect(post.request.body).toEqual(body);
+      post.flush({ upgradedReports: 1 });
+
+      service.revokeTrustedReporter('pair-1').subscribe();
+      const del = httpMock.expectOne(`${apiBase}/settings/trusted-reporters/pair-1`);
+      expect(del.request.method).toBe('DELETE');
+      del.flush({ downgradedReports: 1 });
+    });
+  });
+
   describe('getReportDeliveries', () => {
     it('should request the delivery history of a report', () => {
       service.getReportDeliveries('id-1').subscribe();

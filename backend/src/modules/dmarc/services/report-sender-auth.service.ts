@@ -15,6 +15,7 @@ import {
   SenderAuthConfig,
 } from '../config/sender-auth.config';
 import { DeliverySource, ReportProvenance } from '../utils/report-provenance';
+import { TrustedReporterService } from './trusted-reporter.service';
 import {
   authenticateMessage,
   DnsResolver,
@@ -73,6 +74,7 @@ export class ReportSenderAuthService implements OnModuleInit {
     private readonly configService: ConfigService,
     @InjectRepository(Domain)
     private readonly domainRepository: Repository<Domain>,
+    private readonly trustedReporters: TrustedReporterService,
     @Optional()
     @Inject(SENDER_AUTH_DNS_RESOLVER)
     private readonly resolver?: DnsResolver,
@@ -129,6 +131,7 @@ export class ReportSenderAuthService implements OnModuleInit {
     }
     const verdict = evaluateSender(auth, reportEmail, {
       excludedOrgDomains: await this.excludedOrgDomains(),
+      isTrustedPair: await this.trustedReporters.trustedPairs(),
     });
 
     if (verdict.authStatus === 'unverified' && this.config.mode === 'enforce') {

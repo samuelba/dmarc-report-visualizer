@@ -176,6 +176,25 @@ export interface ReportDelivery {
   outcome: 'created' | 'replaced' | 'duplicate' | 'conflict';
 }
 
+export interface UnalignedSender {
+  claimedDomain: string;
+  authDomain: string;
+  orgNames: string[];
+  reportCount: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export interface TrustedReporter {
+  id: string;
+  claimedDomain: string;
+  authDomain: string;
+  note: string | null;
+  createdBy: string | null;
+  createdByEmail: string | null;
+  createdAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
@@ -234,6 +253,27 @@ export class ApiService {
     return this.http.get<Array<{ source: string; count: number }>>(`${this.apiBase}/dmarc-reports/stats/top-sources`, {
       params: hp,
     });
+  }
+
+  listUnalignedSenders() {
+    return this.http.get<UnalignedSender[]>(`${this.apiBase}/settings/trusted-reporters/unaligned`);
+  }
+
+  listTrustedReporters() {
+    return this.http.get<TrustedReporter[]>(`${this.apiBase}/settings/trusted-reporters`);
+  }
+
+  trustReporter(body: { claimedDomain: string; authDomain: string; note?: string }) {
+    return this.http.post<{ trusted: TrustedReporter; upgradedReports: number }>(
+      `${this.apiBase}/settings/trusted-reporters`,
+      body
+    );
+  }
+
+  revokeTrustedReporter(id: string) {
+    return this.http.delete<{ downgradedReports: number }>(
+      `${this.apiBase}/settings/trusted-reporters/${encodeURIComponent(id)}`
+    );
   }
 
   getReportDeliveries(reportId: string) {

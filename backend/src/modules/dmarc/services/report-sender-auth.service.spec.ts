@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { Domain } from '../entities/domain.entity';
 import { MessageAuth } from '../utils/sender-authentication';
+import { TrustedReporterService } from './trusted-reporter.service';
 import {
   ReportSenderAuthService,
   SenderAuthUnavailableError,
@@ -24,8 +25,21 @@ const build = (env: Record<string, string> = {}) => {
   const config = {
     get: (key: string) => env[key],
   } as unknown as ConfigService;
+  const trustedReporters = {
+    trustedPairs: jest
+      .fn()
+      .mockResolvedValue(
+        (claimed: string, auth: string) =>
+          claimed === 'yahooinc.com' && auth === 'dmarc.yahoo.com',
+      ),
+  } as unknown as TrustedReporterService;
   return {
-    service: new ReportSenderAuthService(config, domains, notFound),
+    service: new ReportSenderAuthService(
+      config,
+      domains,
+      trustedReporters,
+      notFound,
+    ),
     domains,
   };
 };
@@ -103,6 +117,22 @@ describe('ReportSenderAuthService', () => {
       expect(provenance.authStatus).toBe('unverified');
     });
 
+    it('aligns an admin-trusted pair', async () => {
+      const { service } = build();
+
+      await expect(
+        service.assess(
+          auth([{ domain: 'dmarc.yahoo.com', source: 'dmarc', method: 'arc' }]),
+          'dmarchelp@yahooinc.com',
+          BASE,
+        ),
+      ).resolves.toMatchObject({
+        authStatus: 'aligned',
+        authDomain: 'dmarc.yahoo.com',
+        claimedDomain: 'yahooinc.com',
+      });
+    });
+
     it('is unverified without evidence when sender auth is off', async () => {
       const { service } = build({ REPORT_SENDER_AUTH: 'off' });
 
@@ -141,15 +171,13 @@ describe('ReportSenderAuthService', () => {
 
         await expect(
           service.assess(
-            auth([
-              { domain: 'dmarc.yahoo.com', source: 'dmarc', method: 'arc' },
-            ]),
+            auth([{ domain: 'dmarc.aol.com', source: 'dmarc', method: 'arc' }]),
             'dmarchelp@yahooinc.com',
             BASE,
           ),
         ).resolves.toMatchObject({
           authStatus: 'unaligned',
-          authDomain: 'dmarc.yahoo.com',
+          authDomain: 'dmarc.aol.com',
           claimedDomain: 'yahooinc.com',
         });
       });

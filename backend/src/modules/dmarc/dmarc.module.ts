@@ -25,6 +25,9 @@ import { FileWatcherService } from './file-watcher.service';
 import { GmailDownloaderService } from './gmail-downloader.service';
 import { ImapDownloaderService } from './services/imap-downloader.service';
 import { ReportSenderAuthService } from './services/report-sender-auth.service';
+import { TrustedReporterService } from './services/trusted-reporter.service';
+import { TrustedReporterController } from './controllers/trusted-reporter.controller';
+import { TrustedReporterDomain } from './entities/trusted-reporter-domain.entity';
 import { EmailMessageTrackingService } from './services/email-message-tracking.service';
 import { GeolocationService } from './services/geolocation.service';
 import { ForwardingDetectionService } from './services/forwarding-detection.service';
@@ -52,6 +55,7 @@ import { AuthModule } from '../auth/auth.module';
       Domain,
       EmailMessageTracking,
       DmarcReportDelivery,
+      TrustedReporterDomain,
     ]),
     AuthModule,
     MulterModule.registerAsync({
@@ -62,6 +66,7 @@ import { AuthModule } from '../auth/auth.module';
   controllers: [
     DmarcReportController,
     ThirdPartySenderController,
+    TrustedReporterController,
     ReprocessingController,
     DomainController,
     IpLookupController,
@@ -73,6 +78,7 @@ import { AuthModule } from '../auth/auth.module';
     GmailDownloaderService,
     ImapDownloaderService,
     ReportSenderAuthService,
+    TrustedReporterService,
     EmailMessageTrackingService,
     GeolocationService,
     ForwardingDetectionService,

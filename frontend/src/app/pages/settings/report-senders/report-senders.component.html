@@ -1,0 +1,78 @@
+<section class="report-senders">
+  <h3>Unaligned senders</h3>
+  <p class="hint">
+    These reports were authenticated (DKIM or a trusted ARC record), but by a different domain than the one in their
+    <code>&lt;email&gt;</code>. Some reporters always do this, for example Yahoo signs as
+    <code>dmarc.yahoo.com</code> while its reports claim <code>yahooinc.com</code>. Trust a pair only if you know the
+    sending domain belongs to the reporter.
+  </p>
+
+  @if (loading()) {
+    <mat-spinner diameter="32"></mat-spinner>
+  } @else if (unaligned().length === 0) {
+    <p class="empty">No unaligned senders.</p>
+  } @else {
+    <table mat-table [dataSource]="unaligned()" class="mat-elevation-z1">
+      <ng-container matColumnDef="claimedDomain">
+        <th mat-header-cell *matHeaderCellDef>Claimed domain</th>
+        <td mat-cell *matCellDef="let s">{{ s.claimedDomain }}</td>
+      </ng-container>
+      <ng-container matColumnDef="authDomain">
+        <th mat-header-cell *matHeaderCellDef>Sending domain</th>
+        <td mat-cell *matCellDef="let s">{{ s.authDomain }}</td>
+      </ng-container>
+      <ng-container matColumnDef="orgNames">
+        <th mat-header-cell *matHeaderCellDef>Reporting org</th>
+        <td mat-cell *matCellDef="let s">{{ s.orgNames.join(', ') }}</td>
+      </ng-container>
+      <ng-container matColumnDef="reportCount">
+        <th mat-header-cell *matHeaderCellDef>Reports</th>
+        <td mat-cell *matCellDef="let s">{{ s.reportCount }}</td>
+      </ng-container>
+      <ng-container matColumnDef="lastSeen">
+        <th mat-header-cell *matHeaderCellDef>Last seen</th>
+        <td mat-cell *matCellDef="let s">{{ s.lastSeen | date: 'medium' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let s">
+          <button mat-stroked-button (click)="trust(s)">Trust</button>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="unalignedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: unalignedColumns" data-testid="unaligned-row"></tr>
+    </table>
+  }
+
+  <h3>Trusted senders</h3>
+  @if (trusted().length === 0) {
+    <p class="empty">No trusted senders.</p>
+  } @else {
+    <table mat-table [dataSource]="trusted()" class="mat-elevation-z1">
+      <ng-container matColumnDef="claimedDomain">
+        <th mat-header-cell *matHeaderCellDef>Claimed domain</th>
+        <td mat-cell *matCellDef="let p">{{ p.claimedDomain }}</td>
+      </ng-container>
+      <ng-container matColumnDef="authDomain">
+        <th mat-header-cell *matHeaderCellDef>Sending domain</th>
+        <td mat-cell *matCellDef="let p">{{ p.authDomain }}</td>
+      </ng-container>
+      <ng-container matColumnDef="createdBy">
+        <th mat-header-cell *matHeaderCellDef>Trusted by</th>
+        <td mat-cell *matCellDef="let p">{{ p.createdByEmail || 'deleted user' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="createdAt">
+        <th mat-header-cell *matHeaderCellDef>Since</th>
+        <td mat-cell *matCellDef="let p">{{ p.createdAt | date: 'medium' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let p">
+          <button mat-button color="warn" (click)="revoke(p)">Revoke</button>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="trustedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: trustedColumns" data-testid="trusted-row"></tr>
+    </table>
+  }
+</section>

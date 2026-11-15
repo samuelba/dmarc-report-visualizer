@@ -72,4 +72,12 @@ The script prints the DKIM results, the ARC chain and the verdict for each attac
 ## Limits
 
 - Verification happens once, at ingest. DKIM and ARC keys are rotated, so reports are never re-verified later, and reports stored before this feature remain `legacy`.
-- Trust is per organization domain. A reporter whose `<email>` uses a different domain than the one it signs with (Yahoo: `dmarchelp@yahooinc.com`, signed by `yahoo.com`, From `dmarc.yahoo.com`) is `unaligned`.
+- Trust is per organization domain. A reporter whose `<email>` uses a different domain than the one it signs with (Yahoo: `dmarchelp@yahooinc.com`, signed by `yahoo.com`, From `dmarc.yahoo.com`) is `unaligned` until an administrator trusts it (see below).
+
+## Trusting an unaligned reporter
+
+**Settings → Report Senders** lists unaligned reports grouped by claimed domain and exact sending domain, for example `yahooinc.com ← dmarc.yahoo.com · Yahoo · 100 reports`. **Trust** stores the pair and marks those reports `aligned` at once; later reports from the pair are `aligned` on arrival. **Revoke** reverses both. Who trusted a pair, and when, is listed next to it.
+
+A pair names the exact sending domain, not its organization. Trusting `dmarc.yahoo.com` does not extend to ordinary `yahoo.com` mailboxes, whose mail is also signed by `yahoo.com`. The confirmation dialog warns when the sending domain is a free-mail domain, because trusting it would let any of its users send reports in the claimed domain's name.
+
+Trusting a pair upgrades stored reports only. A copy that was rejected earlier as a `conflict` stays in the delivery history and is not restored.

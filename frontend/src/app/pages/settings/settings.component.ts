@@ -23,11 +23,13 @@ import { SmtpSettingsComponent } from './smtp-settings/smtp-settings.component';
 import { timer, takeWhile } from 'rxjs';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../components/confirm-dialog/confirm-dialog.component';
 import { MessageComponent } from '../../components/message/message.component';
+import { ReportSendersComponent } from './report-senders/report-senders.component';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   imports: [
+    ReportSendersComponent,
     CommonModule,
     FormsModule,
     MatTabsModule,
