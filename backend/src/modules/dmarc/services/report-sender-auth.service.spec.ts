@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { Domain } from '../entities/domain.entity';
+import * as senderAuthentication from '../utils/sender-authentication';
 import { MessageAuth } from '../utils/sender-authentication';
 import { TrustedReporterService } from './trusted-reporter.service';
 import {
@@ -66,6 +67,26 @@ describe('ReportSenderAuthService', () => {
       await expect(
         service.verifyMessage(Buffer.from('From: a@b.example\r\n\r\nx')),
       ).resolves.toBeNull();
+    });
+
+    it('treats a verification crash as a temporary error instead of throwing', async () => {
+      jest
+        .spyOn(senderAuthentication, 'authenticateMessage')
+        .mockRejectedValue(new Error('parser exploded'));
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const { service } = build();
+
+      await expect(
+        service.verifyMessage(Buffer.from('garbage')),
+      ).resolves.toEqual({
+        identities: [],
+        dkim: [],
+        arc: { result: 'error', instances: [] },
+        tempError: true,
+      });
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('parser exploded'),
+      );
     });
 
     it('returns an empty result for an unsigned message', async () => {

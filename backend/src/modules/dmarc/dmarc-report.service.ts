@@ -256,7 +256,7 @@ export class DmarcReportService {
 
   /**
    * Stores an incoming report. On a (reportId, orgName, email) collision the
-   * stored data is only replaced by a strictly higher-ranked copy; every copy
+   * stored data is only replaced by an aligned copy (see decideCollision); every copy
    * is recorded as a delivery.
    */
   async createOrUpdateByReportId(
@@ -373,7 +373,7 @@ export class DmarcReportService {
 
     this.logger.warn(
       `Replaced report ${existing.id} (reportId=${existing.reportId}, status=${existing.authStatus}) ` +
-        `with a higher-ranked copy from ${provenance.source} (status=${provenance.authStatus}, ` +
+        `with an aligned copy from ${provenance.source} (status=${provenance.authStatus}, ` +
         `sender=${provenance.authDomain ?? 'n/a'}, messageId=${provenance.sourceMessageId ?? 'n/a'})`,
     );
     this.queueIpLookups(savedRecords);

@@ -19,18 +19,6 @@ export interface ReportProvenance {
   authDetails?: Record<string, unknown>;
 }
 
-const AUTH_RANK: Record<AuthStatus, number> = {
-  aligned: 3,
-  unaligned: 2,
-  manual: 2,
-  unverified: 1,
-  legacy: 1,
-};
-
-export function rankOf(status: AuthStatus): number {
-  return AUTH_RANK[status];
-}
-
 interface ComparableCopy {
   authStatus: AuthStatus;
   contentHash: string | null;
@@ -38,8 +26,10 @@ interface ComparableCopy {
 
 /**
  * Decides what happens when an incoming report has the same
- * (reportId, orgName, email) key as a stored one. Only a strictly
- * higher-ranked copy may replace the stored data.
+ * (reportId, orgName, email) key as a stored one. Only a copy proven to come
+ * from the claimed organization (aligned) may replace stored data, and only
+ * data that is not itself aligned. An unaligned copy proves who sent it, not
+ * that it owns the report it claims.
  */
 export function decideCollision(
   existing: ComparableCopy,
@@ -48,7 +38,7 @@ export function decideCollision(
   if (existing.contentHash && existing.contentHash === incoming.contentHash) {
     return 'duplicate';
   }
-  return rankOf(incoming.authStatus) > rankOf(existing.authStatus)
+  return incoming.authStatus === 'aligned' && existing.authStatus !== 'aligned'
     ? 'replaced'
     : 'conflict';
 }

@@ -341,12 +341,25 @@ describe('DmarcReportService', () => {
     });
 
     it.each<[string, string, ReportProvenance]>([
-      ['equal rank', 'aligned', ALIGNED],
-      ['lower rank', 'aligned', { ...ALIGNED, authStatus: 'unverified' }],
+      ['aligned vs aligned', 'aligned', ALIGNED],
+      [
+        'aligned vs unverified',
+        'aligned',
+        { ...ALIGNED, authStatus: 'unverified' },
+      ],
       [
         'unaligned vs manual',
         'unaligned',
         { source: 'upload', authStatus: 'manual' },
+      ],
+      [
+        'legacy vs a forged unaligned copy',
+        'legacy',
+        {
+          ...ALIGNED,
+          authStatus: 'unaligned',
+          authDomain: 'attacker.example',
+        },
       ],
     ])(
       'keeps the stored copy on %s and records the rejected XML',
@@ -388,7 +401,7 @@ describe('DmarcReportService', () => {
       );
     });
 
-    it('lets a higher-ranked copy replace the stored one, updating its verdict', async () => {
+    it('lets an aligned copy replace a stored unaligned one, updating its verdict', async () => {
       mockDmarcReportRepository.findOne
         .mockResolvedValueOnce(stored('unaligned', hashReportXml(xml)))
         .mockResolvedValueOnce({ id: 'rep-1' });

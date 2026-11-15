@@ -14,20 +14,21 @@ SPF is not used. The SMTP client IP is lost once the message is in a mailbox.
 
 The verdict compares the organizational domain of each authenticated identity with the domain of the report's `<email>`:
 
-| Status | Meaning | Rank |
-|--------|---------|------|
-| `aligned` | An authenticated domain matches the report's `<email>` domain | 3 |
-| `unaligned` | The email is authenticated, but by another domain. The report shows "sent by `<domain>`" | 2 |
-| `manual` | Uploaded by an administrator, or loaded through `process-directory` | 2 |
-| `unverified` | No usable evidence, including everything from the file watcher | 1 |
-| `legacy` | Stored before this feature existed | 1 |
+| Status | Meaning |
+|--------|---------|
+| `aligned` | An authenticated domain matches the report's `<email>` domain |
+| `unaligned` | The email is authenticated, but by another domain. The report shows "sent by `<domain>`" |
+| `manual` | Uploaded by an administrator, or loaded through `process-directory` |
+| `unverified` | No usable evidence, including everything from the file watcher |
+| `legacy` | Stored before this feature existed |
 
 ## When a report already exists
 
 Reports are matched on report ID, organization and `<email>`:
 
 - An identical copy is ignored (`duplicate`).
-- A copy with a **strictly higher rank** replaces the stored report (`replaced`). An aligned report from the real reporter can therefore displace an earlier forged or unverified copy.
+- An **aligned** copy replaces a stored copy that is not aligned (`replaced`). The real reporter's report can therefore displace an earlier forged, unverified or legacy copy.
+- An unaligned copy never replaces anything. It proves who sent it, not that it owns the report it claims, so an attacker signing with their own domain cannot overwrite a stored report by copying its ID.
 - Any other copy is rejected and the stored report is kept (`conflict`). The rejected XML is kept for review, up to 10 copies per report.
 
 Every received copy is recorded in `dmarc_report_deliveries` together with its verdict and evidence.

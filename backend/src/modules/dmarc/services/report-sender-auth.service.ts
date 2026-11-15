@@ -106,15 +106,31 @@ export class ReportSenderAuthService implements OnModuleInit {
     }
   }
 
+  /**
+   * Never throws: a crash would stop the report from being stored at all, so
+   * it yields no evidence, marked temporary so enforce mode retries.
+   */
   async verifyMessage(raw: Buffer): Promise<MessageAuth | null> {
     if (this.config.mode === 'off') {
       return null;
     }
-    return authenticateMessage(
-      raw,
-      this.config.trustedArcSealers,
-      this.resolver,
-    );
+    try {
+      return await authenticateMessage(
+        raw,
+        this.config.trustedArcSealers,
+        this.resolver,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Sender verification failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return {
+        identities: [],
+        dkim: [],
+        arc: { result: 'error', instances: [] },
+        tempError: true,
+      };
+    }
   }
 
   /**

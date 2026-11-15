@@ -1,8 +1,8 @@
 <h2 mat-dialog-title>Deliveries · {{ data.title }}</h2>
 <mat-dialog-content>
   <p class="hint">
-    Every copy of this report the server received. Only a copy whose sender ranks higher replaces the stored report; the
-    others are kept here as duplicates or conflicts.
+    Every copy of this report the server received. Only a copy proven to come from the reporting organization (aligned)
+    replaces a stored report that is not; the others are kept here as duplicates or conflicts.
   </p>
 
   @if (loading()) {
