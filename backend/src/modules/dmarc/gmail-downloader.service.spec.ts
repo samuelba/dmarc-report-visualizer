@@ -724,6 +724,34 @@ describe('GmailDownloaderService', () => {
         .mockResolvedValue(undefined);
     });
 
+    it('should pass the Message-ID header as provenance when ingesting inline', async () => {
+      mockConfigValues.set('GMAIL_PROCESS_INLINE', 'true');
+      const msg = message(10, 6);
+      (msg.data.payload as any).headers = [
+        { name: 'Message-Id', value: '<abc@google.com>' },
+      ];
+      gmailClient.users.messages.get.mockResolvedValue(msg);
+      mockDmarcReportService.unzipReport.mockResolvedValue('<feedback/>');
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({
+        reportId: 'r1',
+      });
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'created',
+        report: { id: 'saved' },
+      });
+
+      const count = await (service as any).handleMessage('m1', '/tmp/dl');
+
+      expect(count).toBe(1);
+      expect(
+        mockDmarcReportService.createOrUpdateByReportId,
+      ).toHaveBeenCalledWith(expect.anything(), {
+        source: 'gmail',
+        authStatus: 'unverified',
+        sourceMessageId: '<abc@google.com>',
+      });
+    });
+
     it('should skip an oversized message without downloading attachments', async () => {
       overrideLimits({ maxMessageBytes: 1000 });
       gmailClient.users.messages.get.mockResolvedValue(message(5000, 10));

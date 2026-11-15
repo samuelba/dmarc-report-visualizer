@@ -438,8 +438,12 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
             const parsed =
               await this.dmarcReportService.parseXmlReport(xmlContent);
             (parsed as any).originalXml = minifyXml(xmlContent);
-            const saved =
-              await this.dmarcReportService.createOrUpdateByReportId(parsed);
+            const { report: saved } =
+              await this.dmarcReportService.createOrUpdateByReportId(parsed, {
+                source: 'gmail',
+                authStatus: 'unverified',
+                sourceMessageId: this.headerValue(payload, 'Message-ID'),
+              });
             count += 1;
             if (saved) {
               this.logger.log(
@@ -673,6 +677,17 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     const pad = normalized.length % 4;
     const padded = pad ? normalized + '='.repeat(4 - pad) : normalized;
     return Buffer.from(padded, 'base64');
+  }
+
+  private headerValue(
+    payload: gmail_v1.Schema$MessagePart,
+    name: string,
+  ): string | undefined {
+    const wanted = name.toLowerCase();
+    return (
+      payload.headers?.find((h) => h.name?.toLowerCase() === wanted)?.value ??
+      undefined
+    );
   }
 
   private async markMessageProcessed(messageId: string): Promise<void> {

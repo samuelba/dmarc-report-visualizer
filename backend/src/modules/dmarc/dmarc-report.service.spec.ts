@@ -4,6 +4,9 @@ import { Equal, IsNull, Or } from 'typeorm';
 import { DmarcReportService } from './dmarc-report.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
+import { DmarcReportDelivery } from './entities/dmarc-report-delivery.entity';
+import { ReportProvenance } from './utils/report-provenance';
+import { hashReportXml } from './utils/report-content-hash';
 import { DkimResult } from './entities/dkim-result.entity';
 import { SpfResult } from './entities/spf-result.entity';
 import { PolicyOverrideReason } from './entities/policy-override-reason.entity';
@@ -11,6 +14,15 @@ import { DmarcParserService } from './services/dmarc-parser.service';
 import { DmarcAnalyticsService } from './services/dmarc-analytics.service';
 import { DmarcGeoAnalyticsService } from './services/dmarc-geo-analytics.service';
 import { DmarcSearchService } from './services/dmarc-search.service';
+
+const ALIGNED: ReportProvenance = {
+  source: 'gmail',
+  authStatus: 'aligned',
+  authMethod: 'arc',
+  authDomain: 'google.com',
+  claimedDomain: 'google.com',
+  sourceMessageId: '<msg-1@google.com>',
+};
 
 describe('DmarcReportService', () => {
   let service: DmarcReportService;
@@ -38,6 +50,12 @@ describe('DmarcReportService', () => {
     create: jest.fn(),
     delete: jest.fn(),
     createQueryBuilder: jest.fn(),
+  };
+
+  const mockDeliveryRepository = {
+    create: jest.fn(),
+    save: jest.fn(),
+    count: jest.fn(),
   };
 
   const mockGenericRepository = {
@@ -128,11 +146,21 @@ describe('DmarcReportService', () => {
     service = module.get<DmarcReportService>(DmarcReportService);
 
     const transactionalManager = {
-      getRepository: (entity: unknown) =>
-        entity === DmarcReport
-          ? mockDmarcReportRepository
-          : mockDmarcRecordRepository,
+      getRepository: (entity: unknown) => {
+        if (entity === DmarcReport) {
+          return mockDmarcReportRepository;
+        }
+        if (entity === DmarcReportDelivery) {
+          return mockDeliveryRepository;
+        }
+        return mockDmarcRecordRepository;
+      },
     };
+    mockDeliveryRepository.create.mockImplementation((data) => data);
+    mockDeliveryRepository.save.mockImplementation((data) =>
+      Promise.resolve(data),
+    );
+    mockDeliveryRepository.count.mockResolvedValue(0);
     mockDmarcReportRepository.manager.transaction.mockImplementation(
       (work: (manager: typeof transactionalManager) => Promise<unknown>) =>
         work(transactionalManager),
@@ -197,15 +225,18 @@ describe('DmarcReportService', () => {
 
     it('should replace records of an existing report inside one transaction', async () => {
       mockDmarcReportRepository.findOne
-        .mockResolvedValueOnce({ id: 'rep-1' })
+        .mockResolvedValueOnce({ id: 'rep-1', authStatus: 'legacy' })
         .mockResolvedValueOnce({ id: 'rep-1' });
 
-      await service.createOrUpdateByReportId({
-        reportId: 'r1',
-        orgName: 'org',
-        email: 'a@b.c',
-        records,
-      });
+      await service.createOrUpdateByReportId(
+        {
+          reportId: 'r1',
+          orgName: 'org',
+          email: 'a@b.c',
+          records,
+        },
+        ALIGNED,
+      );
 
       expect(
         mockDmarcReportRepository.manager.transaction,
@@ -217,6 +248,171 @@ describe('DmarcReportService', () => {
       expect(mockDmarcRecordRepository.save).toHaveBeenCalledWith(
         expect.any(Array),
         { chunk: 500 },
+      );
+    });
+  });
+
+  describe('collision handling', () => {
+    const xml = '<feedback><report_id>r1</report_id></feedback>';
+    const otherXml = '<feedback><report_id>r1</report_id><x/></feedback>';
+    const incoming = (originalXml: string) => ({
+      reportId: 'r1',
+      orgName: 'google.com',
+      email: 'noreply-dmarc-support@google.com',
+      originalXml,
+      records: [{ sourceIp: '192.0.2.1', count: 1 }] as any[],
+    });
+    const stored = (authStatus: string, contentHash: string | null) => ({
+      id: 'rep-1',
+      reportId: 'r1',
+      authStatus,
+      contentHash,
+    });
+
+    beforeEach(() => {
+      mockDmarcReportRepository.create.mockImplementation((data) => data);
+      mockDmarcReportRepository.save.mockImplementation((data) =>
+        Promise.resolve({ ...data, id: 'rep-new' }),
+      );
+      mockDmarcRecordRepository.create.mockImplementation((data) => data);
+      mockDmarcRecordRepository.save.mockImplementation((data) =>
+        Promise.resolve(data),
+      );
+    });
+
+    it('stores the verdict and a created delivery for a new report', async () => {
+      mockDmarcReportRepository.findOne.mockResolvedValueOnce(null);
+
+      const result = await service.createOrUpdateByReportId(
+        incoming(xml),
+        ALIGNED,
+      );
+
+      expect(result.outcome).toBe('created');
+      expect(mockDmarcReportRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contentHash: hashReportXml(xml),
+          authStatus: 'aligned',
+          authDomain: 'google.com',
+          claimedDomain: 'google.com',
+        }),
+      );
+      expect(mockDeliveryRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reportId: 'rep-new',
+          source: 'gmail',
+          sourceMessageId: '<msg-1@google.com>',
+          authStatus: 'aligned',
+          authMethod: 'arc',
+          outcome: 'created',
+          rejectedXml: null,
+        }),
+      );
+    });
+
+    it('ignores an identical copy without touching records', async () => {
+      mockDmarcReportRepository.findOne.mockResolvedValueOnce(
+        stored('unverified', hashReportXml(xml)),
+      );
+
+      const result = await service.createOrUpdateByReportId(
+        incoming(xml),
+        ALIGNED,
+      );
+
+      expect(result).toEqual({
+        outcome: 'duplicate',
+        report: expect.objectContaining({ id: 'rep-1' }),
+      });
+      expect(mockDmarcRecordRepository.delete).not.toHaveBeenCalled();
+      expect(mockDmarcReportRepository.update).not.toHaveBeenCalled();
+      expect(mockDeliveryRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reportId: 'rep-1',
+          outcome: 'duplicate',
+          rejectedXml: null,
+        }),
+      );
+    });
+
+    it.each([
+      ['equal rank', 'aligned', ALIGNED],
+      ['lower rank', 'aligned', { ...ALIGNED, authStatus: 'unverified' }],
+      [
+        'unaligned vs manual',
+        'unaligned',
+        { source: 'upload', authStatus: 'manual' },
+      ],
+    ])(
+      'keeps the stored copy on %s and records the rejected XML',
+      async (_label, storedStatus, provenance) => {
+        mockDmarcReportRepository.findOne.mockResolvedValueOnce(
+          stored(storedStatus, hashReportXml(xml)),
+        );
+
+        const result = await service.createOrUpdateByReportId(
+          incoming(otherXml),
+          provenance,
+        );
+
+        expect(result.outcome).toBe('conflict');
+        expect(result.report).toEqual(expect.objectContaining({ id: 'rep-1' }));
+        expect(mockDmarcRecordRepository.delete).not.toHaveBeenCalled();
+        expect(mockDmarcReportRepository.update).not.toHaveBeenCalled();
+        expect(mockDeliveryRepository.save).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reportId: 'rep-1',
+            outcome: 'conflict',
+            contentHash: hashReportXml(otherXml),
+            rejectedXml: otherXml,
+          }),
+        );
+      },
+    );
+
+    it('stops keeping rejected XML once a report has 10 conflict copies', async () => {
+      mockDmarcReportRepository.findOne.mockResolvedValueOnce(
+        stored('aligned', hashReportXml(xml)),
+      );
+      mockDeliveryRepository.count.mockResolvedValueOnce(10);
+
+      await service.createOrUpdateByReportId(incoming(otherXml), ALIGNED);
+
+      expect(mockDeliveryRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: 'conflict', rejectedXml: null }),
+      );
+    });
+
+    it('lets a higher-ranked copy replace the stored one, updating its verdict', async () => {
+      mockDmarcReportRepository.findOne
+        .mockResolvedValueOnce(stored('unaligned', hashReportXml(xml)))
+        .mockResolvedValueOnce({ id: 'rep-1' });
+
+      const result = await service.createOrUpdateByReportId(
+        incoming(otherXml),
+        ALIGNED,
+      );
+
+      expect(result.outcome).toBe('replaced');
+      expect(mockDmarcRecordRepository.delete).toHaveBeenCalledWith({
+        reportId: 'rep-1',
+      });
+      expect(mockDmarcReportRepository.update).toHaveBeenCalledWith(
+        'rep-1',
+        expect.objectContaining({
+          originalXml: otherXml,
+          contentHash: hashReportXml(otherXml),
+          authStatus: 'aligned',
+          authDomain: 'google.com',
+          claimedDomain: 'google.com',
+        }),
+      );
+      expect(mockDeliveryRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reportId: 'rep-1',
+          outcome: 'replaced',
+          rejectedXml: null,
+        }),
       );
     });
   });
@@ -586,7 +782,10 @@ describe('DmarcReportService', () => {
 
       const result = await service.create(reportData);
 
-      expect(mockDmarcReportRepository.create).toHaveBeenCalledWith(reportData);
+      expect(mockDmarcReportRepository.create).toHaveBeenCalledWith({
+        authStatus: 'manual',
+        ...reportData,
+      });
       expect(mockDmarcReportRepository.save).toHaveBeenCalledWith(
         createdReport,
       );
@@ -643,9 +842,12 @@ describe('DmarcReportService', () => {
         records: [] as any[],
       };
 
-      const result = await service.createOrUpdateByReportId(reportData);
+      const result = await service.createOrUpdateByReportId(
+        reportData,
+        ALIGNED,
+      );
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ outcome: 'empty', report: null });
       expect(mockDmarcReportRepository.create).not.toHaveBeenCalled();
     });
 
@@ -656,9 +858,12 @@ describe('DmarcReportService', () => {
         domain: 'example.com',
       };
 
-      const result = await service.createOrUpdateByReportId(reportData);
+      const result = await service.createOrUpdateByReportId(
+        reportData,
+        ALIGNED,
+      );
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ outcome: 'empty', report: null });
       expect(mockDmarcReportRepository.create).not.toHaveBeenCalled();
     });
 
@@ -684,10 +889,13 @@ describe('DmarcReportService', () => {
       mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
       mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
 
-      const result = await service.createOrUpdateByReportId(reportData);
+      const result = await service.createOrUpdateByReportId(
+        reportData,
+        ALIGNED,
+      );
 
       expect(mockDmarcReportRepository.create).toHaveBeenCalled();
-      expect(result).toEqual(createdReport);
+      expect(result).toEqual({ outcome: 'created', report: createdReport });
     });
 
     it('should create a new report when reportId does not exist (createOrUpdateByReportId)', async () => {
@@ -713,7 +921,10 @@ describe('DmarcReportService', () => {
       mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
       mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
 
-      const result = await service.createOrUpdateByReportId(reportData);
+      const result = await service.createOrUpdateByReportId(
+        reportData,
+        ALIGNED,
+      );
 
       // Should use composite key lookup
       expect(mockDmarcReportRepository.findOne).toHaveBeenCalledWith({
@@ -725,7 +936,7 @@ describe('DmarcReportService', () => {
         relations: undefined,
       });
       expect(mockDmarcReportRepository.create).toHaveBeenCalled();
-      expect(result).toEqual(createdReport);
+      expect(result).toEqual({ outcome: 'created', report: createdReport });
     });
 
     it("should use Or(IsNull, Equal('')) for empty-string orgName/email in createOrUpdateByReportId lookup", async () => {
@@ -750,7 +961,7 @@ describe('DmarcReportService', () => {
       mockDmarcRecordRepository.create.mockReturnValue(createdRecord);
       mockDmarcRecordRepository.save.mockResolvedValue(createdRecord);
 
-      await service.createOrUpdateByReportId(reportData);
+      await service.createOrUpdateByReportId(reportData, ALIGNED);
 
       // Or(IsNull(), Equal('')) covers both NULL-stored and ''-stored legacy rows,
       // preventing a false "not found" that would cause a unique constraint violation.
@@ -770,6 +981,7 @@ describe('DmarcReportService', () => {
         reportId: 'existing-report-id',
         orgName: 'Old Org',
         email: 'old@example.com',
+        authStatus: 'unaligned',
         records: [],
       } as any;
 
@@ -797,7 +1009,10 @@ describe('DmarcReportService', () => {
       mockDmarcRecordRepository.create.mockReturnValue(reportData.records[0]);
       mockDmarcRecordRepository.save.mockResolvedValue(reportData.records[0]);
 
-      const result = await service.createOrUpdateByReportId(reportData);
+      const result = await service.createOrUpdateByReportId(
+        reportData,
+        ALIGNED,
+      );
 
       expect(mockDmarcRecordRepository.delete).toHaveBeenCalledWith({
         reportId: '123',
@@ -807,7 +1022,7 @@ describe('DmarcReportService', () => {
         expect.any(Object),
       );
       expect(mockDmarcRecordRepository.create).toHaveBeenCalled();
-      expect(result).toEqual(updatedReport);
+      expect(result).toEqual({ outcome: 'replaced', report: updatedReport });
     });
 
     it('should throw error if updated report not found (createOrUpdateByReportId)', async () => {
@@ -816,6 +1031,7 @@ describe('DmarcReportService', () => {
         reportId: 'existing-report-id',
         orgName: 'Test Org',
         email: 'test@example.com',
+        authStatus: 'legacy',
       } as any;
 
       const reportData = {
@@ -839,7 +1055,7 @@ describe('DmarcReportService', () => {
       );
 
       await expect(
-        service.createOrUpdateByReportId(reportData),
+        service.createOrUpdateByReportId(reportData, ALIGNED),
       ).rejects.toThrow('Failed to find updated DMARC report');
     });
 

@@ -187,7 +187,7 @@ export class DmarcReportController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadDmarcReport(
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<DmarcReport | { message: string }> {
+  ): Promise<DmarcReport | { message: string; outcome?: string }> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -199,15 +199,31 @@ export class DmarcReportController {
     const dmarcReportData =
       await this.dmarcReportService.parseXmlReport(xmlContent);
     (dmarcReportData as any).originalXml = minifyXml(xmlContent);
-    const result =
-      await this.dmarcReportService.createOrUpdateByReportId(dmarcReportData);
-    if (!result) {
+    const { outcome, report } =
+      await this.dmarcReportService.createOrUpdateByReportId(dmarcReportData, {
+        source: 'upload',
+        authStatus: 'manual',
+      });
+    if (!report) {
       return {
         message:
           'Report skipped: no meaningful records (empty placeholder report)',
       };
     }
-    return result;
+    if (outcome === 'duplicate') {
+      return {
+        message: 'Report skipped: an identical copy is already stored',
+        outcome,
+      };
+    }
+    if (outcome === 'conflict') {
+      return {
+        message:
+          'Report skipped: a different copy with the same report ID is already stored and was kept',
+        outcome,
+      };
+    }
+    return report;
   }
 
   @Post('process-directory')
@@ -236,11 +252,19 @@ export class DmarcReportController {
             await this.dmarcReportService.parseXmlReport(xmlContent);
           (parsed as Record<string, unknown>).originalXml =
             minifyXml(xmlContent);
-          const result =
-            await this.dmarcReportService.createOrUpdateByReportId(parsed);
+          const { outcome, report } =
+            await this.dmarcReportService.createOrUpdateByReportId(parsed, {
+              source: 'directory',
+              authStatus: 'manual',
+            });
 
-          if (result) {
-            processed.push({ file, id: result.id, reportId: result.reportId });
+          if (report) {
+            processed.push({
+              file,
+              id: report.id,
+              reportId: report.reportId,
+              outcome,
+            });
           } else {
             processed.push({
               file,

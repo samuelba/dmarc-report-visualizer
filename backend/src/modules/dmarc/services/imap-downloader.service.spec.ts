@@ -4,6 +4,7 @@ import {
   ReportTooLargeError,
 } from '../config/report-limits.config';
 import { ConfigService } from '@nestjs/config';
+import { ReportProvenance } from '../utils/report-provenance';
 import { ImapDownloaderService } from './imap-downloader.service';
 import { DmarcReportService } from '../dmarc-report.service';
 import { EmailMessageTrackingService } from './email-message-tracking.service';
@@ -54,6 +55,12 @@ jest.mock('fs/promises', () => ({
 jest.mock('../utils/xml-minifier.util', () => ({
   minifyXml: jest.fn((xml: string) => xml),
 }));
+
+const PROVENANCE: ReportProvenance = {
+  source: 'imap',
+  authStatus: 'unverified',
+  sourceMessageId: '<m1@example.com>',
+};
 
 describe('ImapDownloaderService', () => {
   let service: ImapDownloaderService;
@@ -490,7 +497,8 @@ describe('ImapDownloaderService', () => {
         reportId: 'rpt1',
       });
       mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        id: 'saved-report-id',
+        outcome: 'created',
+        report: { id: 'saved-report-id' },
       });
     };
 
@@ -753,6 +761,35 @@ describe('ImapDownloaderService', () => {
       );
     });
 
+    it('should pass the message provenance to the report service', async () => {
+      mockImapClient.fetchOne.mockResolvedValue(fetchResult);
+      simpleParser.mockResolvedValue({
+        messageId: '<m1@example.com>',
+        attachments: [
+          { filename: 'report.xml', content: Buffer.from('<xml></xml>') },
+        ],
+      });
+      mockDmarcReportService.unzipReport.mockResolvedValue('<xml></xml>');
+      mockDmarcReportService.parseXmlReport.mockResolvedValue({
+        reportId: 'rpt',
+      });
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'created',
+        report: { id: 'saved' },
+      });
+
+      await service['handleMessage'](
+        1,
+        KEY,
+        '/tmp/download',
+        'user@example.com',
+      );
+
+      expect(
+        mockDmarcReportService.createOrUpdateByReportId,
+      ).toHaveBeenCalledWith(expect.anything(), PROVENANCE);
+    });
+
     it('should mark success when createOrUpdateByReportId returns null', async () => {
       mockImapClient.fetchOne.mockResolvedValue(fetchResult);
       simpleParser.mockResolvedValue({
@@ -764,7 +801,10 @@ describe('ImapDownloaderService', () => {
       mockDmarcReportService.parseXmlReport.mockResolvedValue({
         reportId: 'empty-rpt',
       });
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'empty',
+        report: null,
+      });
 
       await service['handleMessage'](
         1,
@@ -1468,7 +1508,12 @@ describe('ImapDownloaderService', () => {
       const fs = require('fs/promises');
 
       await expect(
-        service['processAttachment'](attachment, '/tmp/download', 'INBOX:7:1'),
+        service['processAttachment'](
+          attachment,
+          '/tmp/download',
+          'INBOX:7:1',
+          PROVENANCE,
+        ),
       ).rejects.toBeInstanceOf(ReportTooLargeError);
       expect(mockDmarcReportService.unzipReport).not.toHaveBeenCalled();
       expect(fs.writeFile).not.toHaveBeenCalled();
@@ -1480,13 +1525,15 @@ describe('ImapDownloaderService', () => {
         reportId: 'r1',
       });
       mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        id: 'report-uuid',
+        outcome: 'created',
+        report: { id: 'report-uuid' },
       });
 
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
         'INBOX:7:1',
+        PROVENANCE,
       );
 
       expect(result).toEqual({
@@ -1509,7 +1556,8 @@ describe('ImapDownloaderService', () => {
         reportId: 'r1',
       });
       mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        id: 'report-uuid',
+        outcome: 'created',
+        report: { id: 'report-uuid' },
       });
       const fs = require('fs/promises');
 
@@ -1517,6 +1565,7 @@ describe('ImapDownloaderService', () => {
         attachment,
         '/tmp/download',
         'INBOX:7:1',
+        PROVENANCE,
       );
 
       expect(fs.writeFile).toHaveBeenCalled();
@@ -1536,6 +1585,7 @@ describe('ImapDownloaderService', () => {
         attachment,
         '/tmp/download',
         'INBOX:7:1',
+        PROVENANCE,
       );
 
       expect(result.success).toBe(true);
@@ -1548,12 +1598,16 @@ describe('ImapDownloaderService', () => {
       mockDmarcReportService.parseXmlReport.mockResolvedValue({
         reportId: 'empty-rpt',
       });
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'empty',
+        report: null,
+      });
 
       const result = await service['processAttachment'](
         attachment,
         '/tmp/download',
         'INBOX:7:1',
+        PROVENANCE,
       );
 
       expect(result).toEqual({
@@ -1574,13 +1628,15 @@ describe('ImapDownloaderService', () => {
         reportId: 'r1',
       });
       mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        id: 'report-uuid',
+        outcome: 'created',
+        report: { id: 'report-uuid' },
       });
 
       const result = await service['processAttachment'](
         unnamed,
         '/tmp/download',
         'INBOX:7:1',
+        PROVENANCE,
       );
 
       expect(mockDmarcReportService.unzipReport).toHaveBeenCalledWith(
@@ -1597,7 +1653,12 @@ describe('ImapDownloaderService', () => {
       const fs = require('fs/promises');
 
       await expect(
-        service['processAttachment'](attachment, '/tmp/download', 'INBOX:7:1'),
+        service['processAttachment'](
+          attachment,
+          '/tmp/download',
+          'INBOX:7:1',
+          PROVENANCE,
+        ),
       ).rejects.toThrow('Parse error');
 
       // Failed attachment should be saved to failure dir
@@ -1616,6 +1677,7 @@ describe('ImapDownloaderService', () => {
             attachment,
             '/tmp/download',
             'INBOX:7:5',
+            PROVENANCE,
           ),
         ).rejects.toThrow('Parse error');
       }
@@ -1641,6 +1703,7 @@ describe('ImapDownloaderService', () => {
           attachment,
           '/tmp/download',
           '[Gmail]/All Mail:7:5',
+          PROVENANCE,
         ),
       ).rejects.toThrow('Parse error');
 

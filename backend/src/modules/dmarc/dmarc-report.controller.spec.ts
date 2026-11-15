@@ -302,9 +302,10 @@ describe('DmarcReportController', () => {
 
         mockDmarcReportService.unzipReport.mockResolvedValue(xmlContent);
         mockDmarcReportService.parseXmlReport.mockResolvedValue(parsedData);
-        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(
-          savedReport,
-        );
+        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+          outcome: 'created',
+          report: savedReport,
+        });
 
         const result = await controller.uploadDmarcReport(mockFile);
 
@@ -318,8 +319,36 @@ describe('DmarcReportController', () => {
         );
         expect(
           mockDmarcReportService.createOrUpdateByReportId,
-        ).toHaveBeenCalled();
+        ).toHaveBeenCalledWith(parsedData, {
+          source: 'upload',
+          authStatus: 'manual',
+        });
       });
+
+      it.each([
+        ['duplicate', 'Report skipped: an identical copy is already stored'],
+        [
+          'conflict',
+          'Report skipped: a different copy with the same report ID is already stored and was kept',
+        ],
+      ])(
+        'should explain a %s instead of returning the stored report',
+        async (outcome, message) => {
+          mockDmarcReportService.unzipReport.mockResolvedValue('<xml/>');
+          mockDmarcReportService.parseXmlReport.mockResolvedValue({});
+          mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+            outcome,
+            report: { id: 'stored' },
+          });
+
+          const result = await controller.uploadDmarcReport({
+            buffer: Buffer.from('<xml/>'),
+            originalname: 'report.xml',
+          } as Express.Multer.File);
+
+          expect(result).toEqual({ message, outcome });
+        },
+      );
 
       it('should process uploaded GZ file', async () => {
         const mockFile = {
@@ -329,9 +358,10 @@ describe('DmarcReportController', () => {
 
         mockDmarcReportService.unzipReport.mockResolvedValue('<xml>test</xml>');
         mockDmarcReportService.parseXmlReport.mockResolvedValue({});
-        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(
-          {} as any,
-        );
+        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+          outcome: 'created',
+          report: {},
+        });
 
         await controller.uploadDmarcReport(mockFile);
 
@@ -349,9 +379,10 @@ describe('DmarcReportController', () => {
 
         mockDmarcReportService.unzipReport.mockResolvedValue('<xml>test</xml>');
         mockDmarcReportService.parseXmlReport.mockResolvedValue({});
-        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(
-          {} as any,
-        );
+        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+          outcome: 'created',
+          report: {},
+        });
 
         await controller.uploadDmarcReport(mockFile);
 
@@ -373,7 +404,10 @@ describe('DmarcReportController', () => {
         mockDmarcReportService.parseXmlReport.mockResolvedValue({
           reportId: 'empty-report',
         });
-        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+        mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+          outcome: 'empty',
+          report: null,
+        });
 
         const result = await controller.uploadDmarcReport(mockFile);
 
@@ -421,9 +455,10 @@ describe('DmarcReportController', () => {
       fsMock.readFile.mockResolvedValue(fakeBuffer);
       mockDmarcReportService.unzipReport.mockResolvedValue(xmlContent);
       mockDmarcReportService.parseXmlReport.mockResolvedValue(parsedData);
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(
-        savedReport,
-      );
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'created',
+        report: savedReport,
+      });
 
       const result = await controller.processDirectory({
         directory: fakeDir,
@@ -431,8 +466,19 @@ describe('DmarcReportController', () => {
 
       expect(result.directory).toBe(fakeDir);
       expect(result.processed).toEqual([
-        { file: 'report.xml', id: 'uuid-saved', reportId: 'rpt-1' },
+        {
+          file: 'report.xml',
+          id: 'uuid-saved',
+          reportId: 'rpt-1',
+          outcome: 'created',
+        },
       ]);
+      expect(
+        mockDmarcReportService.createOrUpdateByReportId,
+      ).toHaveBeenCalledWith(parsedData, {
+        source: 'directory',
+        authStatus: 'manual',
+      });
     });
 
     it('should include a skipped entry when createOrUpdateByReportId returns null (empty placeholder report)', async () => {
@@ -446,7 +492,10 @@ describe('DmarcReportController', () => {
       mockDmarcReportService.parseXmlReport.mockResolvedValue({
         reportId: 'empty',
       });
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'empty',
+        report: null,
+      });
 
       const result = await controller.processDirectory({
         directory: fakeDir,
@@ -486,8 +535,8 @@ describe('DmarcReportController', () => {
       mockDmarcReportService.unzipReport.mockResolvedValue('<xml/>');
       mockDmarcReportService.parseXmlReport.mockResolvedValue({});
       mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
-        id: 'uuid-1',
-        reportId: 'r1',
+        outcome: 'created',
+        report: { id: 'uuid-1', reportId: 'r1' },
       });
 
       const result = await controller.processDirectory({ directory: '/fake' });
@@ -1320,7 +1369,10 @@ describe('DmarcReportController', () => {
     it('should accept uploads within the limit', async () => {
       mockDmarcReportService.unzipReport.mockResolvedValue('<feedback/>');
       mockDmarcReportService.parseXmlReport.mockResolvedValue({});
-      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+      mockDmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+        outcome: 'empty',
+        report: null,
+      });
 
       await upload(50).expect(201);
 

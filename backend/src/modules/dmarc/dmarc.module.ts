@@ -11,6 +11,7 @@ import { IpLookupController } from './controllers/ip-lookup.controller';
 import { DmarcReportService } from './dmarc-report.service';
 import { DomainService } from './domain.service';
 import { DmarcReport } from './entities/dmarc-report.entity';
+import { DmarcReportDelivery } from './entities/dmarc-report-delivery.entity';
 import { DmarcRecord } from './entities/dmarc-record.entity';
 import { DkimResult } from './entities/dkim-result.entity';
 import { SpfResult } from './entities/spf-result.entity';
@@ -49,6 +50,7 @@ import { AuthModule } from '../auth/auth.module';
       ReprocessingJob,
       Domain,
       EmailMessageTracking,
+      DmarcReportDelivery,
     ]),
     AuthModule,
     MulterModule.registerAsync({

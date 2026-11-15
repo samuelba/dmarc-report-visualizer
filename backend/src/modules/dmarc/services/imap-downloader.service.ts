@@ -16,6 +16,7 @@ import {
   ProcessingStatus,
 } from '../entities/email-message-tracking.entity';
 import { minifyXml } from '../utils/xml-minifier.util';
+import { ReportProvenance } from '../utils/report-provenance';
 import { archiveFailedAttachment } from '../utils/failure-archive';
 import {
   getReportLimits,
@@ -356,6 +357,11 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
         reportAttachments,
         downloadDir,
         accountIdentifier,
+        {
+          source: 'imap',
+          authStatus: 'unverified',
+          sourceMessageId: parsed.messageId,
+        },
       );
     } catch (err) {
       const errMsg = this.formatError(err);
@@ -394,6 +400,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     attachments: Attachment[],
     downloadDir: string,
     accountIdentifier: string,
+    provenance: ReportProvenance,
   ): Promise<void> {
     let attachmentsProcessed = 0;
     const errors: string[] = [];
@@ -406,6 +413,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
           attachment,
           downloadDir,
           trackingKey,
+          provenance,
         );
         attachmentsProcessed++;
         this.logger.log(
@@ -447,6 +455,7 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
     attachment: Attachment,
     downloadDir: string,
     trackingKey: string,
+    provenance: ReportProvenance,
   ): Promise<AttachmentResult> {
     const filename = this.getAttachmentFilename(attachment);
     const buffer = attachment.content;
@@ -473,8 +482,11 @@ export class ImapDownloaderService implements OnModuleInit, OnModuleDestroy {
       const parsedReport =
         await this.dmarcReportService.parseXmlReport(xmlContent);
       (parsedReport as any).originalXml = minifyXml(xmlContent);
-      const savedReport =
-        await this.dmarcReportService.createOrUpdateByReportId(parsedReport);
+      const { report: savedReport } =
+        await this.dmarcReportService.createOrUpdateByReportId(
+          parsedReport,
+          provenance,
+        );
 
       if (this.shouldSaveOriginal()) {
         const savePath = path.join(

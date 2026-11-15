@@ -32,7 +32,10 @@ describe('FileWatcherService', () => {
     jest.clearAllMocks();
     dmarcReportService.unzipReport.mockResolvedValue('<feedback/>');
     dmarcReportService.parseXmlReport.mockResolvedValue({ records: [] });
-    dmarcReportService.createOrUpdateByReportId.mockResolvedValue(null);
+    dmarcReportService.createOrUpdateByReportId.mockResolvedValue({
+      outcome: 'empty',
+      report: null,
+    });
   });
 
   afterEach(async () => {
@@ -66,6 +69,17 @@ describe('FileWatcherService', () => {
     expect(dmarcReportService.unzipReport).toHaveBeenCalledWith(
       expect.any(Buffer),
       'xml',
+    );
+  });
+
+  it('should ingest files as unverified, since they carry no sender evidence', async () => {
+    const filePath = await writeReport('ok.xml', 50);
+
+    await buildService()['handleFileAdd'](filePath);
+
+    expect(dmarcReportService.createOrUpdateByReportId).toHaveBeenCalledWith(
+      expect.anything(),
+      { source: 'file', authStatus: 'unverified' },
     );
   });
 });

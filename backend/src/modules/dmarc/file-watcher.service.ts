@@ -216,20 +216,16 @@ export class FileWatcherService implements OnModuleInit, OnModuleDestroy {
         `[${this.instanceId}] Parsed report summary: reportId=${(parsed as any).reportId ?? 'n/a'}, domain=${(parsed as any).domain ?? 'n/a'}, records=${recordsCount}, begin=${(parsed as any).beginDate ?? 'n/a'}, end=${(parsed as any).endDate ?? 'n/a'}`,
       );
 
-      // Use service-level upsert that safely handles one-to-many relationships
-      const saved =
-        await this.dmarcReportService.createOrUpdateByReportId(parsed);
-      if (saved) {
-        const savedId = saved.id;
-        if (parsed.reportId) {
-          this.logger.log(
-            `[${this.instanceId}] Upserted DMARC report (reportId=${parsed.reportId}) id=${savedId}`,
-          );
-        } else {
-          this.logger.log(
-            `[${this.instanceId}] Created DMARC report (no reportId) id=${savedId}`,
-          );
-        }
+      // Files carry no sender evidence; the downloaders' legacy mode also lands here.
+      const { outcome, report } =
+        await this.dmarcReportService.createOrUpdateByReportId(parsed, {
+          source: 'file',
+          authStatus: 'unverified',
+        });
+      if (report) {
+        this.logger.log(
+          `[${this.instanceId}] Report ${outcome} (reportId=${parsed.reportId ?? 'n/a'}) id=${report.id}`,
+        );
       } else {
         this.logger.log(
           `[${this.instanceId}] Skipped empty report ${filePath} (no meaningful records)`,
