@@ -44,6 +44,7 @@ export class DmarcReportController {
   }
 
   @Get()
+  @UseGuards(AdminGuard)
   findAll(): Promise<DmarcReport[]> {
     return this.dmarcReportService.findAll();
   }
@@ -175,11 +176,13 @@ export class DmarcReportController {
   }
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() dmarcReport: Partial<DmarcReport>): Promise<DmarcReport> {
     return this.dmarcReportService.create(dmarcReport);
   }
 
   @Post('upload')
+  @UseGuards(AdminGuard)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   async uploadDmarcReport(
@@ -455,6 +458,7 @@ export class DmarcReportController {
   }
 
   @Put('report/:id')
+  @UseGuards(AdminGuard)
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dmarcReport: Partial<DmarcReport>,
@@ -463,6 +467,7 @@ export class DmarcReportController {
   }
 
   @Delete('report/:id')
+  @UseGuards(AdminGuard)
   remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.dmarcReportService.remove(id);
   }

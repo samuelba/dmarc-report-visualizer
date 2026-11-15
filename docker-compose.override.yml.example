@@ -6,11 +6,11 @@ version: '3.8'
 services:
   postgres:
     ports:
-      - "5432:5432"  # Expose postgres for local development tools
+      - "127.0.0.1:5432:5432"  # Expose postgres to local development tools only
 
   backend:
     ports:
-      - "3000:3000"  # Expose backend for direct API access
+      - "127.0.0.1:3000:3000"  # Expose backend for direct API access from this host
     volumes:
       - ./backend:/app
       - /app/node_modules

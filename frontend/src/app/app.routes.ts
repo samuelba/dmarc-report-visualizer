@@ -43,7 +43,7 @@ export const routes: Routes = [
   },
   {
     path: 'upload',
-    canActivate: [authGuard],
+    canActivate: [authGuard, adminGuard],
     loadComponent: () => import('./pages/upload/upload.component').then((m) => m.UploadComponent),
   },
   {

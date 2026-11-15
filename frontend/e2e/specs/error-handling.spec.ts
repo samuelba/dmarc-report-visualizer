@@ -191,7 +191,13 @@ test.describe('Error Handling & Edge Cases', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify([
-            { id: 1, email: 'admin@e2e-test.local', role: 'administrator', authProvider: 'local', createdAt: '2026-01-01T00:00:00Z' },
+            {
+              id: 1,
+              email: 'admin@e2e-test.local',
+              role: 'administrator',
+              authProvider: 'local',
+              createdAt: '2026-01-01T00:00:00Z',
+            },
           ]),
         });
       });
@@ -259,14 +265,23 @@ test.describe('Error Handling & Edge Cases', () => {
       await expect(page.getByTestId('nav-users')).not.toBeVisible();
     });
 
-    test('non-admin user can see upload and explore nav links', async ({ page }) => {
+    test('non-admin user can see explore but not upload nav link', async ({ page }) => {
       await mockAuthenticatedUser(page);
       await mockDashboardData(page);
 
       await page.goto('/dashboard');
 
-      await expect(page.getByTestId('nav-upload')).toBeVisible();
       await expect(page.getByTestId('nav-explore')).toBeVisible();
+      await expect(page.getByTestId('nav-upload')).not.toBeVisible();
+    });
+
+    test('admin user can see upload nav link', async ({ page }) => {
+      await mockAuthenticatedAdmin(page);
+      await mockDashboardData(page);
+
+      await page.goto('/dashboard');
+
+      await expect(page.getByTestId('nav-upload')).toBeVisible();
     });
   });
 });

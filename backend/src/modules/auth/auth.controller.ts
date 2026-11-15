@@ -238,11 +238,7 @@ export class AuthController {
     }
 
     // Extract IP address from request for theft detection logging
-    const ipAddress =
-      request.ip ||
-      (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      request.socket?.remoteAddress ||
-      'unknown';
+    const ipAddress = request.ip || request.socket?.remoteAddress || 'unknown';
 
     try {
       // Refresh tokens (with rotation - old token revoked, new tokens generated)

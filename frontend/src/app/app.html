@@ -79,6 +79,7 @@
             matTooltip="Upload"
             matTooltipPosition="right"
             data-testid="nav-upload"
+            *ngIf="authService.isAdministrator() | async"
           >
             <mat-icon matListItemIcon>cloud_upload</mat-icon>
             <span class="label" matListItemTitle>Upload</span>

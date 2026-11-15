@@ -1,3 +1,5 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { DomainController } from './domain.controller';
@@ -291,4 +293,24 @@ describe('DomainController', () => {
       expect(mockDomainService.remove).toHaveBeenCalledWith(id);
     });
   });
+});
+
+describe('DomainController authorization', () => {
+  const guardsOf = (method: keyof DomainController) =>
+    Reflect.getMetadata(GUARDS_METADATA, DomainController.prototype[method]) ??
+    [];
+
+  it.each(['create', 'update', 'remove'] as const)(
+    'requires AdminGuard on %s',
+    (method) => {
+      expect(guardsOf(method)).toContain(AdminGuard);
+    },
+  );
+
+  it.each(['findAll', 'findOne', 'getStatistics'] as const)(
+    'leaves %s open to all users',
+    (method) => {
+      expect(guardsOf(method)).not.toContain(AdminGuard);
+    },
+  );
 });
