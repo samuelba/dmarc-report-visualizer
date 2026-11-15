@@ -1295,6 +1295,8 @@ describe('DmarcReportController', () => {
       })
         .overrideGuard(JwtAuthGuard)
         .useValue({ canActivate: () => true })
+        .overrideGuard(AdminGuard)
+        .useValue({ canActivate: () => true })
         .compile();
       app = module.createNestApplication();
       await app.init();
@@ -1342,14 +1344,17 @@ describe('DmarcReportController authorization', () => {
       DmarcReportController.prototype[method],
     ) ?? [];
 
-  it.each(['findAll', 'create', 'update', 'remove'] as const)(
-    'requires AdminGuard on %s',
-    (method) => {
-      expect(guardsOf(method)).toContain(AdminGuard);
-    },
-  );
+  it.each([
+    'findAll',
+    'create',
+    'update',
+    'remove',
+    'uploadDmarcReport',
+  ] as const)('requires AdminGuard on %s', (method) => {
+    expect(guardsOf(method)).toContain(AdminGuard);
+  });
 
-  it.each(['list', 'findOne', 'uploadDmarcReport'] as const)(
+  it.each(['list', 'findOne'] as const)(
     'leaves %s open to all users',
     (method) => {
       expect(guardsOf(method)).not.toContain(AdminGuard);

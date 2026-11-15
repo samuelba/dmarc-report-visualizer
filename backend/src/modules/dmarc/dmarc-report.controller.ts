@@ -182,6 +182,7 @@ export class DmarcReportController {
   }
 
   @Post('upload')
+  @UseGuards(AdminGuard)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   async uploadDmarcReport(
