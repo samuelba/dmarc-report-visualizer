@@ -115,6 +115,7 @@ describe('DmarcSearchService', () => {
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -140,10 +141,39 @@ describe('DmarcSearchService', () => {
       expect(qb.take).toHaveBeenCalledWith(10);
     });
 
+    it('joins report metadata without the raw XML', async () => {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      mockDmarcRecordRepository.createQueryBuilder.mockReturnValue(qb as any);
+
+      await service.searchRecords({});
+
+      expect(qb.leftJoinAndSelect).not.toHaveBeenCalledWith(
+        'rec.report',
+        'rep',
+      );
+      expect(qb.leftJoin).toHaveBeenCalledWith('rec.report', 'rep');
+      const selected = qb.addSelect.mock.calls.flat(2) as string[];
+      expect(selected).toEqual(
+        expect.arrayContaining(['rep.id', 'rep.orgName', 'rep.beginDate']),
+      );
+      expect(selected).not.toContain('rep.originalXml');
+    });
+
     it('should filter by domain', async () => {
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -170,6 +200,7 @@ describe('DmarcSearchService', () => {
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -200,6 +231,7 @@ describe('DmarcSearchService', () => {
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -223,6 +255,7 @@ describe('DmarcSearchService', () => {
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -243,6 +276,7 @@ describe('DmarcSearchService', () => {
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
@@ -317,6 +351,7 @@ describe('DmarcSearchService', () => {
         select: jest.fn().mockReturnThis(),
         distinct: jest.fn().mockReturnThis(),
         leftJoin: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
