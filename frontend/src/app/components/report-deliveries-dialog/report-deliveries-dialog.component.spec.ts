@@ -25,12 +25,12 @@ describe('ReportDeliveriesDialogComponent', () => {
     outcome: 'created',
   };
 
-  const create = async () => {
+  const create = async (authStatus: ReportDelivery['authStatus'] = 'aligned') => {
     await TestBed.configureTestingModule({
       imports: [ReportDeliveriesDialogComponent, BrowserAnimationsModule],
       providers: [
         { provide: ApiService, useValue: api },
-        { provide: MAT_DIALOG_DATA, useValue: { reportId: 'r1', title: 'example.com · google.com' } },
+        { provide: MAT_DIALOG_DATA, useValue: { reportId: 'r1', title: 'example.com · google.com', authStatus } },
         { provide: MatDialogRef, useValue: { close: () => undefined } },
       ],
     }).compileComponents();
@@ -58,12 +58,18 @@ describe('ReportDeliveriesDialogComponent', () => {
     expect(el.querySelector('[data-testid="delivery-details"]')!.textContent).toContain('"result": "pass"');
   });
 
-  it('explains when no deliveries were recorded', async () => {
+  it.each([
+    ['legacy', 'stored before sender verification existed'],
+    ['manual', 'uploaded manually'],
+    ['unchecked', 'sender verification was turned off'],
+    ['aligned', 'No deliveries recorded for this report.'],
+  ] as const)('explains why a %s report has no deliveries', async (authStatus, reason) => {
     api.getReportDeliveries.mockReturnValue(of([]));
 
-    const el = await create();
+    const el = await create(authStatus);
 
     expect(el.textContent).toContain('No deliveries recorded');
+    expect(el.textContent).toContain(reason);
   });
 
   it('shows an error when loading fails', async () => {

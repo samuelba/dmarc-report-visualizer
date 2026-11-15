@@ -10,6 +10,7 @@ describe('decideCollision', () => {
     'unaligned',
     'manual',
     'unverified',
+    'unchecked',
     'legacy',
   ];
 

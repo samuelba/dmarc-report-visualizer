@@ -21,6 +21,7 @@ The verdict compares the organizational domain of each authenticated identity wi
 | `unaligned` | The email is authenticated, but by another domain. The report shows "sent by `<domain>`" |
 | `manual` | Uploaded by an administrator, or loaded through `process-directory` |
 | `unverified` | No usable evidence, including everything from the file watcher |
+| `unchecked` | Received by email while `REPORT_SENDER_AUTH=off`, so never checked |
 | `legacy` | Stored before this feature existed |
 
 ## When a report already exists
@@ -38,7 +39,7 @@ Every received copy is recorded in `dmarc_report_deliveries` together with its v
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `REPORT_SENDER_AUTH` | `flag` | `off`: no checks, email reports are `unverified`. `flag`: store every report with its verdict. `enforce`: reject email reports that are `unverified`. |
+| `REPORT_SENDER_AUTH` | `flag` | `off`: no checks, email reports are `unchecked`. `flag`: store every report with its verdict. `enforce`: reject email reports that are `unverified`. |
 | `REPORT_TRUSTED_ARC_SEALERS` | empty | Comma-separated ARC-Seal `d=` domains to believe, e.g. `google.com` |
 | `REPORT_RELAY_DOMAINS` | empty | Extra relay domains to ignore as reporters. Managed domains are always ignored. |
 

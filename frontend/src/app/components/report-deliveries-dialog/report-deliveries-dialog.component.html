@@ -10,7 +10,7 @@
   } @else if (failed()) {
     <p class="error">Could not load the delivery history.</p>
   } @else if (deliveries().length === 0) {
-    <p>No deliveries recorded. Reports stored before sender verification existed have no history.</p>
+    <p>No deliveries recorded. {{ noDeliveriesReason }}</p>
   } @else {
     @for (delivery of deliveries(); track delivery.id) {
       <section class="delivery" data-testid="delivery-row">

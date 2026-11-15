@@ -164,6 +164,7 @@ export class ReportsComponent implements OnInit {
       data: {
         reportId: report.id,
         title: `${report.domain || 'Unknown Domain'} · ${report.orgName || 'Unknown reporter'}`,
+        authStatus: report.authStatus,
       },
       width: '720px',
       maxWidth: '95vw',

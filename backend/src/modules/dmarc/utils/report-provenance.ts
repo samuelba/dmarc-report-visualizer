@@ -1,5 +1,5 @@
 export type AuthStatus =
-  'aligned' | 'unaligned' | 'manual' | 'unverified' | 'legacy';
+  'aligned' | 'unaligned' | 'manual' | 'unverified' | 'unchecked' | 'legacy';
 
 export type AuthMethod = 'dkim' | 'arc';
 

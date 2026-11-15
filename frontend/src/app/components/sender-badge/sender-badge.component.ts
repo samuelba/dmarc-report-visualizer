@@ -5,7 +5,7 @@ import { DmarcReport } from '../../services/api.service';
 
 type BadgeReport = Pick<Partial<DmarcReport>, 'authStatus' | 'authDomain' | 'claimedDomain'>;
 
-/** Sender-authentication verdict of a report; nothing for legacy/manual. */
+/** Sender-authentication verdict of a report. */
 @Component({
   selector: 'app-sender-badge',
   standalone: true,
@@ -26,6 +26,12 @@ export class SenderBadgeComponent {
         return `Authenticated as ${authDomain ?? 'unknown'}, but the report claims ${claimedDomain ?? 'another domain'}`;
       case 'unverified':
         return 'No DKIM signature or trusted ARC record proves who sent this report';
+      case 'manual':
+        return 'Uploaded by a user, so there is no email sender to verify';
+      case 'unchecked':
+        return 'Received while sender verification was turned off';
+      case 'legacy':
+        return 'Stored before sender verification was introduced';
       default:
         return '';
     }

@@ -187,12 +187,12 @@ describe('ReportSenderAuthService', () => {
       expect(relayWarnings).toHaveLength(1);
     });
 
-    it('is unverified without evidence when sender auth is off', async () => {
+    it('is unchecked without evidence when sender auth is off', async () => {
       const { service } = build({ REPORT_SENDER_AUTH: 'off' });
 
       await expect(
         service.assess(null, { email: 'noreply@google.com' }, BASE),
-      ).resolves.toEqual({ ...BASE, authStatus: 'unverified' });
+      ).resolves.toEqual({ ...BASE, authStatus: 'unchecked' });
     });
 
     it('stores unverified reports in flag mode', async () => {

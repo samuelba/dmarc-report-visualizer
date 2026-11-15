@@ -32,6 +32,15 @@
   &.unverified {
     color: var(--custom-error-color);
   }
+
+  &.unchecked,
+  &.legacy {
+    color: var(--custom-unknown-color);
+  }
+
+  &.manual {
+    color: var(--custom-info-color);
+  }
 }
 
 .outcome {

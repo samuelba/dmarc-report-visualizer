@@ -2,12 +2,19 @@ import { Component, Inject, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MaterialModule } from '../../shared/material.module';
-import { ApiService, ReportDelivery } from '../../services/api.service';
+import { ApiService, ReportAuthStatus, ReportDelivery } from '../../services/api.service';
 
 export interface ReportDeliveriesDialogData {
   reportId: string;
   title: string;
+  authStatus?: ReportAuthStatus;
 }
+
+const NO_DELIVERIES_REASONS: Partial<Record<ReportAuthStatus, string>> = {
+  legacy: 'This report was stored before sender verification existed, so it has no delivery history.',
+  manual: 'This report was uploaded manually, so it has no email delivery history.',
+  unchecked: 'This report arrived while sender verification was turned off.',
+};
 
 const SOURCE_LABELS: Record<ReportDelivery['source'], string> = {
   imap: 'IMAP',
@@ -45,6 +52,11 @@ export class ReportDeliveriesDialogComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  get noDeliveriesReason(): string {
+    const status = this.data.authStatus;
+    return (status && NO_DELIVERIES_REASONS[status]) ?? 'No deliveries recorded for this report.';
   }
 
   sourceLabel(delivery: ReportDelivery): string {

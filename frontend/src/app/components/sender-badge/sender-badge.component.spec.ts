@@ -47,8 +47,32 @@ describe('SenderBadgeComponent', () => {
     expect(el.textContent).toContain('Unverified sender');
   });
 
-  it.each(['legacy', 'manual', undefined] as const)('shows nothing for %s reports', (authStatus) => {
-    const el = render({ authStatus });
+  it('labels manually uploaded reports', () => {
+    const el = render({ authStatus: 'manual' });
+
+    expect(el.querySelector('[data-testid="sender-badge-manual"]')).not.toBeNull();
+    expect(el.textContent).toContain('Manual upload');
+    expect(component.tooltip).toBe('Uploaded by a user, so there is no email sender to verify');
+  });
+
+  it('labels reports received while sender verification was off', () => {
+    const el = render({ authStatus: 'unchecked' });
+
+    expect(el.querySelector('[data-testid="sender-badge-unchecked"]')).not.toBeNull();
+    expect(el.textContent).toContain('Not checked');
+    expect(component.tooltip).toBe('Received while sender verification was turned off');
+  });
+
+  it('labels reports stored before sender verification', () => {
+    const el = render({ authStatus: 'legacy' });
+
+    expect(el.querySelector('[data-testid="sender-badge-legacy"]')).not.toBeNull();
+    expect(el.textContent).toContain('Legacy');
+    expect(component.tooltip).toBe('Stored before sender verification was introduced');
+  });
+
+  it('shows nothing when the status is missing', () => {
+    const el = render({ authStatus: undefined });
 
     expect(el.querySelector('.sender-badge')).toBeNull();
   });

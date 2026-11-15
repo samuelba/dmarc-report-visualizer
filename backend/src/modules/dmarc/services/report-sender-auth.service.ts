@@ -151,7 +151,7 @@ export class ReportSenderAuthService implements OnModuleInit {
     base: ProvenanceBase,
   ): Promise<ReportProvenance> {
     if (!auth) {
-      return { ...base, authStatus: 'unverified' };
+      return { ...base, authStatus: 'unchecked' };
     }
     const reportEmail = report.email;
     const verdict = evaluateSender(auth, reportEmail, {

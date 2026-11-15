@@ -139,7 +139,7 @@ export interface DomainStatistics {
   updatedAt?: string;
 }
 
-export type ReportAuthStatus = 'aligned' | 'unaligned' | 'manual' | 'unverified' | 'legacy';
+export type ReportAuthStatus = 'aligned' | 'unaligned' | 'manual' | 'unverified' | 'unchecked' | 'legacy';
 
 export interface DmarcReport {
   id: string;

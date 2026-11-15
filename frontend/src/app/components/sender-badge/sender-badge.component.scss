@@ -25,4 +25,15 @@
     background: var(--custom-error-bg-color);
     color: var(--custom-error-color);
   }
+
+  &.manual {
+    background: var(--custom-info-bg-color);
+    color: var(--custom-info-color);
+  }
+
+  &.unchecked,
+  &.legacy {
+    background: var(--custom-unknown-bg-color);
+    color: var(--custom-unknown-color);
+  }
 }
