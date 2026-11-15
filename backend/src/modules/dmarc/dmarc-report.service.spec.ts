@@ -802,6 +802,25 @@ describe('DmarcReportService', () => {
       expect(mockDmarcReportRepository.findAndCount).toHaveBeenCalled();
     });
 
+    it('should list reports without records or the original XML', async () => {
+      mockDmarcReportRepository.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.list({ page: 1, pageSize: 100 });
+
+      const options = mockDmarcReportRepository.findAndCount.mock.calls[0][0];
+      expect(options.relations).toBeUndefined();
+      expect(options.select).toBeDefined();
+      expect(options.select.originalXml).toBeUndefined();
+      expect(options.select).toEqual(
+        expect.objectContaining({
+          id: true,
+          authStatus: true,
+          authDomain: true,
+          claimedDomain: true,
+        }),
+      );
+    });
+
     it('should create a new report without records', async () => {
       const reportData = {
         reportId: 'test-report-id',

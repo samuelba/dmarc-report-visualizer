@@ -148,7 +148,7 @@ export interface DmarcReport {
   email?: string;
   domain?: string;
   policy?: any;
-  records: DmarcRecord[];
+  records?: DmarcRecord[];
   beginDate?: string;
   endDate?: string;
   createdAt: string;
