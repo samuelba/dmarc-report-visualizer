@@ -159,7 +159,7 @@ export class GmailDownloaderService implements OnModuleInit, OnModuleDestroy {
     if (fromEnv && fromEnv.trim().length > 0) {
       return fromEnv.trim();
     }
-    // Default: messages with attachments from last 10 days. Label filtering is done via labelIds.
+    // Default: messages with attachments from the last 5 days. Label filtering is done via labelIds.
     // Exclude processed label by name in query as a safety net (if it exists).
     const processedName = this.getProcessedLabelName();
     // Also exclude the failed label so permanently-failed messages are not retried

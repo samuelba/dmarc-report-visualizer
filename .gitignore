@@ -42,9 +42,21 @@ TOTP_*.md
 /bump-version.sh
 /deploy.sh
 /material/data
-/scripts
-/scripts/dmarc_reports
+# Local helpers live in scripts/internal. Client secrets and downloaded mail stay ignored.
+/scripts/*
+!/scripts/oauth_get_refresh_token.js
+!/scripts/package.json
+!/scripts/package-lock.json
+!/scripts/check-env-docs.mjs
+!/scripts/check-env-docs.test.mjs
+!/scripts/sync-docs.mjs
+!/scripts/sync-docs.test.mjs
+!/scripts/docs-preview.mjs
 /verify-backup-system.sh
+
+# Unpublished working notes. The public manual is docs/site/.
+/docs/internal/*
+!/docs/internal/README.md
 client_*.json
 /frontend/e2e-results
 /frontend/playwright-report

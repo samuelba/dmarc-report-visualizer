@@ -58,7 +58,7 @@ services:
       # CORS Configuration
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
 
-      # MCP Server: read-only AI access with personal API tokens (off by default, see docs/MCP.md)
+      # MCP Server: read-only AI access with personal API tokens (off by default, see docs/site/usage/mcp.md)
       MCP_ENABLED: ${MCP_ENABLED:-false}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       MCP_RATE_LIMIT_PER_MIN: ${MCP_RATE_LIMIT_PER_MIN:-60}
@@ -67,7 +67,7 @@ services:
       # Reprocessing Configuration
       REPROCESSING_WORKERS: ${REPROCESSING_WORKERS:-}
 
-      # Report Size Limits (see docs/REPORT_LIMITS.md)
+      # Report Size Limits (see docs/site/ingestion/report-limits.md)
       REPORT_MAX_FILE_BYTES: ${REPORT_MAX_FILE_BYTES:-10485760}
       REPORT_MAX_UNCOMPRESSED_BYTES: ${REPORT_MAX_UNCOMPRESSED_BYTES:-52428800}
       REPORT_MAX_ZIP_ENTRIES: ${REPORT_MAX_ZIP_ENTRIES:-10}
@@ -75,7 +75,7 @@ services:
       REPORT_MAX_MESSAGE_BYTES: ${REPORT_MAX_MESSAGE_BYTES:-26214400}
       REPORT_FAILURE_ARCHIVE_MAX_FILES: ${REPORT_FAILURE_ARCHIVE_MAX_FILES:-500}
 
-      # Report Sender Authentication (see docs/REPORT_SENDER_AUTH.md)
+      # Report Sender Authentication (see docs/site/ingestion/sender-authentication.md)
       REPORT_SENDER_AUTH: ${REPORT_SENDER_AUTH:-flag}
       REPORT_TRUSTED_ARC_SEALERS: ${REPORT_TRUSTED_ARC_SEALERS:-}
       REPORT_RELAY_DOMAINS: ${REPORT_RELAY_DOMAINS:-}
@@ -110,7 +110,7 @@ services:
       # Gmail Processing Configuration
       GMAIL_POLL_INTERVAL_MS: ${GMAIL_POLL_INTERVAL_MS:-300000}
       GMAIL_LIST_PAGE_SIZE: ${GMAIL_LIST_PAGE_SIZE:-100}
-      GMAIL_QUERY: ${GMAIL_QUERY:-has:attachment newer_than:5d -label:"DMARC Processed"}
+      GMAIL_QUERY: ${GMAIL_QUERY:-}
       GMAIL_PROCESS_INLINE: ${GMAIL_PROCESS_INLINE:-true}
       GMAIL_SAVE_ORIGINAL: ${GMAIL_SAVE_ORIGINAL:-false}
       GMAIL_REMOVE_SOURCE_LABEL: ${GMAIL_REMOVE_SOURCE_LABEL:-true}
@@ -145,7 +145,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -base64 48)}
       JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-30d}
-      # Optional: decouples 2FA secrets from JWT_SECRET (see AUTHENTICATION_DEPLOYMENT.md)
+      # Optional: decouples 2FA secrets from JWT_SECRET (see docs/site/deployment/secrets.md)
       TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-}
 
       # Password Configuration

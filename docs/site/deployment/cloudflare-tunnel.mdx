@@ -1,0 +1,25 @@
+---
+title: Cloudflare Tunnel
+description: Publish the UI with cloudflared and no open inbound ports.
+sidebar:
+  order: 14
+---
+
+import { Code } from '@astrojs/starlight/components';
+import compose from '../../examples/cloudflare-tunnel/compose.yml?raw';
+
+`cloudflared` connects out to Cloudflare and proxies to `frontend:80` on the Docker network. Nothing in this stack needs a published port.
+
+Create a tunnel in Cloudflare and set its public hostname to `http://frontend:80`. Put the tunnel token in `CLOUDFLARE_TUNNEL_TOKEN`. That variable is only for `cloudflared`. The backend does not read it. Set `PUBLIC_HOST` to the tunnel's public hostname. The example derives `FRONTEND_URL`, `CORS_ORIGINS`, and `SAML_ACS_URL` from it and leaves `COOKIE_DOMAIN` empty.
+
+Cloudflare and the bundled nginx are two hops, so `TRUST_PROXY=2`. If an orange-cloud proxy also sits in front of something else, count every proxy that appends `X-Forwarded-For`. `COOKIE_SECURE=true` works because Cloudflare serves the site over HTTPS.
+
+```bash
+cp examples/cloudflare-tunnel/.env.example examples/cloudflare-tunnel/.env
+# fill in the secrets, CLOUDFLARE_TUNNEL_TOKEN, and PUBLIC_HOST
+docker compose --env-file examples/cloudflare-tunnel/.env -f examples/cloudflare-tunnel/compose.yml up -d
+```
+
+Create the administrator right after the first start. `/setup` accepts the first visitor.
+
+<Code code={compose} lang="yaml" title="examples/cloudflare-tunnel/compose.yml" />

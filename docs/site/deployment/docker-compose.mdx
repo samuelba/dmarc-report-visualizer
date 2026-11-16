@@ -1,0 +1,37 @@
+---
+title: Docker Compose
+description: The three services in the default stack, and what they publish.
+sidebar:
+  order: 10
+---
+
+import { Code } from '@astrojs/starlight/components';
+import compose from '../../examples/default/compose.yml?raw';
+
+The default stack is Postgres 16, the backend, and the frontend. Redis is present but commented out. Turn it on only if you want SAML assertion replay protection, the **Test SAML Login** button, or the invitation email queue.
+
+| Service | Image | Published port | Volumes |
+| --- | --- | --- | --- |
+| `postgres` | `postgres:16-alpine` | none | named volume `dmarc_postgres_data` |
+| `backend` | `ghcr.io/samuelba/dmarc-report-visualizer/dmarc-backend` | none | `./logs` → `/app/logs`, `./reports` → `/app/reports`, `./backups` → `/app/backups` |
+| `frontend` | `ghcr.io/samuelba/dmarc-report-visualizer/dmarc-frontend` | `${FRONTEND_PORT:-80}` to container port 80 | none |
+
+`depends_on` does not wait until Postgres accepts connections. On a cold start the backend may exit once if the pre-migration backup runs before Postgres is ready. `restart: unless-stopped` brings it back.
+
+The frontend nginx serves the Angular app and proxies `/api/` to `backend:3000`. It sends `X-Forwarded-For` and `X-Forwarded-Proto`. The backend does not read `X-Real-IP`. Login rate limiting uses Express `request.ip`, which follows `TRUST_PROXY`.
+
+The backend logs to stdout. Read them with `docker compose logs -f backend`. The `./logs` mount is kept for compatibility and stays empty.
+
+To reach Postgres or the API from the host, copy `docker-compose.override.yml.example` to `docker-compose.override.yml`. Compose loads it automatically, and it publishes `127.0.0.1:5432` and `127.0.0.1:3000`. For hot reload, use `docker-compose.dev.yml` as described in `DEVELOPMENT.md`.
+
+<Code code={compose} lang="yaml" title="examples/default/compose.yml" />
+
+## Enable Redis
+
+Redis is needed for the invitation email queue, SAML assertion replay protection, and **Test SAML Login**. Without it, invites are still created, but no email goes out and the UI shows the link for you to share. In your compose file:
+
+1. Uncomment the `redis` service and the `dmarc_redis_data` volume.
+2. In the backend, uncomment `REDIS_HOST`, `REDIS_PORT`, and `REDIS_PASSWORD`, and the `- redis` line under `depends_on`.
+3. Set `REDIS_PASSWORD` in `.env` (`openssl rand -base64 32`), then run `docker compose up -d`.
+
+The Redis service publishes `127.0.0.1:6379`. Remove its `ports:` block if nothing on the host needs it.

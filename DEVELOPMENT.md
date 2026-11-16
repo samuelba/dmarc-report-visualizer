@@ -76,7 +76,7 @@ npm run imap-test:inspect    # ...see what happened to them
 npm run imap-test:down
 ```
 
-See [Testing in docs/IMAP_DOWNLOADER.md](docs/IMAP_DOWNLOADER.md#testing) for details.
+See [Develop against GreenMail](docs/site/ingestion/imap.md#develop-against-greenmail). The commands above are the same ones.
 
 ## Database Migrations
 
@@ -103,6 +103,28 @@ Config comes from environment variables (see `backend/src/config/database.config
 - Connection refused to DB: Ensure `npm run docker:dev` (or your Postgres) is up; check env `DATABASE_HOST`, `DATABASE_PORT`, etc.
 - CORS issues: Frontend dev server proxies `/api` to `3000` (see `frontend/angular.json`). If you call the API directly from a different origin, set `CORS_ORIGINS` env (comma-separated) for the backend.
 - File watcher: The backend can watch a directory for incoming DMARC archives if `ENABLE_FILE_WATCHER=true` is set. See `backend/README.md` for `FILE_WATCH_DIR`.
+
+## Documentation site
+
+The manual in `docs/site/` is rendered at <https://samuelba.dev/dmarc-visualizer/docs/>. Preview it against a local checkout of `samuelba-website`:
+
+```bash
+npm run docs:preview -- ../../websites/samuelba-website
+```
+
+That copies `docs/site/` into the website and starts `astro dev --background`. `npm run docs:check` fails when an environment variable is missing from `.env.sample` or from `docs/site/reference/configuration.md`.
+
+A release-please release publishes the docs. The `website` job in `.github/workflows/release.yml` checks out `samuelba/samuelba-website` with the `WEBSITE_DEPLOY_KEY` secret, syncs, builds, and pushes to `main`. Sevalla rebuilds from that push. The job runs only when the repository variable `WEBSITE_UPDATE` is `true`.
+
+One-time setup:
+
+1. `ssh-keygen -t ed25519 -f website-deploy -C "dmarc-docs"` and do not set a passphrase you cannot store. Do not commit the key.
+2. Add `website-deploy.pub` as a write deploy key on `samuelba/samuelba-website`.
+3. Add the private key as the `WEBSITE_DEPLOY_KEY` secret on `samuelba/dmarc-report-visualizer`.
+4. Set the repository variable `WEBSITE_UPDATE` to `true`.
+5. For the CI docs build, generate a second key (`ssh-keygen -t ed25519 -f website-read -C "dmarc-docs-ci"`), add `website-read.pub` as a read-only deploy key on `samuelba/samuelba-website`, and add the private key as the `WEBSITE_READ_KEY` secret. The CI `Docs` job skips the site build when that secret is not available, for example on fork pull requests. It uses a separate read-only key because the build runs code from the pull request.
+
+`workflow_dispatch` on the Release workflow publishes the docs for the latest GitHub release without cutting a new one. Use it for a docs-only fix that is already on `main`. The website's `main` branch must already contain the Starlight integration, or the build step fails.
 
 ## Handy Commands
 

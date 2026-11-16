@@ -3,7 +3,7 @@
 #   - Postgres:  database kept in tmpfs, wiped on every `down`
 #
 # Ports are offset from the defaults so this can run next to the normal dev stack.
-# See "Testing" in docs/IMAP_DOWNLOADER.md.
+# See DEVELOPMENT.md and docs/site/ingestion/imap.md.
 #
 #   cd backend
 #   npm run imap-test:up        # start the stack

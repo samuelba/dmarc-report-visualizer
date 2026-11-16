@@ -213,3 +213,99 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 14
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to validate docs
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ -z "${BASE}" ] || [ "${BASE}" = "0000000000000000000000000000000000000000" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git cat-file -e "${BASE}^{commit}" 2>/dev/null && git diff --name-only "${BASE}" HEAD | grep -Eq '^(docs/site/|examples/|\.env\.sample$|backend/src/|CHANGELOG\.md$|scripts/(check-env-docs|sync-docs|docs-preview)|package\.json$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test the docs scripts and check environment coverage
+        if: steps.scope.outputs.run == 'true'
+        run: |
+          node --test scripts/check-env-docs.test.mjs scripts/sync-docs.test.mjs
+          node scripts/check-env-docs.mjs
+
+      - name: Validate compose examples
+        if: steps.scope.outputs.run == 'true'
+        env:
+          POSTGRES_PASSWORD: ci-placeholder
+          DATABASE_PASSWORD: ci-placeholder
+          JWT_SECRET: ci-placeholder
+          PUBLIC_HOST: dmarc.example.com
+          ACME_EMAIL: admin@example.com
+          CLOUDFLARE_TUNNEL_TOKEN: ci-placeholder
+        run: |
+          set -euo pipefail
+          for dir in default traefik caddy cloudflare-tunnel; do
+            docker compose --env-file "examples/${dir}/.env.example" -f "examples/${dir}/compose.yml" config -q
+          done
+
+      # samuelba-website is private: it needs a read-only deploy key in WEBSITE_READ_KEY.
+      # Fork PRs get no secrets, so the site build is skipped there.
+      - name: Check for website access
+        id: website
+        if: steps.scope.outputs.run == 'true'
+        env:
+          WEBSITE_READ_KEY: ${{ secrets.WEBSITE_READ_KEY }}
+        run: |
+          if [ -n "${WEBSITE_READ_KEY}" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::WEBSITE_READ_KEY is not available, skipping the docs site build."
+          fi
+
+      # samuelba-website main must already contain the Starlight integration.
+      - name: Checkout the website
+        if: steps.website.outputs.build == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: samuelba/samuelba-website
+          ref: main
+          ssh-key: ${{ secrets.WEBSITE_READ_KEY }}
+          persist-credentials: false
+          path: site
+
+      - name: Build the published docs
+        if: steps.website.outputs.build == 'true'
+        run: |
+          node scripts/sync-docs.mjs --out site
+          npm ci --prefix site
+          npm run build --prefix site
+
+      - name: Upload the docs site
+        if: steps.website.outputs.build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: site/dist
+          retention-days: 7

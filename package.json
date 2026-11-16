@@ -1,0 +1,11 @@
+{
+  "name": "dmarc-report-visualizer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs:check": "node scripts/check-env-docs.mjs",
+    "docs:sync": "node scripts/sync-docs.mjs",
+    "docs:preview": "node scripts/docs-preview.mjs",
+    "docs:test": "node --test scripts/check-env-docs.test.mjs scripts/sync-docs.test.mjs"
+  }
+}

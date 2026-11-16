@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,6 +12,7 @@ permissions:
 
 jobs:
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -26,7 +28,7 @@ jobs:
   docker:
     # A release created with github.token does not trigger other workflows, so the images are built here.
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,3 +66,71 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  # Publishes docs/site to samuelba.dev. Needs a write deploy key for
+  # samuelba/samuelba-website in WEBSITE_DEPLOY_KEY, and WEBSITE_UPDATE=true.
+  # See DEVELOPMENT.md. workflow_dispatch publishes main against the latest release.
+  website:
+    needs: [release-please, docker]
+    if: |
+      always() && vars.WEBSITE_UPDATE == 'true' &&
+      (
+        (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true' && needs.docker.result == 'success')
+        || github.event_name == 'workflow_dispatch'
+      )
+    runs-on: ubuntu-latest
+    concurrency:
+      group: website-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve the published tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)"
+          else
+            tag="${{ needs.release-please.outputs.tag_name }}"
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || needs.release-please.outputs.tag_name }}
+          path: dmarc
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: samuelba/samuelba-website
+          ref: main
+          ssh-key: ${{ secrets.WEBSITE_DEPLOY_KEY }}
+          path: site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Sync and build
+        run: |
+          set -euo pipefail
+          node dmarc/scripts/sync-docs.mjs --root dmarc --out site --tag "${{ steps.tag.outputs.tag }}"
+          npm ci --prefix site
+          npm run build --prefix site
+
+      - name: Push to the website
+        working-directory: site
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'the website already has these docs'
+            exit 0
+          fi
+          git add src/content/docs/dmarc-visualizer src/data/dmarc-release.json
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "docs(dmarc): update docs to ${{ steps.tag.outputs.tag }}"
+          git push origin HEAD:main

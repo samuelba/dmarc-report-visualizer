@@ -11,7 +11,7 @@ import { upgradeEncryptedValues } from '../../../common/crypto/upgrade-encrypted
 export const TOTP_ENCRYPTION_KEY_MIN_LENGTH = 32;
 
 const RESET_HINT =
-  'See docs/SECRETS.md for how to reset 2FA for affected users.';
+  'See docs/site/deployment/secrets.md for how to reset 2FA for affected users.';
 
 /**
  * Build the cipher for stored TOTP secrets. Without TOTP_ENCRYPTION_KEY it
