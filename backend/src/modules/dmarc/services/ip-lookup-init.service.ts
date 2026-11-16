@@ -44,10 +44,12 @@ export class IpLookupInitService implements OnModuleInit {
         10,
       );
 
-      const useCache = this.configService.get<boolean>(
-        'IP_LOOKUP_USE_CACHE',
-        true,
-      );
+      const useCacheValue = String(
+        this.configService.get<string | boolean>('IP_LOOKUP_USE_CACHE', true),
+      )
+        .trim()
+        .toLowerCase();
+      const useCache = !['false', '0', 'no'].includes(useCacheValue);
 
       const apiKeys: { iplocate?: string; ipapico?: string; ipwhois?: string } =
         {};
