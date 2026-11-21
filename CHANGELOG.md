@@ -5,26 +5,23 @@
 
 ### Features
 
-* **auth:** add personal API tokens for MCP (disabled by default) ([47fe536](https://github.com/samuelba/dmarc-report-visualizer/commit/47fe536550647eddddd9ec86c5a063fdd30781dd))
-* **frontend:** manage MCP API tokens in profile and settings ([9538a3f](https://github.com/samuelba/dmarc-report-visualizer/commit/9538a3ff8ba1378866bbb198d5df97523faaa8ec))
-* mcp ([cfe73fe](https://github.com/samuelba/dmarc-report-visualizer/commit/cfe73fed1ca8dec1041db8e17a96c1351542d7a0))
-* **mcp:** add read-only MCP server behind MCP_ENABLED ([96c5cb7](https://github.com/samuelba/dmarc-report-visualizer/commit/96c5cb74b80a9a59dd830dc0c8f3383776ad8ca3))
+* **auth:** add personal API tokens for MCP (disabled by default) (@samuelba) ([47fe536](https://github.com/samuelba/dmarc-report-visualizer/commit/47fe536550647eddddd9ec86c5a063fdd30781dd))
+* **frontend:** manage MCP API tokens in profile and settings (@samuelba) ([9538a3f](https://github.com/samuelba/dmarc-report-visualizer/commit/9538a3ff8ba1378866bbb198d5df97523faaa8ec))
+* **mcp:** add read-only MCP server behind MCP_ENABLED (@samuelba) ([96c5cb7](https://github.com/samuelba/dmarc-report-visualizer/commit/96c5cb74b80a9a59dd830dc0c8f3383776ad8ca3))
 
 
 ### Bug Fixes
 
-* **auth:** answer bad SAML callbacks with 401 instead of 500 ([60a76f7](https://github.com/samuelba/dmarc-report-visualizer/commit/60a76f7ef35e897c2c170a6448f28b27ef3bb932))
-* **auth:** answer bad SAML callbacks with 401 instead of 500 ([62ec9c8](https://github.com/samuelba/dmarc-report-visualizer/commit/62ec9c8dbec16df4f8d76d5e117bfc54a11ffb9b))
-* **auth:** restore password login when SAML is disabled ([4e566d8](https://github.com/samuelba/dmarc-report-visualizer/commit/4e566d80b15fe19e11e707eebf833d983c22afb6))
-* **backend:** correct SAML test URLs, cache flag parsing and backups ([f059e19](https://github.com/samuelba/dmarc-report-visualizer/commit/f059e1979e7a1c147b9ab5903a509b5f9875cb3c))
-* **backend:** correct SAML test URLs, cache flag parsing and backups ([bac0dbd](https://github.com/samuelba/dmarc-report-visualizer/commit/bac0dbd4456bbbbec9ad5d7fdf5a8cf4e528c2ed))
-* **mcp:** explain the DKIM/SPF missing filter and use it in prompts ([bc30ca4](https://github.com/samuelba/dmarc-report-visualizer/commit/bc30ca4603e33ff800acbb62c2736e1d77ea4eba))
-* **mcp:** harden token management, rate limits and tool output ([8fc64ba](https://github.com/samuelba/dmarc-report-visualizer/commit/8fc64bae0cee15f72c05f1b60c2c28a12262821f))
+* **auth:** answer bad SAML callbacks with 401 instead of 500 (@samuelba) ([62ec9c8](https://github.com/samuelba/dmarc-report-visualizer/commit/62ec9c8dbec16df4f8d76d5e117bfc54a11ffb9b))
+* **auth:** restore password login when SAML is disabled (@samuelba) ([4e566d8](https://github.com/samuelba/dmarc-report-visualizer/commit/4e566d80b15fe19e11e707eebf833d983c22afb6))
+* **backend:** correct SAML test URLs, cache flag parsing and backups (@samuelba) ([bac0dbd](https://github.com/samuelba/dmarc-report-visualizer/commit/bac0dbd4456bbbbec9ad5d7fdf5a8cf4e528c2ed))
+* **mcp:** explain the DKIM/SPF missing filter and use it in prompts (@samuelba) ([bc30ca4](https://github.com/samuelba/dmarc-report-visualizer/commit/bc30ca4603e33ff800acbb62c2736e1d77ea4eba))
+* **mcp:** harden token management, rate limits and tool output (@samuelba) ([8fc64ba](https://github.com/samuelba/dmarc-report-visualizer/commit/8fc64bae0cee15f72c05f1b60c2c28a12262821f))
 
 
 ### Performance Improvements
 
-* **search:** stop loading raw report XML for every search row ([d9dc97c](https://github.com/samuelba/dmarc-report-visualizer/commit/d9dc97c8ff6faa8448a49919027b4cd5b9c0666f))
+* **search:** stop loading raw report XML for every search row (@samuelba) ([d9dc97c](https://github.com/samuelba/dmarc-report-visualizer/commit/d9dc97c8ff6faa8448a49919027b4cd5b9c0666f))
 
 ## [0.11.0](https://github.com/samuelba/dmarc-report-visualizer/compare/v0.10.1...v0.11.0) (2026-11-15)
 
