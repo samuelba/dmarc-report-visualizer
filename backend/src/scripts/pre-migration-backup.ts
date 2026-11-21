@@ -87,7 +87,13 @@ async function createBackup(config: BackupConfig): Promise<string> {
     const safeReject = (error: Error) => {
       if (!settled) {
         settled = true;
-        reject(error);
+        outStream.destroy();
+        fs.promises
+          .rm(backupFilePath, { force: true })
+          .catch((rmError: unknown) =>
+            console.error('✗ Failed to remove partial backup:', rmError),
+          )
+          .finally(() => reject(error));
       }
     };
     const safeResolve = (value: string) => {
@@ -113,8 +119,10 @@ async function createBackup(config: BackupConfig): Promise<string> {
       safeReject(new Error(message));
     });
 
-    outStream.on('finish', () => {
-      if (!settled) {
+    let pendingSteps = 3;
+    const completeStep = () => {
+      pendingSteps -= 1;
+      if (pendingSteps === 0 && !settled) {
         void (async () => {
           try {
             console.log(`✓ Backup created successfully: ${backupFilePath}`);
@@ -130,17 +138,21 @@ async function createBackup(config: BackupConfig): Promise<string> {
           }
         })();
       }
-    });
-    // Handle pg_dump exit code
+    };
+
+    outStream.on('finish', completeStep);
     pgDump.on('exit', (code: number) => {
       if (code !== 0) {
         safeReject(new Error(`pg_dump exited with code ${code}`));
+      } else {
+        completeStep();
       }
     });
-    // Handle gzip exit code
     gzip.on('exit', (code: number) => {
       if (code !== 0) {
         safeReject(new Error(`gzip exited with code ${code}`));
+      } else {
+        completeStep();
       }
     });
   });
@@ -261,4 +273,4 @@ if (require.main === module) {
   });
 }
 
-export { main as runPreMigrationBackup };
+export { main as runPreMigrationBackup, createBackup };

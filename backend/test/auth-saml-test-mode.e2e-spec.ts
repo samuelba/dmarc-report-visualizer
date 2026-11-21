@@ -147,7 +147,7 @@ describe('SAML Test Mode (e2e)', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.message).toContain('valid');
       expect(response.body.testLoginUrl).toBeDefined();
-      expect(response.body.testLoginUrl).toContain('/auth/saml/test/login');
+      expect(response.body.testLoginUrl).toBe('/api/auth/saml/test/login');
     });
 
     it('should allow testing even when SAML is disabled', async () => {

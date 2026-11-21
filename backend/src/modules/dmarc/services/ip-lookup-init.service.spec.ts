@@ -263,6 +263,29 @@ describe('IpLookupInitService', () => {
       });
     });
 
+    it.each([
+      ['false', false],
+      ['FALSE', false],
+      ['0', false],
+      ['no', false],
+      ['true', true],
+      ['', true],
+    ])(
+      'parses IP_LOOKUP_USE_CACHE=%j from the environment as useCache=%s',
+      (envValue, expected) => {
+        configService.get.mockImplementation(
+          (key: string, defaultValue?: any) =>
+            key === 'IP_LOOKUP_USE_CACHE' ? envValue : defaultValue,
+        );
+
+        service.onModuleInit();
+
+        expect(geolocationService.setConfig).toHaveBeenCalledWith(
+          expect.objectContaining({ useCache: expected }),
+        );
+      },
+    );
+
     it('should handle empty fallback providers string', () => {
       configService.get.mockImplementation(
         (key: string, defaultValue?: any) => {

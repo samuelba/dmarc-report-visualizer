@@ -909,7 +909,7 @@ describe('AuthController', () => {
         expect(result).toEqual({
           success: true,
           message: 'SAML configuration is valid. Opening test login...',
-          testLoginUrl: 'http://localhost:3000/auth/saml/test/login',
+          testLoginUrl: '/api/auth/saml/test/login',
         });
       });
     });

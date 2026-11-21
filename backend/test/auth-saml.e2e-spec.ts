@@ -536,9 +536,7 @@ describe('SAML Authentication (e2e)', () => {
 
       expect(response.body.success).toBe(true);
       expect(response.body.message).toContain('valid');
-      expect(response.body.loginUrl).toBe(
-        'http://localhost:3000/auth/saml/login',
-      );
+      expect(response.body.loginUrl).toBe('/api/auth/saml/login');
     });
 
     it('should allow testing even when SAML is disabled', async () => {

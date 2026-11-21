@@ -811,12 +811,7 @@ export class AuthController {
       };
     }
 
-    // Return the SAML login URL for testing
-    const apiUrl = this.configService.get<string>(
-      'API_URL',
-      'http://localhost:3000',
-    );
-    const loginUrl = `${apiUrl}/auth/saml/login`;
+    const loginUrl = '/api/auth/saml/login';
 
     return {
       success: true,
@@ -894,12 +889,7 @@ export class AuthController {
       };
     }
 
-    // Return the test login URL
-    const apiUrl = this.configService.get<string>(
-      'API_URL',
-      'http://localhost:3000',
-    );
-    const testLoginUrl = `${apiUrl}/auth/saml/test/login`;
+    const testLoginUrl = '/api/auth/saml/test/login';
 
     return {
       success: true,
