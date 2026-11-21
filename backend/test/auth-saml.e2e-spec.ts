@@ -1,16 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
 import { DataSource } from 'typeorm';
-import { SamlService } from '../src/modules/auth/services/saml.service';
+import type { SamlService } from '../src/modules/auth/services/saml.service';
+import { ADMIN, createApp, loadBuilt, setupAdmin } from './mcp-helpers';
 
 describe('SAML Authentication (e2e)', () => {
   let app: INestApplication<App>;
   let dataSource: DataSource;
   let samlService: SamlService;
-  let adminAccessToken: string;
+  let adminCookies: string[];
+  let adminId: string;
 
   // Sample IdP metadata XML for testing
   const sampleIdpMetadata = `<?xml version="1.0"?>
@@ -28,18 +28,12 @@ describe('SAML Authentication (e2e)', () => {
 </EntityDescriptor>`;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
-    await app.init();
-
-    dataSource = moduleFixture.get<DataSource>(DataSource);
-    samlService = moduleFixture.get<SamlService>(SamlService);
+    app = await createApp(false);
+    dataSource = app.get(DataSource);
+    const { SamlService } = loadBuilt<
+      typeof import('../src/modules/auth/services/saml.service')
+    >('modules/auth/services/saml.service');
+    samlService = app.get(SamlService);
   });
 
   afterAll(async () => {
@@ -47,21 +41,17 @@ describe('SAML Authentication (e2e)', () => {
   });
 
   beforeEach(async () => {
-    // Clean up database before each test
     await dataSource.query('DELETE FROM saml_configs');
     await dataSource.query('DELETE FROM refresh_tokens');
     await dataSource.query('DELETE FROM users');
+    samlService['invalidateConfigCache']();
 
-    // Create admin user for configuration tests
-    const setupDto = {
-      email: 'admin@example.com',
-      password: 'SecurePass123!',
-      passwordConfirmation: 'SecurePass123!',
-    };
-    const setupResponse = await request(app.getHttpServer())
-      .post('/auth/setup')
-      .send(setupDto);
-    adminAccessToken = setupResponse.body.accessToken;
+    adminCookies = await setupAdmin(app);
+    const [admin] = await dataSource.query(
+      'SELECT id FROM users WHERE email = $1',
+      [ADMIN.email],
+    );
+    adminId = admin.id;
   });
 
   describe('GET /auth/saml/metadata', () => {
@@ -196,7 +186,7 @@ describe('SAML Authentication (e2e)', () => {
       // Create SAML configuration
       const config = await samlService.createOrUpdateConfig(
         { idpMetadataXml: sampleIdpMetadata },
-        'admin-user-id',
+        adminId,
       );
 
       expect(config).toBeDefined();
@@ -220,7 +210,7 @@ describe('SAML Authentication (e2e)', () => {
       // Create and enable SAML configuration
       await samlService.createOrUpdateConfig(
         { idpMetadataXml: sampleIdpMetadata },
-        'admin-user-id',
+        adminId,
       );
       await samlService.enableSaml();
 
@@ -247,7 +237,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should return unconfigured status when no config exists', async () => {
       const response = await request(app.getHttpServer())
         .get('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body).toMatchObject({
@@ -263,12 +253,12 @@ describe('SAML Authentication (e2e)', () => {
       // Create SAML configuration
       await samlService.createOrUpdateConfig(
         { idpMetadataXml: sampleIdpMetadata },
-        'admin-user-id',
+        adminId,
       );
 
       const response = await request(app.getHttpServer())
         .get('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body).toMatchObject({
@@ -294,7 +284,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should create configuration with metadata XML', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: sampleIdpMetadata })
         .expect(200);
 
@@ -312,7 +302,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should create configuration with manual fields', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({
           idpEntityId: 'https://manual-idp.example.com',
           idpSsoUrl: 'https://manual-idp.example.com/sso',
@@ -333,7 +323,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should validate metadata XML', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: '<invalid>xml</invalid>' })
         .expect(400);
 
@@ -343,7 +333,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should require all manual fields if not using metadata', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({
           idpEntityId: 'https://manual-idp.example.com',
           // Missing idpSsoUrl and idpCertificate
@@ -357,18 +347,19 @@ describe('SAML Authentication (e2e)', () => {
       // Create initial configuration
       await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: sampleIdpMetadata })
         .expect(200);
 
       // Update with new manual configuration
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({
           idpEntityId: 'https://updated-idp.example.com',
           idpSsoUrl: 'https://updated-idp.example.com/sso',
-          idpCertificate: 'updated-certificate',
+          idpCertificate:
+            'MIIDXTCCAkWgAwIBAgIJALmVVuDWu4NYMA0GCSqGSIb3DQEBCwUA',
         })
         .expect(200);
 
@@ -386,7 +377,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should fail when no configuration exists', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/enable')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(404);
 
       expect(response.body.message).toContain('not found');
@@ -405,7 +396,7 @@ describe('SAML Authentication (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/enable')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(400);
 
       expect(response.body.message).toContain('incomplete');
@@ -415,14 +406,14 @@ describe('SAML Authentication (e2e)', () => {
       // Create complete configuration
       await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: sampleIdpMetadata })
         .expect(200);
 
       // Enable SAML
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/enable')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body.message).toContain('enabled');
@@ -430,7 +421,7 @@ describe('SAML Authentication (e2e)', () => {
       // Verify SAML is enabled
       const configResponse = await request(app.getHttpServer())
         .get('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(configResponse.body.enabled).toBe(true);
@@ -447,7 +438,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should fail when no configuration exists', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/disable')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(404);
 
       expect(response.body.message).toContain('not found');
@@ -457,19 +448,19 @@ describe('SAML Authentication (e2e)', () => {
       // Create and enable SAML configuration
       await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: sampleIdpMetadata })
         .expect(200);
 
       await request(app.getHttpServer())
         .post('/auth/saml/config/enable')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       // Disable SAML
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/disable')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body.message).toContain('disabled');
@@ -477,7 +468,7 @@ describe('SAML Authentication (e2e)', () => {
       // Verify SAML is disabled
       const configResponse = await request(app.getHttpServer())
         .get('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(configResponse.body.enabled).toBe(false);
@@ -494,7 +485,7 @@ describe('SAML Authentication (e2e)', () => {
     it('should fail when SAML is not configured', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/test')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body.success).toBe(false);
@@ -514,7 +505,7 @@ describe('SAML Authentication (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/test')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body.success).toBe(false);
@@ -525,13 +516,13 @@ describe('SAML Authentication (e2e)', () => {
       // Create complete configuration
       await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: sampleIdpMetadata })
         .expect(200);
 
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/test')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -543,14 +534,14 @@ describe('SAML Authentication (e2e)', () => {
       // Create configuration but keep it disabled
       await request(app.getHttpServer())
         .post('/auth/saml/config')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .send({ idpMetadataXml: sampleIdpMetadata })
         .expect(200);
 
       // Test should still work
       const response = await request(app.getHttpServer())
         .post('/auth/saml/config/test')
-        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .set('Cookie', adminCookies)
         .expect(200);
 
       expect(response.body.success).toBe(true);
