@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.12.0](https://github.com/samuelba/dmarc-report-visualizer/compare/v0.11.0...v0.12.0) (2026-11-21)
+
+
+### Features
+
+* **auth:** add personal API tokens for MCP (disabled by default) (@samuelba) ([47fe536](https://github.com/samuelba/dmarc-report-visualizer/commit/47fe536550647eddddd9ec86c5a063fdd30781dd))
+* **frontend:** manage MCP API tokens in profile and settings (@samuelba) ([9538a3f](https://github.com/samuelba/dmarc-report-visualizer/commit/9538a3ff8ba1378866bbb198d5df97523faaa8ec))
+* **mcp:** add read-only MCP server behind MCP_ENABLED (@samuelba) ([96c5cb7](https://github.com/samuelba/dmarc-report-visualizer/commit/96c5cb74b80a9a59dd830dc0c8f3383776ad8ca3))
+
+
+### Bug Fixes
+
+* **auth:** answer bad SAML callbacks with 401 instead of 500 (@samuelba) ([62ec9c8](https://github.com/samuelba/dmarc-report-visualizer/commit/62ec9c8dbec16df4f8d76d5e117bfc54a11ffb9b))
+* **auth:** restore password login when SAML is disabled (@samuelba) ([4e566d8](https://github.com/samuelba/dmarc-report-visualizer/commit/4e566d80b15fe19e11e707eebf833d983c22afb6))
+* **backend:** correct SAML test URLs, cache flag parsing and backups (@samuelba) ([bac0dbd](https://github.com/samuelba/dmarc-report-visualizer/commit/bac0dbd4456bbbbec9ad5d7fdf5a8cf4e528c2ed))
+* **deps:** bump jws and qs in scripts to resolve Dependabot alerts (@samuelba) ([6a72b90](https://github.com/samuelba/dmarc-report-visualizer/commit/6a72b901c38c4608942fd8d2bd7bb0b4daf6ab16))
+* **mcp:** explain the DKIM/SPF missing filter and use it in prompts (@samuelba) ([bc30ca4](https://github.com/samuelba/dmarc-report-visualizer/commit/bc30ca4603e33ff800acbb62c2736e1d77ea4eba))
+* **mcp:** harden token management, rate limits and tool output (@samuelba) ([8fc64ba](https://github.com/samuelba/dmarc-report-visualizer/commit/8fc64bae0cee15f72c05f1b60c2c28a12262821f))
+
+
+### Performance Improvements
+
+* **search:** stop loading raw report XML for every search row (@samuelba) ([d9dc97c](https://github.com/samuelba/dmarc-report-visualizer/commit/d9dc97c8ff6faa8448a49919027b4cd5b9c0666f))
+
 ## [0.11.0](https://github.com/samuelba/dmarc-report-visualizer/compare/v0.10.1...v0.11.0) (2026-11-15)
 
 
