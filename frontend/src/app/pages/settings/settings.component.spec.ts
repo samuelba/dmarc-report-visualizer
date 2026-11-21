@@ -9,12 +9,14 @@ import { vi } from 'vitest';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { SettingsComponent } from './settings.component';
 import { ApiService, ThirdPartySender, ReprocessingJob } from '../../services/api.service';
+import { ApiTokenService } from '../../services/api-token.service';
 import { createSpyObj, SpyObj } from '../../../testing/mock-helpers';
 
 describe('SettingsComponent', () => {
   let component: SettingsComponent;
   let fixture: ComponentFixture<SettingsComponent>;
   let apiService: SpyObj<ApiService>;
+  let apiTokenSpy: SpyObj<ApiTokenService>;
   let dialog: SpyObj<MatDialog>;
   let snackBar: SpyObj<MatSnackBar>;
   let router: Router;
@@ -61,6 +63,9 @@ describe('SettingsComponent', () => {
       'listUnalignedSenders',
       'listTrustedReporters',
     ]);
+    apiTokenSpy = createSpyObj('ApiTokenService', ['isEnabled', 'listAll']);
+    apiTokenSpy.isEnabled.mockReturnValue(of(false));
+    apiTokenSpy.listAll.mockReturnValue(of([]));
     apiSpy.listUnalignedSenders.mockReturnValue(of([]));
     apiSpy.listTrustedReporters.mockReturnValue(of([]));
     apiSpy.getThirdPartySenders.mockReturnValue(of([mockSender]));
@@ -71,6 +76,7 @@ describe('SettingsComponent', () => {
       imports: [SettingsComponent, BrowserAnimationsModule],
       providers: [
         { provide: ApiService, useValue: apiSpy },
+        { provide: ApiTokenService, useValue: apiTokenSpy },
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
@@ -99,6 +105,24 @@ describe('SettingsComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  describe('API tokens tab', () => {
+    const tabLabels = (f: ComponentFixture<SettingsComponent>) =>
+      Array.from((f.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')).map((t) => t.textContent?.trim());
+
+    it('is hidden when MCP is disabled on the server', () => {
+      expect(apiTokenSpy.isEnabled).toHaveBeenCalled();
+      expect(tabLabels(fixture)).not.toContain('API Tokens');
+    });
+
+    it('is shown last when MCP is enabled', () => {
+      apiTokenSpy.isEnabled.mockReturnValue(of(true));
+      const enabled = TestBed.createComponent(SettingsComponent);
+      enabled.detectChanges();
+
+      expect(tabLabels(enabled).at(-1)).toBe('API Tokens');
+    });
   });
 
   it('should load third-party senders on init', () => {

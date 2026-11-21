@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Module, Type } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
@@ -10,6 +10,19 @@ import { EmailModule } from './modules/email/email.module';
 import databaseConfig from './config/database.config';
 import authConfig from './config/auth.config';
 import { isRedisConfigured } from './config/redis.config';
+import { isMcpEnabled } from './config/mcp.config';
+import { ApiTokenModule } from './modules/auth/api-token.module';
+import { McpModule } from './modules/mcp/mcp.module';
+
+/**
+ * With MCP_ENABLED unset or false, API tokens and the MCP server are not
+ * part of the app at all: no routes, no Bearer authentication.
+ */
+export function getOptionalMcpModules(
+  enabled: boolean = isMcpEnabled(),
+): Type[] {
+  return enabled ? [ApiTokenModule, McpModule] : [];
+}
 
 function getOptionalBullRoot(): DynamicModule[] {
   if (!isRedisConfigured()) {
@@ -49,6 +62,7 @@ function getOptionalBullRoot(): DynamicModule[] {
     AuthModule,
     EmailModule.register(),
     DmarcModule,
+    ...getOptionalMcpModules(),
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -56,6 +56,7 @@ A web application to visualize DMARC reports, built with NestJS (backend) and An
 - Automatic database backups before migrations - See [BACKUP_SYSTEM.md](docs/BACKUP_SYSTEM.md) for details
 - Authentication (username/password with optional 2FA or SAML/SSO) - See [AUTHENTICATION_DEPLOYMENT.md](docs/AUTHENTICATION_DEPLOYMENT.md) for production setup and [SECRETS.md](docs/SECRETS.md) for the secrets it needs
 - User management
+- Optional read-only MCP server so AI assistants such as Claude can query your DMARC data, with personal, revocable API tokens (off by default) - See [MCP.md](docs/MCP.md) for details
 - SMTP email service for sending user invitations and notifications - See [EMAIL_SMTP.md](docs/EMAIL_SMTP.md) for details
 
 ## IP Lookup Service

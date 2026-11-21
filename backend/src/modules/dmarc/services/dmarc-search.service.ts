@@ -6,6 +6,24 @@ import { DmarcRecord } from '../entities/dmarc-record.entity';
 import { DkimResult } from '../entities/dkim-result.entity';
 import { SpfResult } from '../entities/spf-result.entity';
 
+// Report metadata returned with each search row; the raw XML stays out.
+const REPORT_SEARCH_COLUMNS = [
+  'id',
+  'reportId',
+  'orgName',
+  'email',
+  'domain',
+  'policy',
+  'contentHash',
+  'authStatus',
+  'authDomain',
+  'claimedDomain',
+  'beginDate',
+  'endDate',
+  'createdAt',
+  'updatedAt',
+].map((column) => `rep.${column}`);
+
 export interface PagedResult<T> {
   data: T[];
   total: number;
@@ -72,7 +90,8 @@ export class DmarcSearchService {
 
     const qb = this.dmarcRecordRepository
       .createQueryBuilder('rec')
-      .leftJoinAndSelect('rec.report', 'rep')
+      .leftJoin('rec.report', 'rep')
+      .addSelect(REPORT_SEARCH_COLUMNS)
       .leftJoinAndSelect('rec.dkimResults', 'dk')
       .leftJoinAndSelect('rec.spfResults', 'sf');
 

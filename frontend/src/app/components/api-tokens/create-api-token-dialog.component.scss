@@ -1,0 +1,25 @@
+.token-form,
+.created {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.hint {
+  color: var(--custom-metric-label-color);
+}
+
+.command {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-radius: 4px;
+  background-color: var(--custom-table-header-background);
+  font-size: 0.85rem;
+}

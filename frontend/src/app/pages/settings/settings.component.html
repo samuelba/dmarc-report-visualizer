@@ -459,6 +459,15 @@
           <app-smtp-settings></app-smtp-settings>
         </div>
       </mat-tab>
+
+      <!-- API Tokens Tab (only when MCP is enabled on the server) -->
+      @if (mcpEnabled()) {
+        <mat-tab label="API Tokens">
+          <div class="tab-content">
+            <app-api-tokens-admin></app-api-tokens-admin>
+          </div>
+        </mat-tab>
+      }
     </mat-tab-group>
   </div>
 </div>

@@ -19,6 +19,7 @@ import { TotpDisableDialogComponent } from '../../components/totp-disable-dialog
 import { RecoveryCodesDialogComponent } from '../../components/recovery-codes-dialog/recovery-codes-dialog.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MessageComponent } from '../../components/message/message.component';
+import { ApiTokensComponent } from '../../components/api-tokens/api-tokens.component';
 
 // Custom validator for password strength
 function passwordStrengthValidator(): ValidatorFn {
@@ -89,7 +90,14 @@ function passwordNotEqualValidator(otherFieldName: string): ValidatorFn {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MaterialModule, PasswordStrengthComponent, MessageComponent],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MaterialModule,
+    PasswordStrengthComponent,
+    MessageComponent,
+    ApiTokensComponent,
+  ],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss'],
 })
