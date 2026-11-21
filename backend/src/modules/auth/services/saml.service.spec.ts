@@ -269,7 +269,7 @@ describe('SamlService', () => {
 
   describe('disableSaml', () => {
     it('should disable SAML when configuration exists', async () => {
-      jest.spyOn(repository, 'find').mockResolvedValue([mockSamlConfig]);
+      jest.spyOn(repository, 'find').mockResolvedValue([{ ...mockSamlConfig }]);
       jest.spyOn(repository, 'save').mockResolvedValue({
         ...mockSamlConfig,
         enabled: false,
@@ -280,6 +280,36 @@ describe('SamlService', () => {
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({ enabled: false }),
       );
+    });
+
+    it('should show password login again so nobody is locked out', async () => {
+      jest
+        .spyOn(repository, 'find')
+        .mockResolvedValue([{ ...mockSamlConfig, disablePasswordLogin: true }]);
+      jest.spyOn(repository, 'save').mockResolvedValue(mockSamlConfig);
+
+      await service.disableSaml();
+
+      expect(repository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          enabled: false,
+          disablePasswordLogin: false,
+        }),
+      );
+    });
+
+    it('should leave the cached configuration unchanged when saving fails', async () => {
+      const cached = { ...mockSamlConfig, disablePasswordLogin: true };
+      jest.spyOn(repository, 'find').mockResolvedValue([cached]);
+      jest.spyOn(repository, 'save').mockRejectedValue(new Error('db down'));
+
+      await expect(service.disableSaml()).rejects.toThrow('db down');
+
+      expect(cached).toMatchObject({
+        enabled: true,
+        disablePasswordLogin: true,
+      });
+      await expect(service.isPasswordLoginAllowed()).resolves.toBe(false);
     });
 
     it('should throw error when configuration does not exist', async () => {
@@ -849,13 +879,31 @@ describe('SamlService', () => {
       });
 
       it('should return false when password login is disabled', async () => {
-        const config = { ...mockSamlConfig, disablePasswordLogin: true };
+        const config = {
+          ...mockSamlConfig,
+          enabled: true,
+          disablePasswordLogin: true,
+        };
         jest.spyOn(repository, 'find').mockResolvedValue([config]);
         jest.spyOn(configService, 'get').mockReturnValue('false'); // FORCE_ENABLE_PASSWORD_LOGIN
 
         const result = await service.isPasswordLoginAllowed();
 
         expect(result).toBe(false);
+      });
+
+      it('should return true when password login is hidden but SAML is disabled', async () => {
+        const config = {
+          ...mockSamlConfig,
+          enabled: false,
+          disablePasswordLogin: true,
+        };
+        jest.spyOn(repository, 'find').mockResolvedValue([config]);
+        jest.spyOn(configService, 'get').mockReturnValue('false'); // FORCE_ENABLE_PASSWORD_LOGIN
+
+        const result = await service.isPasswordLoginAllowed();
+
+        expect(result).toBe(true);
       });
 
       it('should return true when FORCE_ENABLE_PASSWORD_LOGIN is set', async () => {

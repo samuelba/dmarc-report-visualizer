@@ -157,6 +157,29 @@ describe('SamlSettingsComponent', () => {
     expect(authService.disableSaml).toHaveBeenCalled();
   });
 
+  it('should say password login comes back only when it is hidden', () => {
+    authService.disableSaml.mockReturnValue(of(void 0));
+    const dialogMessage = (config: SamlConfigResponse): string => {
+      authService.getSamlConfig.mockReturnValue(of(config));
+      component.config.set(config);
+      dialog.open.mockClear();
+      component.toggleSaml({ checked: false, source: { checked: false } });
+      return (dialog.open.mock.calls[0][1] as any).data.message;
+    };
+
+    expect(dialogMessage({ ...mockConfig, disablePasswordLogin: true })).toContain('Password login is turned back on');
+    expect(dialogMessage(mockConfig)).not.toContain('Password login is turned back on');
+  });
+
+  it('should explain that password login works while SAML is disabled', () => {
+    authService.getSamlConfig.mockReturnValue(of({ ...mockConfig, enabled: false, disablePasswordLogin: true }));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('SAML is disabled, so password login is allowed anyway');
+    expect(text).not.toContain('All users must authenticate via SSO');
+  });
+
   // TODO: This test doesn't match the actual implementation which uses
   // authService.initiateSamlTest() + token validation, not direct window.open
   it.skip('should test SAML login', () => {

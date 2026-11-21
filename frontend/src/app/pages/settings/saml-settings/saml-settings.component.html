@@ -317,14 +317,14 @@
               </mat-slide-toggle>
 
               @if (config()!.disablePasswordLogin) {
-                <app-message type="warning" icon="warning">
-                  Password-based login is disabled. All users must authenticate via SSO. The password login form is
-                  hidden on the login page.
-                </app-message>
-                @if (!config()!.enabled) {
+                @if (config()!.enabled) {
+                  <app-message type="warning" icon="warning">
+                    Password-based login is disabled. All users must authenticate via SSO. The password login form is
+                    hidden on the login page.
+                  </app-message>
+                } @else {
                   <app-message type="info" icon="info">
-                    <strong>Note:</strong> You can re-enable password login even though SAML is disabled. This allows
-                    recovery if SAML configuration needs to be fixed.
+                    SAML is disabled, so password login is allowed anyway. Turn this switch off to clear the setting.
                   </app-message>
                 }
               } @else {

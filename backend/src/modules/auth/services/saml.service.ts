@@ -381,8 +381,11 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException('SAML configuration not found');
     }
 
-    config.enabled = false;
-    await this.samlConfigRepository.save(config);
+    await this.samlConfigRepository.save({
+      ...config,
+      enabled: false,
+      disablePasswordLogin: false,
+    });
     this.invalidateConfigCache();
   }
 
@@ -843,8 +846,8 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Check if password-based login is allowed
-   * Returns true if password login is allowed, false if disabled
-   * Respects FORCE_ENABLE_PASSWORD_LOGIN environment variable override
+   * Returns true when SAML is not configured or disabled, or the password login
+   * setting allows it. Respects the FORCE_ENABLE_PASSWORD_LOGIN override.
    * @returns True if password login is allowed
    */
   async isPasswordLoginAllowed(): Promise<boolean> {
@@ -867,8 +870,7 @@ export class SamlService implements OnModuleInit, OnModuleDestroy {
       return true;
     }
 
-    // Return opposite of disablePasswordLogin flag
-    return !config.disablePasswordLogin;
+    return !config.enabled || !config.disablePasswordLogin;
   }
 
   /**
