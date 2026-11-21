@@ -146,10 +146,11 @@ export class SamlTestStrategy extends PassportStrategy(Strategy, 'saml-test') {
         // All errors (including certificate validation errors from createFreshSamlInstance)
         // are handled here uniformly
         this.logger.error('SAML Test Mode: Configuration load failed', error);
-        if (error instanceof UnauthorizedException) {
-          throw error;
-        }
-        throw new UnauthorizedException(`SAML test failed: ${error.message}`);
+        this.error(
+          error instanceof UnauthorizedException
+            ? error
+            : new UnauthorizedException(`SAML test failed: ${error.message}`),
+        );
       });
   }
 

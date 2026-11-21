@@ -270,7 +270,8 @@ export class SamlSettingsComponent implements OnInit, OnDestroy {
         data: {
           title: 'Disable SAML Authentication',
           message:
-            'Are you sure you want to disable SAML authentication? Users will not be able to sign in with SSO until it is re-enabled.',
+            'Are you sure you want to disable SAML authentication? Users will not be able to sign in with SSO until it is re-enabled.' +
+            (currentConfig.disablePasswordLogin ? ' Password login is turned back on.' : ''),
           confirmText: 'Disable',
           cancelText: 'Cancel',
           confirmColor: 'warn',

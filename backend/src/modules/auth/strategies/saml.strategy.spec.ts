@@ -178,6 +178,80 @@ describe('SamlStrategy', () => {
         mockSamlConfig.spAcsUrl,
       );
     });
+
+    describe('errors', () => {
+      const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+      let reportedError: jest.Mock;
+
+      beforeEach(() => {
+        reportedError = jest.fn();
+        (strategy as any).error = reportedError;
+      });
+
+      it('should reject a callback POST without a SAML response', async () => {
+        const parentAuthenticate = jest
+          .spyOn(Object.getPrototypeOf(SamlStrategy.prototype), 'authenticate')
+          .mockImplementation(() => undefined);
+        parentAuthenticate.mockClear();
+
+        strategy.authenticate({ method: 'POST', body: {} });
+        await flush();
+
+        expect(parentAuthenticate).not.toHaveBeenCalled();
+        expect(reportedError).toHaveBeenCalledWith(
+          expect.any(UnauthorizedException),
+        );
+      });
+
+      it('should report a failed config load instead of throwing', async () => {
+        jest
+          .spyOn(samlService, 'getConfig')
+          .mockRejectedValue(new Error('db down'));
+
+        strategy.authenticate({ method: 'GET' });
+        await flush();
+
+        expect(reportedError).toHaveBeenCalledWith(
+          new UnauthorizedException('SAML authentication failed: db down'),
+        );
+      });
+
+      it('should turn a SAML library error into a 401', async () => {
+        jest.spyOn(samlService, 'getConfig').mockResolvedValue(mockSamlConfig);
+        jest
+          .spyOn(Object.getPrototypeOf(SamlStrategy.prototype), 'authenticate')
+          .mockImplementation(function (this: SamlStrategy) {
+            (this as any).error(new Error('Not a valid XML document'));
+          });
+
+        strategy.authenticate({
+          method: 'POST',
+          body: { SAMLResponse: 'garbage' },
+        });
+        await flush();
+
+        expect(reportedError).toHaveBeenCalledWith(
+          new UnauthorizedException(
+            'SAML authentication failed: Not a valid XML document',
+          ),
+        );
+      });
+
+      it('should pass HTTP exceptions through unchanged', async () => {
+        const original = new UnauthorizedException('User creation failed');
+        jest.spyOn(samlService, 'getConfig').mockResolvedValue(mockSamlConfig);
+        jest
+          .spyOn(Object.getPrototypeOf(SamlStrategy.prototype), 'authenticate')
+          .mockImplementation(function (this: SamlStrategy) {
+            (this as any).error(original);
+          });
+
+        strategy.authenticate({ method: 'GET' });
+        await flush();
+
+        expect(reportedError).toHaveBeenCalledWith(original);
+      });
+    });
   });
 
   describe('validate', () => {

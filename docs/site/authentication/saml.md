@@ -35,4 +35,4 @@ The identity provider is whatever speaks SAML 2.0. The app does not ship Authent
 
 SAML users do not get an app-side TOTP.
 
-Turning SAML off does not bring the password form back. If password login is hidden, show it again before you disable SAML, or nobody can sign in. `FORCE_ENABLE_PASSWORD_LOGIN=true` is the escape hatch if that happens.
+Turning SAML off shows the password form again and clears the setting that hid it. If you turn SAML back on, hide password login again yourself. `FORCE_ENABLE_PASSWORD_LOGIN=true` is the escape hatch when SAML is on but the identity provider is broken.
