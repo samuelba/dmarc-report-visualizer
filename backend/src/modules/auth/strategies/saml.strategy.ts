@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import {
   Strategy,
@@ -13,6 +18,12 @@ import {
 } from '../../../config/auth.config';
 import { SamlService } from '../services/saml.service';
 import { User } from '../entities/user.entity';
+
+function toSamlAuthError(error: Error): HttpException {
+  return error instanceof HttpException
+    ? error
+    : new UnauthorizedException(`SAML authentication failed: ${error.message}`);
+}
 
 /**
  * SAML Strategy for Passport authentication
@@ -81,8 +92,15 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
    * This is called before the SAML flow begins
    */
   authenticate(req: any, options?: any): void {
+    const reportError = this.error.bind(this);
+    this.error = (error: Error) => reportError(toSamlAuthError(error));
+
     // Check if this is a callback (POST with SAMLResponse) or login initiation (GET)
     const isCallback = req.method === 'POST' && req.body?.SAMLResponse;
+    if (req.method === 'POST' && !isCallback) {
+      this.error(new UnauthorizedException('SAML response is missing'));
+      return;
+    }
 
     // Check if this is a test mode callback (RelayState contains testMode=true)
     const relayState = req.body?.RelayState || '';
@@ -148,16 +166,7 @@ export class SamlStrategy extends PassportStrategy(Strategy, 'saml') {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         super.authenticate(req, options);
       })
-      .catch((error) => {
-        // All errors (including certificate validation errors from createFreshSamlInstance)
-        // are handled here uniformly
-        if (error instanceof UnauthorizedException) {
-          throw error;
-        }
-        throw new UnauthorizedException(
-          `SAML authentication failed: ${error.message}`,
-        );
-      });
+      .catch((error: Error) => this.error(error));
   }
 
   /**

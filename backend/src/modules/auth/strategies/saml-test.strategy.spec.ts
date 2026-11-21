@@ -88,6 +88,21 @@ describe('SamlTestStrategy', () => {
   });
 
   describe('authenticate', () => {
+    it('should report a failed config load instead of throwing', async () => {
+      const reportedError = jest.fn();
+      (strategy as any).error = reportedError;
+      jest
+        .spyOn(samlService, 'getConfigFresh')
+        .mockRejectedValue(new Error('db down'));
+
+      strategy.authenticate({} as any);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(reportedError).toHaveBeenCalledWith(
+        new UnauthorizedException('SAML test failed: db down'),
+      );
+    });
+
     it('should load fresh configuration from database and generate nonce', async () => {
       jest
         .spyOn(samlService, 'getConfigFresh')
