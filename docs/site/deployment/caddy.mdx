@@ -1,0 +1,26 @@
+---
+title: Caddy
+description: Terminate HTTPS with Caddy in the same Compose file.
+sidebar:
+  order: 12
+---
+
+import { Code } from '@astrojs/starlight/components';
+import compose from '../../examples/caddy/compose.yml?raw';
+import caddyfile from '../../examples/caddy/Caddyfile?raw';
+
+Caddy is another proxy in front of the bundled nginx, so the example uses `TRUST_PROXY=2` and does not publish the frontend port. Like the [Traefik](/dmarc-visualizer/docs/deployment/traefik/) example, it derives `FRONTEND_URL`, `CORS_ORIGINS`, and `SAML_ACS_URL` from `PUBLIC_HOST` and leaves `COOKIE_DOMAIN` empty.
+
+`{$PUBLIC_HOST}` in the Caddyfile is Caddy's own environment syntax. The Compose service passes `PUBLIC_HOST` to that container. Caddy obtains the certificate and proxies to `frontend:80`. Port `443/udp` is published for HTTP/3.
+
+```bash
+cp examples/caddy/.env.example examples/caddy/.env
+# fill in the secrets and PUBLIC_HOST
+docker compose --env-file examples/caddy/.env -f examples/caddy/compose.yml up -d
+```
+
+Create the administrator right after the first start. `/setup` accepts the first visitor.
+
+<Code code={caddyfile} lang="txt" title="Caddyfile" />
+
+<Code code={compose} lang="yaml" title="examples/caddy/compose.yml" />

@@ -1,0 +1,222 @@
+services:
+  caddy:
+    image: caddy:2
+    container_name: dmarc-caddy
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - dmarc-network
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dmarc-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-dmarc}
+    volumes:
+      - dmarc_postgres_data:/var/lib/postgresql/data
+    networks:
+      - dmarc-network
+    restart: unless-stopped
+
+  # Enable Redis if using SAML/SSO or SMTP features
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: dmarc-redis
+  #   ports:
+  #     - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+  #   environment:
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #   volumes:
+  #     - dmarc_redis_data:/data
+  #   networks:
+  #     - dmarc-network
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+
+  backend:
+    image: ghcr.io/samuelba/dmarc-report-visualizer/dmarc-backend:latest
+    container_name: dmarc-backend
+    environment:
+      # Application Configuration
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      # Number of reverse proxies in front of the backend (see docs/site/authentication/rate-limiting.md)
+      TRUST_PROXY: ${TRUST_PROXY:-2}
+
+      # Database Configuration
+      DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?set DATABASE_PASSWORD in .env (same value as POSTGRES_PASSWORD)}
+      DATABASE_NAME: ${DATABASE_NAME:-dmarc}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_MIGRATIONS_RUN: ${DB_MIGRATIONS_RUN:-true}
+
+      # Backup Configuration
+      BACKUP_DIR: ${BACKUP_DIR:-/app/backups}
+      BACKUP_MANDATORY: ${BACKUP_MANDATORY:-true}
+      BACKUP_KEEP_COUNT: ${BACKUP_KEEP_COUNT:-10}
+
+      # CORS Configuration
+
+      # MCP Server: read-only AI access with personal API tokens (off by default, see docs/site/usage/mcp.md)
+      MCP_ENABLED: ${MCP_ENABLED:-false}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+      MCP_RATE_LIMIT_PER_MIN: ${MCP_RATE_LIMIT_PER_MIN:-60}
+      API_TOKEN_MAX_TTL_DAYS: ${API_TOKEN_MAX_TTL_DAYS:-365}
+
+      # Reprocessing Configuration
+      REPROCESSING_WORKERS: ${REPROCESSING_WORKERS:-}
+
+      # Report Size Limits (see docs/site/ingestion/report-limits.md)
+      REPORT_MAX_FILE_BYTES: ${REPORT_MAX_FILE_BYTES:-10485760}
+      REPORT_MAX_UNCOMPRESSED_BYTES: ${REPORT_MAX_UNCOMPRESSED_BYTES:-52428800}
+      REPORT_MAX_ZIP_ENTRIES: ${REPORT_MAX_ZIP_ENTRIES:-10}
+      REPORT_MAX_RECORDS: ${REPORT_MAX_RECORDS:-50000}
+      REPORT_MAX_MESSAGE_BYTES: ${REPORT_MAX_MESSAGE_BYTES:-26214400}
+      REPORT_FAILURE_ARCHIVE_MAX_FILES: ${REPORT_FAILURE_ARCHIVE_MAX_FILES:-500}
+
+      # Report Sender Authentication (see docs/site/ingestion/sender-authentication.md)
+      REPORT_SENDER_AUTH: ${REPORT_SENDER_AUTH:-flag}
+      REPORT_TRUSTED_ARC_SEALERS: ${REPORT_TRUSTED_ARC_SEALERS:-}
+      REPORT_RELAY_DOMAINS: ${REPORT_RELAY_DOMAINS:-}
+
+      # File Watcher Configuration
+      ENABLE_FILE_WATCHER: ${ENABLE_FILE_WATCHER:-false}
+      FILE_WATCH_DIR: ${FILE_WATCH_DIR:-reports/incoming}
+      FILE_WATCH_DELETE_PROCESSED: ${FILE_WATCH_DELETE_PROCESSED:-true}
+      FILE_WATCH_VERBOSE: ${FILE_WATCH_VERBOSE:-false}
+
+      # Gmail Downloader Configuration
+      ENABLE_GMAIL_DOWNLOADER: ${ENABLE_GMAIL_DOWNLOADER:-false}
+      GMAIL_AUTH_MODE: ${GMAIL_AUTH_MODE:-oauth}
+
+      # Gmail OAuth Configuration
+      GMAIL_OAUTH_CLIENT_ID: ${GMAIL_OAUTH_CLIENT_ID:-}
+      GMAIL_OAUTH_CLIENT_SECRET: ${GMAIL_OAUTH_CLIENT_SECRET:-}
+      GMAIL_OAUTH_REFRESH_TOKEN: ${GMAIL_OAUTH_REFRESH_TOKEN:-}
+      GMAIL_OAUTH_REDIRECT_URI: ${GMAIL_OAUTH_REDIRECT_URI:-http://localhost}
+
+      # Gmail Service Account Configuration
+      GMAIL_CLIENT_EMAIL: ${GMAIL_CLIENT_EMAIL:-}
+      GMAIL_PRIVATE_KEY: ${GMAIL_PRIVATE_KEY:-}
+      GMAIL_DELEGATED_USER: ${GMAIL_DELEGATED_USER:-}
+      GMAIL_CREDENTIALS_JSON_PATH: ${GMAIL_CREDENTIALS_JSON_PATH:-}
+
+      # Gmail Labels Configuration
+      GMAIL_LABEL: ${GMAIL_LABEL:-DMARC Reports}
+      GMAIL_PROCESSED_LABEL: ${GMAIL_PROCESSED_LABEL:-DMARC Processed}
+      GMAIL_FAILED_LABEL: ${GMAIL_FAILED_LABEL:-DMARC Failed}
+
+      # Gmail Processing Configuration
+      GMAIL_POLL_INTERVAL_MS: ${GMAIL_POLL_INTERVAL_MS:-300000}
+      GMAIL_LIST_PAGE_SIZE: ${GMAIL_LIST_PAGE_SIZE:-100}
+      GMAIL_QUERY: ${GMAIL_QUERY:-}
+      GMAIL_PROCESS_INLINE: ${GMAIL_PROCESS_INLINE:-true}
+      GMAIL_SAVE_ORIGINAL: ${GMAIL_SAVE_ORIGINAL:-false}
+      GMAIL_REMOVE_SOURCE_LABEL: ${GMAIL_REMOVE_SOURCE_LABEL:-true}
+      GMAIL_FAILURE_THRESHOLD: ${GMAIL_FAILURE_THRESHOLD:-3}
+
+      # IMAP Downloader Configuration
+      ENABLE_IMAP_DOWNLOADER: ${ENABLE_IMAP_DOWNLOADER:-false}
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_PORT: ${IMAP_PORT:-993}
+      IMAP_USER: ${IMAP_USER:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      IMAP_TLS: ${IMAP_TLS:-true}
+      IMAP_TLS_REJECT_UNAUTHORIZED: ${IMAP_TLS_REJECT_UNAUTHORIZED:-true}
+      IMAP_MAILBOX: ${IMAP_MAILBOX:-INBOX}
+      IMAP_SEARCH_CRITERIA: ${IMAP_SEARCH_CRITERIA:-UNSEEN}
+      IMAP_PROCESSED_FOLDER: ${IMAP_PROCESSED_FOLDER:-}
+      IMAP_FAILED_FOLDER: ${IMAP_FAILED_FOLDER:-}
+      IMAP_POLL_INTERVAL_MS: ${IMAP_POLL_INTERVAL_MS:-300000}
+      IMAP_PROCESS_INLINE: ${IMAP_PROCESS_INLINE:-true}
+      IMAP_SAVE_ORIGINAL: ${IMAP_SAVE_ORIGINAL:-false}
+      IMAP_FAILURE_THRESHOLD: ${IMAP_FAILURE_THRESHOLD:-3}
+
+      # IP Lookup Configuration
+      IP_LOOKUP_PROVIDER: ${IP_LOOKUP_PROVIDER:-ip-api}
+      IPLOCATE_API_KEY: ${IPLOCATE_API_KEY}
+      IPAPICO_API_KEY: ${IPAPICO_API_KEY}
+      IPWHOIS_API_KEY: ${IPWHOIS_API_KEY}
+      IP_LOOKUP_FALLBACK_PROVIDERS: ${IP_LOOKUP_FALLBACK_PROVIDERS:-ipwhois,ip-api,ipapi-co,geoip-lite}
+      IP_LOOKUP_CACHE_DAYS: ${IP_LOOKUP_CACHE_DAYS:-14}
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -base64 48)}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-30d}
+      # Optional: decouples 2FA secrets from JWT_SECRET (see docs/site/deployment/secrets.md)
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-}
+
+      # Password Configuration
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+
+      # Rate Limiting Configuration
+      RATE_LIMIT_IP_MAX_ATTEMPTS: ${RATE_LIMIT_IP_MAX_ATTEMPTS:-10}
+      RATE_LIMIT_IP_WINDOW_MS: ${RATE_LIMIT_IP_WINDOW_MS:-300000}
+      RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS: ${RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS:-5}
+      RATE_LIMIT_ACCOUNT_WINDOW_MS: ${RATE_LIMIT_ACCOUNT_WINDOW_MS:-300000}
+      RATE_LIMIT_LOCK_DURATION_MS: ${RATE_LIMIT_LOCK_DURATION_MS:-900000}
+
+      # Cookie Configuration
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+
+      # Redis Configuration (enable if using SAML/SSO or SMTP features)
+      # REDIS_HOST: ${REDIS_HOST:-redis}
+      # REDIS_PORT: ${REDIS_PORT:-6379}
+      # REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      # SAML Configuration
+      SAML_ENTITY_ID: ${SAML_ENTITY_ID:-dmarc-app}
+      SAML_ACS_URL: ${SAML_ACS_URL:-https://${PUBLIC_HOST:?set PUBLIC_HOST in .env}/api/auth/saml/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-https://${PUBLIC_HOST:?set PUBLIC_HOST in .env}}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://${PUBLIC_HOST:?set PUBLIC_HOST in .env}}
+
+      # SMTP Configuration
+      SMTP_ENCRYPTION_KEY: ${SMTP_ENCRYPTION_KEY:-your-smtp-encryption-key}
+    depends_on:
+      - postgres
+      # Enable Redis if using SAML/SSO or SMTP features
+      # - redis
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./backups:/app/backups
+    networks:
+      - dmarc-network
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/samuelba/dmarc-report-visualizer/dmarc-frontend:latest
+    container_name: dmarc-frontend
+    depends_on:
+      - backend
+    networks:
+      - dmarc-network
+    restart: unless-stopped
+
+networks:
+  dmarc-network:
+    driver: bridge
+
+volumes:
+  dmarc_postgres_data:
+  # Redis database storage (enable if using SAML/SSO or SMTP features)
+  # dmarc_redis_data:
+  caddy_data:
+  caddy_config:

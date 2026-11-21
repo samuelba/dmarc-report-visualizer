@@ -1,0 +1,39 @@
+---
+title: Traefik
+description: Terminate HTTPS with Traefik and set the proxy hop count to 2.
+sidebar:
+  order: 11
+---
+
+import { Aside, Code } from '@astrojs/starlight/components';
+import compose from '../../examples/traefik/compose.yml?raw';
+
+Traefik is a second proxy in front of the bundled nginx, so the backend must see two hops:
+
+```text
+browser -> Traefik -> frontend nginx -> backend
+TRUST_PROXY=2
+```
+
+The example does not publish the frontend port. Traefik reaches it on the Docker network, requests a certificate with the HTTP challenge, and redirects port 80 to HTTPS on the router (not on the entrypoint, so the challenge still works).
+
+Set `PUBLIC_HOST` to the hostname you will use and `ACME_EMAIL` to the address for Let's Encrypt. Compose refuses to start without them. From `PUBLIC_HOST` the example derives:
+
+- `FRONTEND_URL` and `CORS_ORIGINS` as `https://` plus that host, with no trailing slash.
+- `SAML_ACS_URL` as `https://<host>/api/auth/saml/callback`. The stock `docker-compose.yml` comments out the SAML variables, so a value in `.env` never reaches the container. This example passes them. You still turn SAML on in the UI. See [SAML](/dmarc-visualizer/docs/authentication/saml/).
+
+Set any of these in `.env` to override them. `COOKIE_DOMAIN` stays empty, so the cookie is bound to the host in the address bar. `COOKIE_SECURE=true`, so the site must be HTTPS or the browser drops the cookie.
+
+<Aside type="caution">
+  `TRUST_PROXY=1` behind Traefik makes every login look like it came from Traefik. One attacker can then lock the login for everyone. `true` is rejected at startup.
+</Aside>
+
+```bash
+cp examples/traefik/.env.example examples/traefik/.env
+# fill in the secrets, PUBLIC_HOST, and ACME_EMAIL
+docker compose --env-file examples/traefik/.env -f examples/traefik/compose.yml up -d
+```
+
+The site is public as soon as the certificate is issued. Open it right away and create the administrator, because `/setup` accepts the first visitor. See [Quick start](/dmarc-visualizer/docs/getting-started/quick-start/#3-create-the-administrator).
+
+<Code code={compose} lang="yaml" title="examples/traefik/compose.yml" />

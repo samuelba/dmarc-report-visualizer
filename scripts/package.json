@@ -1,0 +1,14 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Helper to obtain a Gmail API refresh token",
+  "main": "oauth_get_refresh_token.js",
+  "scripts": {
+    "oauth_get_refresh_token": "node oauth_get_refresh_token.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "googleapis": "^160.0.0"
+  }
+}

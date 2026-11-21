@@ -1,65 +1,29 @@
 # DMARC Report Visualizer
 
 <p align="center">
-  <img src="docs/screenshots/dmarc-logo.svg" width="150" height="150" alt="DMARC Report Visualizer Logo">
+  <img src="docs/site/assets/dmarc-logo.svg" width="150" height="150" alt="DMARC Report Visualizer Logo">
 </p>
 
-A web application to visualize DMARC reports, built with NestJS (backend) and Angular (frontend).
+A web application to visualize DMARC aggregate reports, built with NestJS and Angular.
+
+Documentation: <https://samuelba.dev/dmarc-visualizer/docs/>
 
 | Dashboard | Dashboard Map |
 | --- | --- |
-| ![Dashboard Screenshot](docs/screenshots/dashboard.png) | ![Dashboard Map Screenshot](docs/screenshots/dashboard_map.png) |
+| ![Dashboard Screenshot](docs/site/assets/dashboard.png) | ![Dashboard Map Screenshot](docs/site/assets/dashboard_map.png) |
 
 | Explore Reports | Report Raw XML |
 | --- | --- |
-| ![Explore Reports Screenshot](docs/screenshots/explore.png) | ![Report Raw XML Screenshot](docs/screenshots/explore_xml.png) |
+| ![Explore Reports Screenshot](docs/site/assets/explore.png) | ![Report Raw XML Screenshot](docs/site/assets/explore_xml.png) |
 
-## Quick Start
+## Quick start
 
-1) Copy the `.env.sample` file to `.env` and adjust as needed. `docker compose` refuses to start until `POSTGRES_PASSWORD`, `DATABASE_PASSWORD` (the same value) and `JWT_SECRET` are set. Generate each with:
+1. Copy `.env.sample` to `.env`. Set `POSTGRES_PASSWORD`, `DATABASE_PASSWORD` (the same value), and `JWT_SECRET`. Generate each with `openssl rand -base64 48`.
+2. `docker compose pull && docker compose up -d`
+3. Open the UI and create the administrator account.
 
-    ```bash
-    openssl rand -base64 48
-    ```
+The UI is at `http://localhost` (or `FRONTEND_PORT`). Postgres and the API are not published. Put Traefik, Caddy, nginx, or a Cloudflare Tunnel in front when the site is public. The manual has a Compose file for each.
 
-    Also set `TOTP_ENCRYPTION_KEY` (generated the same way) so 2FA does not depend on `JWT_SECRET`. Without it, changing `JWT_SECRET` later breaks existing 2FA enrolments. See [SECRETS.md](docs/SECRETS.md).
+## Development
 
-2) Download the docker images
-
-    ```bash
-    docker compose pull
-    ```
-
-3) Start the services
-
-    ```bash
-    docker compose up -d
-    ```
-
-    - Frontend runs at `http://localhost:80` or what is set in `FRONTEND_PORT`, and proxies `/api` to the backend
-    - The backend and Postgres are only reachable inside the Docker network. To reach them from the host, see `docker-compose.override.yml.example`
-    - If another reverse proxy sits in front of the frontend, set `TRUST_PROXY=2` (see [AUTHENTICATION_DEPLOYMENT.md](docs/AUTHENTICATION_DEPLOYMENT.md#5-rate-limiting))
-
-4) **Initial Setup**: On first launch, navigate to the frontend URL. You'll be automatically redirected to the setup page where you can create your initial administrator account.
-
-## Features
-
-- Visualize DMARC reports with interactive charts and maps
-- Explore individual reports and view raw XML data
-- Filter reports
-- Upload reports via web interface
-- Directory watcher to auto-import reports from a specified folder
-- Gmail integration to download reports from email attachments
-- IMAP integration to download reports from email attachments - See [IMAP_DOWNLOADER.md](docs/IMAP_DOWNLOADER.md) for details
-- Size limits against decompression bombs and oversized reports on every ingestion path - See [REPORT_LIMITS.md](docs/REPORT_LIMITS.md)
-- Sender authentication of emailed reports (DKIM and ARC), so forged reports cannot overwrite real ones - See [REPORT_SENDER_AUTH.md](docs/REPORT_SENDER_AUTH.md)
-- Automatic database backups before migrations - See [BACKUP_SYSTEM.md](docs/BACKUP_SYSTEM.md) for details
-- Authentication (username/password with optional 2FA or SAML/SSO) - See [AUTHENTICATION_DEPLOYMENT.md](docs/AUTHENTICATION_DEPLOYMENT.md) for production setup and [SECRETS.md](docs/SECRETS.md) for the secrets it needs
-- User management
-- Optional read-only MCP server so AI assistants such as Claude can query your DMARC data, with personal, revocable API tokens (off by default) - See [MCP.md](docs/MCP.md) for details
-- SMTP email service for sending user invitations and notifications - See [EMAIL_SMTP.md](docs/EMAIL_SMTP.md) for details
-
-## IP Lookup Service
-
-The IP Lookup Service enriches DMARC reports with geolocation data (country, city, ISP, organization) based on source IP addresses. It supports multiple providers with fallback mechanisms and rate limiting.
-For detailed documentation, see [IP_LOOKUP.md](docs/IP_LOOKUP.md).
+See [DEVELOPMENT.md](DEVELOPMENT.md). `npm run docs:preview -- <path-to-samuelba-website>` renders the manual locally.

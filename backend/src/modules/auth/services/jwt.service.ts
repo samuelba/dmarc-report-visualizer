@@ -35,7 +35,7 @@ export class JwtService {
     const weakness = findJwtSecretWeakness(secret);
     if (weakness) {
       this.logger.error(
-        `${weakness} Generate a new one with "openssl rand -base64 48". Read docs/SECRETS.md before changing it on an existing installation.`,
+        `${weakness} Generate a new one with "openssl rand -base64 48". Read docs/site/deployment/secrets.md before changing it on an existing installation.`,
       );
     }
 
